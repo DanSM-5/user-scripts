@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+
+# set -x
+
+# Using linux default
+chromium="${CHROMIUM:-/usr/bin/chromium-browser}"
+device_ip="${SAMSUNG_DEVICE_IP}"
+
+# Device to connect
+device_id=""
+
+# Detect windows
+if command -v cmd.exe &> /dev/null; then
+  # It is running on windows
+  # Create temporal wrappers for tizen and sdb
+  case $(uname) in 
+    Linux*) # WSL
+      tizen () {
+        cmd.exe /c tizen "$@"
+      }
+
+      sdb () {
+        cmd.exe /c sdb "$@"
+      }
+      ;;
+    *NT*) # Git bash
+      tizen () {
+        cmd.exe //c tizen "$@"
+      }
+
+      sdb () {
+        cmd.exe //c sdb "$@"
+      }
+      ;;
+  esac
+fi
+
+tizen_help () {
+  while read -r line; do
+		printf "  %s\n" "$line"
+	done <<-EOF
+
+  Tizen helper for CLI use
+
+  Tizen syntax:
+    Package:
+      - tizen security-profiles add -n [profile-name] -a author.p12 -p [password]
+      - tizen package -t wgt [-s profile-name]
+
+    Connect:
+      - sdb connect [device-ip]
+      - sdb disconnect [device-ip]
+
+    Server:
+      - sdb start-server
+      - sdb kill-server
+
+    Install: (use wgt location)
+      - tizen install -n [wgt-name]
+      - tizen uninstall -p [app-id]
+
+    Debug:
+      - sdb shell 0 debug [app-id]
+      - sdb forward tcp:[port] tcp:[port]
+
+    Restart app (javascript)
+      - tizen.application.launch([app-id])
+
+  Commands:
+    - install 
+    - uninstall
+    - debug 
+    - connect
+    - disconnect
+    - info
+    - help
+
+	Usage:
+    ${0##*/} install [ wgt-name ]
+    ${0##*/} uninstall [ app-id | wgt-name ]
+    ${0##*/} debug [ app-id | wgt-name ]
+    ${0##*/} connect
+    ${0##*/} disconnect
+    ${0##*/} info
+    ${0##*/} help
+
+	Options:
+    -h|--help          Print this message
+
+EOF
+}
+
+show_current () {
+  echo "Chromium: $chromium"
+  echo "Device IP: $device_ip"
+  echo ""
+  echo "tizen version output:"
+  tizen version
+  echo ""
+  echo "sdb version output:"
+  sdb version
+}
+
+start_connection () {
+  echo ""
+  echo Connecting to "$device_ip"...
+  sdb connect $device_ip
+}
+
+close_connection () {
+  if [ -z "$device_id" ]; then
+    set_device_id
+  fi
+
+  echo ""
+  echo Disconnection from device $device_id at $device_ip...
+  sdb disconnect $device_ip
+}
+
+start_deamon () {
+  echo ""
+  echo Starting sdb server...
+  sdb start-server
+}
+
+end_deamon () {
+  echo ""
+  echo Stopping sdb server...
+  sdb kill-server
+}
+
+set_device_id () {
+  echo ""
+  echo Setting device id
+  device_id=$(sdb devices | awk 'NR == 1, ! /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:/ { next } { print $3 }' | tr -d '[:space:]')
+  echo DeviceID: $device_id
+}
+
+# display an error message to stderr (in red)
+err () {
+	printf "\33[2K\r\033[1;31m%s\033[0m\n" "$*" >&2
+}
+
+#display error message and exit
+die () {
+	err "$*"
+	exit 1
+}
+
+get_app_id () {
+  local app_id=''
+  if [ -f "$1" ]; then
+    app_id="$(unzip -p $1 config.xml | sed -nr "s/.*tizen:application .*id=\"([a-zA-Z0-9\.]*)\" .*/\1/p")"
+  else
+    app_id="$1"
+  fi
+
+  if [ -z "$app_id" ]; then
+    die "Invalid app id provided"
+    return
+  fi
+
+  echo "$app_id"
+}
+
+tizen_install () {
+  local file_name="$1"
+  tizen install -n "$file_name"
+}
+
+tizen_uninstall () {
+  local app_id="$(get_app_id $1)"
+  tizen uninstall -p "$app_id"
+}
+
+tizen_debug () {
+  local app_id="$(get_app_id $1)"
+  # Launch sdb debug and capture port
+  local debug_port=$(sdb shell 0 debug "$app_id" | awk '{ print $11 }' | tr -d '[:space:]')
+  sdb forward tcp:$debug_port tcp:$debug_port
+  echo ""
+  echo Debug port available on "http://$device_ip:$debug_port"
+
+  if [ -f "$chromium" ] && [ -n "$device_ip" ]; then
+    echo opening chromium
+    $chromium "http://$device_ip:$debug_port"
+  fi
+}
+
+case "$1" in
+  connect)
+    start_deamon
+    start_connection
+    ;;
+  disconnect)
+    close_connection
+    end_deamon
+    ;;
+  install)
+    tizen_install "$2"
+    ;;
+  uninstall)
+    tizen_uninstall "$2"
+    ;;
+  debug)
+    start_deamon
+    start_connection
+    tizen_debug "$2"
+    ;;
+  info)
+    show_current    
+    ;;
+  -h|--help|help)
+    tizen_help
+    ;;
+  *)
+    echo
+    echo "Invalid command argument '${@}'"
+    tizen_help
+    ;;
+esac
+
