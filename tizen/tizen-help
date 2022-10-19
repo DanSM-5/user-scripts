@@ -17,7 +17,7 @@
 
 # Disable security flags if needed (all flags are required!)
 #   --disable-web-security
-#   --user-data-dir=/tmp/temporary-chrome-profile-dir
+#   --user-data-dir=/tmp/tmp-dev-dir
 #   --disable-site-isolation-trials
 
 # Using linux default
@@ -28,7 +28,7 @@ disable_web_security="${DISABLE_WEB_SECURITY:-false}"
 
 # Device to connect
 device_id=""
-tmp_dir_name="temporary-chrome-profile-dir"
+tmp_dir_name="tmp-dev-dir"
 
 get_temp_dir () {
   echo "/tmp/$tmp_dir_name"
@@ -37,31 +37,35 @@ get_temp_dir () {
 # Detect windows
 if command -v cmd.exe &> /dev/null; then
   # It is running on windows
-  # Create temporal wrappers for tizen and sdb
+
+  # Create function to call cmd.exe
   case $(uname) in 
     Linux*) # WSL
-      tizen () {
-        cmd.exe /c tizen "$@"
-      }
-
-      sdb () {
-        cmd.exe /c sdb "$@"
+      cmd () {
+        cmd.exe /c "$@"
       }
       ;;
     *NT*) # Git bash
-      tizen () {
-        cmd.exe //c tizen "$@"
-      }
-
-      sdb () {
-        cmd.exe //c sdb "$@"
+      cmd () {
+        cmd.exe //c "$@"
       }
       ;;
   esac
 
+  # Create temporal wrappers for tizen and sdb
+  tizen () {
+    cmd tizen "$@"
+  }
+
+  sdb () {
+    cmd sdb "$@"
+  }
+
   # Override for windows paths
   get_temp_dir () {
-    echo "%TEMP%/$tmp_dir_name"
+    # Handle backslash, scape special characters but allow non escaped spaces and remove trailing blanc characters (\r\n)
+    local tmp=$(printf "%q" $(cmd "echo %TEMP%" | sed 's/\\ / /g' | sed -e 's/[[:space:]]*$//'))
+    echo "$tmp/$tmp_dir_name"
   }
 fi
 
