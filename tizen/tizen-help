@@ -2,12 +2,37 @@
 
 # set -x
 
+# Common chrome/chromium location
+# mac
+#   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+#   '/Applications/Chromium.app/Contents/MacOS/Chromium'
+#
+# windows gitbash
+#   '$HOME/AppData/Local/Chromium/Application/chrome.exe'
+#   '/c/Program Files/Google/Chrome/Application/chrome.exe'
+#
+# windows wsl
+#   '/mnt/c/Users/[username]/AppData/Local/Chromium/Application/chrome.exe'
+#   '/mnt/c/Program Files/Google/Chrome/Application/chrome.exe'
+
+# Disable security flags if needed (all flags are required!)
+#   --disable-web-security
+#   --user-data-dir=/tmp/temporary-chrome-profile-dir
+#   --disable-site-isolation-trials
+
 # Using linux default
 chromium="${CHROMIUM:-/usr/bin/chromium-browser}"
 device_ip="${SAMSUNG_DEVICE_IP}"
+# Open browser web security disabled
+disable_web_security="${DISABLE_WEB_SECURITY:-false}"
 
 # Device to connect
 device_id=""
+tmp_dir_name="temporary-chrome-profile-dir"
+
+get_temp_dir () {
+  echo "/tmp/$tmp_dir_name"
+}
 
 # Detect windows
 if command -v cmd.exe &> /dev/null; then
@@ -33,6 +58,11 @@ if command -v cmd.exe &> /dev/null; then
       }
       ;;
   esac
+
+  # Override for windows paths
+  get_temp_dir () {
+    echo "%TEMP%/$tmp_dir_name"
+  }
 fi
 
 tizen_help () {
@@ -64,7 +94,7 @@ tizen_help () {
       - sdb forward tcp:[port] tcp:[port]
 
     Restart app (javascript)
-      - tizen.application.launch([app-id])
+      - tizen.application.launch("[app-id]")
 
   Commands:
     - install 
@@ -85,14 +115,35 @@ tizen_help () {
     ${0##*/} help
 
 	Options:
-    -h|--help          Print this message
+    -h | --help                   Print this message
+
+  Environment variables:
+    - CHROMIUM                    Path of the browser executable
+    - SAMSUNG_DEVICE_IP           IP Address of the device to connect to
+    - DISABLE_WEB_SECURITY        Start the browser with web security disabled [ true | false ]
 
 EOF
+}
+
+open_brwoser () {
+  local url="$1"
+  echo opening chromium
+  if [ "$disable_web_security" = true ]; then
+    "$chromium" \
+      --disable-web-security \
+      --user-data-dir="$(get_temp_dir)" \
+      --disable-site-isolation-trials \
+      "$url"
+  else
+    "$chromium" "$url"
+  fi
+
 }
 
 show_current () {
   echo "Chromium: $chromium"
   echo "Device IP: $device_ip"
+  echo "Disable web security: $disable_web_security"
   echo ""
   echo "tizen version output:"
   tizen version
@@ -102,6 +153,9 @@ show_current () {
 }
 
 start_connection () {
+  if [ -z "$device_ip" ]; then
+    die "Cannot proceed without a valid IP"
+  fi
   echo ""
   echo Connecting to "$device_ip"...
   sdb connect $device_ip
@@ -150,7 +204,7 @@ die () {
 get_app_id () {
   local app_id=''
   if [ -f "$1" ]; then
-    app_id="$(unzip -p $1 config.xml | sed -nr "s/.*tizen:application .*id=\"([a-zA-Z0-9\.]*)\" .*/\1/p")"
+    app_id="$(unzip -p "$1" config.xml | sed -nr "s/.*tizen:application .*id=\"([a-zA-Z0-9\.]*)\" .*/\1/p")"
   else
     app_id="$1"
   fi
@@ -174,16 +228,32 @@ tizen_uninstall () {
 }
 
 tizen_debug () {
+  if [ -z "$device_ip" ]; then
+    die "Cannot proceed without a valid IP"
+  fi
+
+
   local app_id="$(get_app_id $1)"
+
+  echo ""
+  echo "Start debugging for app id $app_id"
+
   # Launch sdb debug and capture port
   local debug_port=$(sdb shell 0 debug "$app_id" | awk '{ print $11 }' | tr -d '[:space:]')
-  sdb forward tcp:$debug_port tcp:$debug_port
-  echo ""
-  echo Debug port available on "http://$device_ip:$debug_port"
+  local url="http://$device_ip:$debug_port"
 
-  if [ -f "$chromium" ] && [ -n "$device_ip" ]; then
-    echo opening chromium
-    $chromium "http://$device_ip:$debug_port"
+  if [ -z "$debug_port" ]; then
+    die "Unable to launch the app $app_id in debug mode. Please verify that the app id is valid."
+  fi
+
+  # Connect tv debug port to pc port
+  sdb forward tcp:$debug_port tcp:$debug_port
+
+  echo ""
+  echo Debug port available on "$url"
+
+  if [ -f "$chromium" ]; then
+    open_brwoser "$url"
   fi
 }
 
