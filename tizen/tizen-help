@@ -64,7 +64,7 @@ if command -v cmd.exe &> /dev/null; then
   # Override for windows paths
   get_temp_dir () {
     # Handle backslash, scape special characters but allow non escaped spaces and remove trailing blanc characters (\r\n)
-    local tmp=$(printf "%q" $(cmd "echo %TEMP%" | sed 's/\\ / /g' | sed -e 's/[[:space:]]*$//'))
+    local tmp="$(printf "%q" $(cmd "echo %TEMP%" | sed 's/\\ / /g' | sed -e 's/[[:space:]]*$//'))"
     echo "$tmp/$tmp_dir_name"
   }
 fi
