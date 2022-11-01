@@ -30,8 +30,15 @@ disable_web_security="${DISABLE_WEB_SECURITY:-false}"
 device_id=""
 tmp_dir_name="tmp-dev-dir"
 
+starting_location="$(pwd)"
+move_files_back=false
+
 get_temp_dir () {
   echo "/tmp/$tmp_dir_name"
+}
+
+handle_wsl_path () {
+  :
 }
 
 # Detect windows
@@ -44,6 +51,33 @@ if command -v cmd.exe &> /dev/null; then
       cmd () {
         cmd.exe /c "$@"
       }
+
+      handle_wsl_path () {
+        local path="$1"
+        local temp="$(wslpath $(cmd "echo %TEMP%" | sed -e 's/[[:space:]]*$//'))"
+        local tizen_tmp="$temp/tizen-help"
+        move_files_back=true
+
+        if [ -f "$path" ]; then
+          if [ -f "$temp/$path" ]; then
+            rm "$temp/$path"
+          fi
+          local location="$(dirname "$path")"
+          mkdir -p "$temp/$location"
+
+          cp "$path" "$temp/$location"
+          cd "$temp"
+        elif [ -d "$path" ]; then
+          if [ -d "$tizen_tmp" ]; then
+            rm -rf "$temp/tizen-help"
+          fi
+
+          mkdir -p "$tizen_tmp/$path"
+          cp -r "$path/"* "$tizen_tmp/$path"
+          cd "$tizen_tmp"
+        fi
+      }
+
       ;;
     *NT*) # Git bash
       cmd () {
@@ -70,52 +104,38 @@ if command -v cmd.exe &> /dev/null; then
 fi
 
 tizen_help () {
-  while read -r line; do
+  while IFS= read -r line; do
 		printf "  %s\n" "$line"
 	done <<-EOF
 
   Tizen helper for CLI use
 
-  Tizen syntax:
-    Package:
-      - tizen security-profiles add -n [profile-name] -a author.p12 -p [password]
-      - tizen package -t wgt [-s profile-name]
-
-    Connect:
-      - sdb connect [device-ip]
-      - sdb disconnect [device-ip]
-
-    Server:
-      - sdb start-server
-      - sdb kill-server
-
-    Install: (use wgt location)
-      - tizen install -n [wgt-name]
-      - tizen uninstall -p [app-id]
-
-    Debug:
-      - sdb shell 0 debug [app-id]
-      - sdb forward tcp:[port] tcp:[port]
-
-    Restart app (javascript)
-      - tizen.application.launch("[app-id]")
-
   Commands:
-    - install 
-    - uninstall
-    - debug 
-    - connect
-    - disconnect
-    - info
-    - help
+    - install       > Install the app provided [wgt-path] in the target tv
+    - uninstall     > Uninstall the app in the tv. It accepts both [app-id] or [wgt-path]
+    - debug         > Start a debug session of the app that matches the [app-id] or [wgt-path].
+                      If CHROMIUM variable exitst, it will launch it the browser.
+                      If DISABLE_WEB_SECURITY is "true", it will use disable-web-security flag.
+    - build         > Builds a tizen project in the specified directory
+                      and outs the results in .buildResult located in the specified directory
+    - package       > Package a tizen app (wgt) in the directory specified
+    - connect       > Connect to the TV using the IP in SAMSUNG_DEVICE_IP variable
+    - disconnect    > Disconnect from the TV using the IP in SAMSUNG_DEVICE_IP variable
+    - info          > Show current value of CHROMIUM and SAMSUNG_DEVICE_IP variables
+                      as well as the result of "tizen version" and "sdb version"
+    - syntax        > Show syntax help of common uses cases of tizen cli
+    - help          > Prints this message
 
 	Usage:
-    ${0##*/} install [ wgt-name ]
-    ${0##*/} uninstall [ app-id | wgt-name ]
-    ${0##*/} debug [ app-id | wgt-name ]
+    ${0##*/} install [ wgt-path ]
+    ${0##*/} uninstall [ app-id | wgt-path ]
+    ${0##*/} debug [ app-id | wgt-path ]
+    ${0##*/} build [ path-to-build ]
+    ${0##*/} package [ path-to-package ]
     ${0##*/} connect
     ${0##*/} disconnect
     ${0##*/} info
+    ${0##*/} syntax
     ${0##*/} help
 
 	Options:
@@ -129,10 +149,46 @@ tizen_help () {
 EOF
 }
 
+syntax_help () {
+  while IFS= read -r line; do
+		printf "  %s\n" "$line"
+	done <<-EOF
+  Tizen syntax:
+    Build:
+      - tizen build-web -out [out directory] [-- directory path]
+
+    Package:
+      If specific cert required:
+      - tizen security-profiles add -n [profile-name] -a [author.p12 path] -p [password]
+
+      - tizen package -t wgt [-s profile-name] [-- directory path] 
+
+    Connect:
+      - sdb connect [device-ip]
+      - sdb disconnect [device-ip]
+
+    Server:
+      - sdb start-server
+      - sdb kill-server
+
+    Install: (use wgt location)
+      - tizen install -n [wgt-path]
+      - tizen uninstall -p [app-id]
+
+    Debug:
+      - sdb shell 0 debug [app-id]
+      - sdb forward tcp:[port] tcp:[port]
+
+    Restart app (javascript)
+      - tizen.application.launch("[app-id]")
+EOF
+}
+
 open_brwoser () {
   local url="$1"
   echo opening chromium
   if [ "$disable_web_security" = true ]; then
+    echo "Starting --disable-web-security session"
     "$chromium" \
       --disable-web-security \
       --user-data-dir="$(get_temp_dir)" \
@@ -142,6 +198,38 @@ open_brwoser () {
     "$chromium" "$url"
   fi
 
+}
+
+tizen_build () {
+  local location="$1"
+  if ! [ -d "$location" ]; then
+    die "Invalid path provided"
+  fi
+
+  tizen build-web -- "$location" -out .buildResult
+
+  if [ "$move_files_back" = true ]; then
+    if [ -d "$starting_location/$location/.buildResult" ]; then
+      rm -rf "$starting_location/$location/.buildResult"
+    fi
+    cp -r "$location"/.buildResult "$starting_location/$location"
+  fi
+}
+
+tizen_package () {
+  local location="$1"
+  if ! [ -d "$location" ]; then
+    die "Invalid path provided"
+  fi
+
+  tizen package -t wgt -- "$location"
+
+  if [ "$move_files_back" = true ]; then
+    if [ -f "$starting_location/$location"/*.wgt ]; then
+      rm -rf "$starting_location/$location"/*.wgt
+    fi
+    cp "$location/"*.wgt "$starting_location/$location"
+  fi
 }
 
 show_current () {
@@ -207,7 +295,9 @@ die () {
 
 get_app_id () {
   local app_id=''
-  if [ -f "$1" ]; then
+
+  # If input provided is a path
+  if [ -f "$1" ] || [[ "$1" =~ .wgt ]]; then
     app_id="$(unzip -p "$1" config.xml | sed -nr "s/.*tizen:application .*id=\"([a-zA-Z0-9\.]*)\" .*/\1/p")"
   else
     app_id="$1"
@@ -261,6 +351,10 @@ tizen_debug () {
   fi
 }
 
+if [ -n "$2" ]; then
+  handle_wsl_path "$2" 
+fi
+
 case "$1" in
   connect)
     start_deamon
@@ -281,8 +375,17 @@ case "$1" in
     start_connection
     tizen_debug "$2"
     ;;
+  build)
+    tizen_build "$2"
+    ;;
+  package)
+    tizen_package "$2"
+    ;;
   info)
     show_current    
+    ;;
+  syntax)
+    syntax_help
     ;;
   -h|--help|help)
     tizen_help
