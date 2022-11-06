@@ -42,7 +42,7 @@ handle_wsl_path () {
 }
 
 # Detect windows
-if [[ "$(cat /proc/version)" =~ (WSL|MSYS) ]]; then
+if [[ "$(cat /proc/version)" =~ (WSL|MSYS|MINGW) ]]; then
   # It is running on windows
 
   # Create function to call cmd.exe
@@ -93,7 +93,7 @@ if [[ "$(cat /proc/version)" =~ (WSL|MSYS) ]]; then
       fi
 
       ;;
-    MSYS_NT*) # Git bash
+    *NT*) # Git bash (MINGW/MSYS)
       cmd () {
         cmd.exe //c "$@"
       }
