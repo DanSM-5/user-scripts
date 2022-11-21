@@ -30,6 +30,9 @@ disable_web_security="${DISABLE_WEB_SECURITY:-false}"
 device_id=""
 tmp_dir_name="tmp-dev-dir"
 
+# Serial is usually ip + default port
+serial_number="$device_ip:26101"
+
 starting_location="$(pwd)"
 move_files_back=false
 
@@ -42,7 +45,7 @@ handle_wsl_path () {
 }
 
 # Detect windows
-if [[ "$(cat /proc/version)" =~ (WSL|MSYS|MINGW) ]]; then
+if [[ "$(cat /proc/version)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW) ]]; then
   # It is running on windows
 
   # Create function to call cmd.exe
@@ -295,7 +298,7 @@ end_deamon () {
 set_device_id () {
   echo ""
   echo Setting device id
-  device_id=$(sdb devices | awk 'NR == 1, ! /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:/ { next } { print $3 }' | tr -d '[:space:]')
+  device_id=$(sdb devices | awk -v serial="$serial_number" '{ if($1 == serial) { print $3 } }' | tr -d '[:space:]')
   echo DeviceID: $device_id
 }
 
@@ -330,12 +333,20 @@ get_app_id () {
 
 tizen_install () {
   local file_name="$1"
-  tizen install -n "$file_name"
+  if [ -z "$device_id" ]; then
+    set_device_id
+  fi
+
+  tizen install -n "$file_name" -t "$device_id"
 }
 
 tizen_uninstall () {
   local app_id="$(get_app_id $1)"
-  tizen uninstall -p "$app_id"
+  if [ -z "$device_id" ]; then
+    set_device_id
+  fi
+
+  tizen uninstall -p "$app_id" -t "$device_id"
 }
 
 tizen_debug () {
@@ -343,6 +354,9 @@ tizen_debug () {
     die "Cannot proceed without a valid IP"
   fi
 
+  if [ -z "$device_id" ]; then
+    set_device_id
+  fi
 
   local app_id="$(get_app_id $1)"
 
@@ -350,7 +364,7 @@ tizen_debug () {
   echo "Start debugging for app id $app_id"
 
   # Launch sdb debug and capture port
-  local debug_port=$(sdb shell 0 debug "$app_id" | awk '{ print $11 }' | tr -d '[:space:]')
+  local debug_port=$(sdb -s "$serial_number" shell 0 debug "$app_id" | awk '{ print $11 }' | tr -d '[:space:]')
   local url="http://$device_ip:$debug_port"
 
   if [ -z "$debug_port" ]; then
@@ -358,7 +372,7 @@ tizen_debug () {
   fi
 
   # Connect tv debug port to pc port
-  sdb forward tcp:$debug_port tcp:$debug_port
+  sdb -s "$serial_number" forward tcp:$debug_port tcp:$debug_port
 
   echo ""
   echo Debug port available on "$url"
