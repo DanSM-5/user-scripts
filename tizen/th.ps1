@@ -1,7 +1,7 @@
 # PS1 wrapper for pwsh
 
 # Fix path variables before passing them to bash
-$args_array = 0..$args.count
+$args_array = 1..$args.count
 for ( $i = 0; $i -lt $args.count; $i++ ) {
   $args_array[$i] = "$($args[$i] -replace '\\', '/')"
 }
