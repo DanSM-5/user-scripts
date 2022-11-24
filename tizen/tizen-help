@@ -128,20 +128,21 @@ tizen_help () {
   Tizen helper for CLI use
 
   Commands:
-    - install       > Install the app provided [wgt-path] in the target tv
-    - uninstall     > Uninstall the app in the tv. It accepts both [app-id] or [wgt-path]
-    - debug         > Start a debug session of the app that matches the [app-id] or [wgt-path].
-                      If CHROMIUM variable exitst, it will launch it the browser.
+    - install       > Install the app provided [wgt-path] in the target tv.
+    - uninstall     > Uninstall the app in the tv. It accepts both [app-id] or [wgt-path].
+    - debug         > Start a debug session of the app that matches the [app-id] or [wgt-path]
+                      If CHROMIUM variable exitst, it will launch it the browser
                       If DISABLE_WEB_SECURITY is "true", it will use disable-web-security flag.
     - build         > Builds a tizen project in the specified directory
-                      and outs the results in .buildResult located in the specified directory
-    - package       > Package a tizen app (wgt) in the directory specified
-    - connect       > Connect to the TV using the provided IP or the IP in SAMSUNG_DEVICE_IP variable
-    - disconnect    > Disconnect from the TV using the provided IP or the IP in SAMSUNG_DEVICE_IP variable
+                      and outs the results in .buildResult located in the specified directory.
+    - package       > Package a tizen app (wgt) in the directory specified.
+    - connect       > Connect to the TV using the provided IP or the IP in SAMSUNG_DEVICE_IP variable.
+    - disconnect    > Disconnect from the TV using the provided IP or the IP in SAMSUNG_DEVICE_IP variable.
+    - appid         > Show the [app-id] from a given [wgt] file.
     - info          > Show current value of CHROMIUM and SAMSUNG_DEVICE_IP variables
-                      as well as the result of "tizen version" and "sdb version"
-    - syntax        > Show syntax help of common uses cases of tizen cli
-    - help          > Prints this message
+                      as well as the result of "tizen version" and "sdb version".
+    - syntax        > Show syntax help of common uses cases of tizen cli.
+    - help          > Prints this message.
 
 	Usage:
     ${0##*/} install [ wgt-path ]
@@ -151,6 +152,7 @@ tizen_help () {
     ${0##*/} package [ path-to-package ]
     ${0##*/} connect [device-ip]
     ${0##*/} disconnect [device-ip]
+    ${0##*/} appid [ wgt-path ]
     ${0##*/} info
     ${0##*/} syntax
     ${0##*/} help
@@ -331,6 +333,21 @@ get_app_id () {
   echo "$app_id"
 }
 
+show_app_id () {
+  if ! [ -f "$1" ]; then
+    die "Invalid file provided"
+  fi
+
+  local app_id="$(get_app_id $1)"
+
+  if [ -z "$app_id" ]; then
+    die "Unable to get app id"
+  fi
+
+  echo ""
+  echo "The app id of '$1' is: $app_id"
+}
+
 tizen_install () {
   local file_name="$1"
   if [ -z "$device_id" ]; then
@@ -377,6 +394,11 @@ tizen_debug () {
   echo ""
   echo Debug port available on "$url"
 
+  echo ""
+  echo "You can restart your app in the console with:"
+  echo "tizen.application.launch('$app_id')"
+  echo "NOTE: The function may not work on old devices."
+
   if [ -f "$chromium" ]; then
     open_brwoser "$url"
   fi
@@ -392,8 +414,12 @@ case "$1" in
     start_connection "$2"
     ;;
   disconnect)
-    close_connection "$2"
-    end_deamon
+    if (( $(sdb devices | wc -l) > 2 )); then
+      close_connection "$2"
+    else
+      close_connection "$2"
+      end_deamon
+    fi
     ;;
   install)
     tizen_install "$2"
@@ -411,6 +437,9 @@ case "$1" in
     ;;
   package)
     tizen_package "$2"
+    ;;
+  appid)
+    show_app_id "$2"
     ;;
   info)
     show_current    
