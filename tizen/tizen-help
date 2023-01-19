@@ -45,7 +45,7 @@ handle_wsl_path () {
 }
 
 # Detect windows
-if [[ "$(cat /proc/version)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW) ]]; then
+if [[ "$(cat /proc/version &> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW) ]]; then
   # It is running on windows
 
   # Create function to call cmd.exe
