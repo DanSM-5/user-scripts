@@ -29,6 +29,8 @@ yf () {
       return 1 
     fi
 
+    echo "Playing: $selection\n"
+
     yt-dlp -o - "$selection" | mpv --cache -
     return
   fi

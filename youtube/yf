@@ -29,7 +29,7 @@ if [[ "$linkOnly" = false ]] && [[ "$direct_play" = true ]]; then
     return 1 
   fi
 
-  yt-dlp -o - "$selection" | mpv --cache -
+  yt-dlp -f bestvideo+bestaudio/best -o - "$selection" | mpv --cache -
   return
 fi
 
