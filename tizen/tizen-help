@@ -34,7 +34,8 @@ tmp_dir_name="tmp-dev-dir"
 serial_number="$device_ip:26101"
 
 starting_location="$(pwd)"
-move_files_back=false
+pathid=""
+tizen_tmp=""
 
 get_temp_dir () {
   echo "/tmp/$tmp_dir_name"
@@ -45,7 +46,7 @@ handle_wsl_path () {
 }
 
 # Detect windows
-if [[ "$(cat /proc/version &> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW) ]]; then
+if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW) ]]; then
   # It is running on windows
 
   # Create function to call cmd.exe
@@ -61,7 +62,7 @@ if [[ "$(cat /proc/version &> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW
         arg_in_win_path="$(realpath -e "$2" 2>&1 | grep -Ei "^/mnt" &> /dev/null && echo true || echo false)"
       fi
 
-      if [[ "$(pwd)" =~ ^/mnt/* ]] && [ "$arg_in_win_path" = true ]; then
+      if [[ "$starting_location" =~ ^/mnt/* ]] && [ "$arg_in_win_path" = true ]; then
         :
       else
         echo ""
@@ -70,27 +71,28 @@ if [[ "$(cat /proc/version &> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW
 
         handle_wsl_path () {
           local path="$1"
-          local temp="$(wslpath $(cmd "echo %TEMP%" | sed -e 's/[[:space:]]*$//'))"
-          local tizen_tmp="$temp/tizen-help"
-          move_files_back=true
+          local temp="$(wslpath $(cmd "echo %TEMP%" | sed -e 's/[[:space:]]*$//'))/tizen-help"
+          local base="$(basename "$path")"
+          pathid="$(uuidgen)"
+          tizen_tmp="$temp/$pathid"
+
+          # Cleanup
+          if [ -d "$temp" ]; then
+            rm -rf "$temp"
+          fi
 
           if [ -f "$path" ]; then
-            if [ -f "$temp/$path" ]; then
-              rm "$temp/$path"
-            fi
-            local location="$(dirname "$path")"
-            mkdir -p "$temp/$location"
+            # Copy file
 
-            cp "$path" "$temp/$location"
-            cd "$temp"
+            # Ensure temp directory
+            mkdir -p "$tizen_tmp"
+            cp "$path" "$tizen_tmp"
           elif [ -d "$path" ]; then
-            if [ -d "$tizen_tmp" ]; then
-              rm -rf "$temp/tizen-help"
-            fi
+            # Make and copy dir
 
-            mkdir -p "$tizen_tmp/$path"
-            cp -r "$path/"* "$tizen_tmp/$path"
-            cd "$tizen_tmp"
+            tizen_tmp="$tizen_tmp/$base"
+            mkdir -p "$tizen_tmp"
+            cp -r "$path/"* "$tizen_tmp"
           fi
         }
       fi
@@ -205,8 +207,12 @@ EOF
 
 open_brwoser () {
   local url="$1"
-  echo opening chromium
+
+  echo ""
+  echo "opening chromium"
+
   if [ "$disable_web_security" = true ]; then
+    echo ""
     echo "Starting --disable-web-security session"
     "$chromium" \
       --disable-web-security \
@@ -225,13 +231,18 @@ tizen_build () {
     die "Invalid path provided"
   fi
 
-  tizen build-web -- "$location" -out .buildResult
+  if [ -d "$tizen_tmp" ]; then
+    cd "$tizen_tmp"
+    tizen build-web -- . -out .buildResult
+    cd "$starting_location"
 
-  if [ "$move_files_back" = true ]; then
-    if [ -d "$starting_location/$location/.buildResult" ]; then
-      rm -rf "$starting_location/$location/.buildResult"
+    if [ -d "$1/.buildResult" ]; then
+      rm -rf "$1/.buildResult"
     fi
-    cp -r "$location"/.buildResult "$starting_location/$location"
+
+    cp -r "$tizen_tmp/.buildResult" "$1/.buildResult"
+  else
+    tizen build-web -- "$location" -out .buildResult
   fi
 }
 
@@ -241,13 +252,18 @@ tizen_package () {
     die "Invalid path provided"
   fi
 
-  tizen package -t wgt -- "$location"
+  if [ -d "$tizen_tmp" ]; then
+    cd "$tizen_tmp"
+    tizen package -t wgt -- .
+    cd "$starting_location"
 
-  if [ "$move_files_back" = true ]; then
-    if [ -f "$starting_location/$location"/*.wgt ]; then
-      rm -rf "$starting_location/$location"/*.wgt
+    if [ -f "$1"/*.wgt ]; then
+      rm -rf "$1"/*.wgt
     fi
-    cp "$location/"*.wgt "$starting_location/$location"
+
+    cp "$tizen_tmp/"*.wgt "$1"
+  else
+    tizen package -t wgt -- "$location"
   fi
 }
 
@@ -354,7 +370,13 @@ tizen_install () {
     set_device_id
   fi
 
-  tizen install -n "$file_name" -t "$device_id"
+  if [ -d "$tizen_tmp" ]; then
+    cd "$tizen_tmp"
+    tizen install -n "$(basename "$file_name")" -t "$device_id"
+    cd "$starting_location"
+  else
+    tizen install -n "$file_name" -t "$device_id"
+  fi
 }
 
 tizen_uninstall () {
@@ -362,6 +384,9 @@ tizen_uninstall () {
   if [ -z "$device_id" ]; then
     set_device_id
   fi
+
+  echo ""
+  echo "The uninstall command may not work on old devices"
 
   tizen uninstall -p "$app_id" -t "$device_id"
 }
@@ -396,7 +421,7 @@ tizen_debug () {
 
   echo ""
   echo "You can restart your app in the console with:"
-  echo "tizen.application.launch('$app_id')"
+  echo "> tizen.application.launch('$app_id')"
   echo "NOTE: The function may not work on old devices."
 
   if [ -f "$chromium" ]; then
@@ -404,7 +429,7 @@ tizen_debug () {
   fi
 }
 
-if [ -n "$2" ]; then
+if [ -f "$2" ] || [ -d "$2" ]; then
   handle_wsl_path "$2" 
 fi
 
