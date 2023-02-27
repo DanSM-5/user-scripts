@@ -77,8 +77,8 @@ if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW
           tizen_tmp="$temp/$pathid"
 
           # Cleanup
-          if [ -d "$temp" ]; then
-            rm -rf "$temp"
+          if [ -d "$tizen_tmp" ]; then
+            rm -rf "$tizen_tmp"
           fi
 
           if [ -f "$path" ]; then
