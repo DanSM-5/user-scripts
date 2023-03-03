@@ -37,12 +37,17 @@ starting_location="$(pwd)"
 pathid=""
 tizen_tmp=""
 
+# Helper functions
 get_temp_dir () {
   echo "/tmp/$tmp_dir_name"
 }
 
 handle_wsl_path () {
   :
+}
+
+is_command () {
+	command -v "$1" &> /dev/null
 }
 
 # Detect windows
@@ -62,13 +67,28 @@ if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW
         arg_in_win_path="$(realpath -e "$2" 2>&1 | grep -Ei "^/mnt" &> /dev/null && echo true || echo false)"
       fi
 
-      if [[ "$starting_location" =~ ^/mnt/* ]] && [ "$arg_in_win_path" = true ]; then
+      # Do not default to windows temporal directory if a condition is met
+      # - It is using linux tizen and sdb commands (must be in path and no aliases)
+      # - Current working directory and argument path is in the windows filesystem
+      if $(command -v "tizen" &> /dev/null && command -v "sdb" &> /dev/null) || [[ "$starting_location" =~ ^/mnt/* && "$arg_in_win_path" == true ]]; then
         :
       else
         echo ""
         echo "On WSL path. Defaulting operations to temporal folder of the windows user!"
         echo ""
 
+        # Create temporal wrappers for tizen and sdb
+        tizen () {
+          cmd tizen "$@"
+        }
+
+        sdb () {
+          cmd sdb "$@"
+        }
+
+        # Set tizen_tmp directory to allow building using windows tizen and sdb commands 
+        # This is a workaround for CMD.exe not supporting UNC paths E.g. "\\wsl.localhost\Ubuntu"
+        # Using pushd/popd workarounds doesn't play very nice for starting processes.
         handle_wsl_path () {
           local path="$1"
           local temp="$(wslpath $(cmd "echo %TEMP%" | sed -e 's/[[:space:]]*$//'))/tizen-help"
@@ -102,17 +122,17 @@ if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW
       cmd () {
         cmd.exe //c "$@"
       }
+
+      # Create temporal wrappers for tizen and sdb
+      tizen () {
+        cmd tizen "$@"
+      }
+
+      sdb () {
+        cmd sdb "$@"
+      }
       ;;
   esac
-
-  # Create temporal wrappers for tizen and sdb
-  tizen () {
-    cmd tizen "$@"
-  }
-
-  sdb () {
-    cmd sdb "$@"
-  }
 
   # Override for windows paths
   get_temp_dir () {
@@ -214,9 +234,13 @@ open_brwoser () {
   if [ "$disable_web_security" = true ]; then
     echo ""
     echo "Starting --disable-web-security session"
+    local temp_dir="$(get_temp_dir)"
+
+    mkdir -p "$temp_dir"
+
     "$chromium" \
       --disable-web-security \
-      --user-data-dir="$(get_temp_dir)" \
+      --user-data-dir="$temp_dir" \
       --disable-site-isolation-trials \
       "$url"
   else
