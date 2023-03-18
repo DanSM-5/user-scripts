@@ -94,12 +94,18 @@ Begin {
 
       Flags:
 
-      -ProgressBar           > Display a progress bar.
+      -ProgressBar                > Display a progress bar.
 
-      -OmitUrl               > Do not print messages with the urls
-                               in the terminal.
+      -OmitUrl                    > Do not print messages with the urls
+                                    in the terminal.
 
-      -Help                  > Print this message.
+      -Help                       > Print this message.
+
+      -EditorName [string]        > Name of the editor to open the temporal buffer.
+
+      -UrlsToDownload [string[]]  > Print this message.
+
+      -StringUrl [string]         > Url string from pipeline (pipe only).
       "
       exit 0
   }
