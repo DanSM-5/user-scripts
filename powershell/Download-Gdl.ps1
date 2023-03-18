@@ -40,145 +40,189 @@ Param (
   [Switch] $OmitUrl,
 
   # Display help message
-  [Switch] $Help
+  [Switch] $Help,
+
+  # String url from pipe
+  [Parameter(ValueFromPipeline = $true)]
+  [System.Object] $StringUrl,
+
+  # Array of strings to download
+  [AllowNull()]
+  [String[]] $UrlsToDownload
 )
 
-if ($PSVersionTable.PSVersion.Major -lt 7) {
-  Write-Host -ForegroundColor Red "This script only works on powershell 7 or above."
-  exit 1
-}
+Begin {
 
-if (-not (Get-Command 'gallery-dl' -errorAction SilentlyContinue)) {
-  Write-Host -ForegroundColor Red "gallery-dl not found. Please install it and add it to your path to continue."
-  exit 1
-}
+  if ($PSVersionTable.PSVersion.Major -lt 7) {
+    Write-Host -ForegroundColor Red "This script only works on powershell 7 or above."
+      exit 1
+  }
 
-if ($Help) {
-  Write-Host "
-    Wrapper scritp for gallery-dl
+  if (-not (Get-Command 'gallery-dl' -errorAction SilentlyContinue)) {
+    Write-Host -ForegroundColor Red "gallery-dl not found. Please install it and add it to your path to continue."
+      exit 1
+  }
 
-    Open a temporal buffer to list all the urls. Once closed,
-    the script will feed the urls to gallery-dl to download them.
+  if ($Help) {
+    Write-Host "
+      Wrapper scritp for gallery-dl
 
-    Flags:
+      Open a temporal buffer to list all the urls. Once closed,
+      the script will feed the urls to gallery-dl to download them.
 
-    -ProgressBar           > Display a progress bar.
+      Flags:
 
-    -OmitUrl               > Do not print messages with the urls
-                             in the terminal.
+      -ProgressBar           > Display a progress bar.
 
-    -Help                  > Print this message.
-  "
-  exit 0
-}
+      -OmitUrl               > Do not print messages with the urls
+                               in the terminal.
 
-$instructions = @'
+      -Help                  > Print this message.
+      "
+      exit 0
+  }
+
+  # Important declarations 
+  $instructions = @'
 # Paste your urls in this file, save it and close it.
 # Empty lines or lines starting with '#' will be ignored.
 # Only valid urls will be processed.
 
 '@
 
-$editor = if ($env:EDITOR) { $env:EDITOR } else { notepad.exe }
-
-try {
-  Write-Output "Opining temporal file... Waiting for file to be closed!"
-
-  $tempFile = New-TemporaryFile
-  $instructions >> $tempFile
-  $editorArgs = @( $tempFile.FullName )
-
-  if ( $editor -Like '*vim' ) {
-    $editorArgs += '+'
-  }
-
-  $proc = Start-Process $editor -NoNewWindow -PassThru -ArgumentList $editorArgs
-  $proc.WaitForExit()
-
-  Write-Output "Start processing with gallery-dl..."
-
-  $lines = Get-Content $tempFile.FullName | Where {
-    # Get rid of spaces
-    $url = $_.Trim()
-
-    # Omit empty lines
-    if (-Not $url) {
-      return
-    }
-
-    # Omit comments
-    if ("$url" -Like '#*') {
-      return
-    }
-
-    $url = [System.Web.HttpUtility]::UrlDecode($url)
-
-    try	{
-      $request = [System.Net.WebRequest]::Create($url)
-      $request.Method = 'HEAD'
-      $response = $request.GetResponse()
-      $httpStatus = $response.StatusCode
-      $urlIsValid = ($httpStatus -eq 'OK')
-      # $tryError = $null
-      $response.Close()
-
-      return "$url"
-    }	catch [System.Exception] {
-      $httpStatus = $null
-      # $tryError = $_.Exception
-      $urlIsValid = $false;
-      Write-Host -ForegroundColor Red "$url is not a valid url"
-    }
-  }
-
-  $total = $lines.Length
-  $progress = if ($total -eq 0) { 100 } else { 0 }
+  $editor = if ($env:EDITOR) { $env:EDITOR } else { notepad.exe }
+  $tempFile = [PSCustomObject] @{ FullName = '' }
+  $editorArgs = $()
+  $proc = $null
+  $lines = $null
+  $linesRaw = $null
+  $total = 0
+  $progress = 0
   $progressMessage = "Download progress..."
+  $stringsFromPipe = @()
+  $stringsFromArgs = if ($UrlsToDownload) { $UrlsToDownload } else { @() }
+}
 
-  $lines | % {
-    $i = 0
-    if ($ProgressBar) {
-      Write-Progress -Activity "$progressMessage" -Status "$progress% Complete:" -PercentComplete $progress
-      Write-Host ""
-    }
-  } {
-    if (-Not $OmitUrl) {
-      Write-Host "Downloading($progress%): $_"
-    }
-
-    try {
-      gallery-dl "$_"
-    } catch {} # Supress any error from gallery-dl
-
-    $i++
-    $progress = ($i * 100) / $total
-    $progress = [Math]::Round($progress, 2)
-
-    if ($ProgressBar) {
-      Write-Progress -Activity "$progressMessage" -Status "$progress% Complete:" -PercentComplete $progress
-      Start-Sleep -Milliseconds 250
-    }
-
-    Write-Host ""
+Process {
+  if ( $StringUrl -is [String] ) {
+    $stringsFromPipe += $StringUrl
   }
+}
 
-  if ($ProgressBar) {
-    Write-Progress -Activity "$progressMessage" -Status "$progress% Complete:" -PercentComplete $progress
+End {
+  try {
+
+    if ($stringsFromPipe) {
+      $linesRaw = $stringsFromPipe
+    } elseif ($stringsFromArgs) {
+      $linesRaw = $stringsFromArgs
+    } else {
+      # Open buffer to get strings
+      Write-Output "Opining temporal file... Waiting for file to be closed!"
+
+      $tempFile = New-TemporaryFile
+      $instructions >> $tempFile
+      $editorArgs += $tempFile.FullName
+
+      if ( $editor -Like '*vim' ) {
+        $editorArgs += '+'
+      }
+
+      $proc = Start-Process $editor -NoNewWindow -PassThru -ArgumentList $editorArgs
+      $proc.WaitForExit()
+
+      $proc = $null
+
+      $linesRaw = Get-Content $tempFile.FullName
+    }
+
+    Write-Output "Start processing with gallery-dl..."
+
+    $lines = $linesRaw | Where {
+      # Get rid of spaces
+      $url = $_.Trim()
+
+      # Omit empty lines
+      if (-Not $url) {
+        return
+      }
+
+      # Omit comments
+      if ("$url" -Like '#*') {
+        return
+      }
+
+      $url = [System.Web.HttpUtility]::UrlDecode($url)
+
+      try	{
+        $request = [System.Net.WebRequest]::Create($url)
+        $request.Method = 'HEAD'
+        $response = $request.GetResponse()
+        $httpStatus = $response.StatusCode
+        $urlIsValid = ($httpStatus -eq 'OK')
+        # $tryError = $null
+        $response.Close()
+
+        return "$url"
+      }	catch [System.Exception] {
+        $httpStatus = $null
+        # $tryError = $_.Exception
+        $urlIsValid = $false;
+        Write-Host -ForegroundColor Red "$url is not a valid url"
+      }
+    }
+
+    $total = $lines.Length
+    $progress = if ($total -eq 0) { 100 } else { 0 }
+    $progressMessage = "Download progress..."
+
+    $lines | % {
+        $i = 0
+          if ($ProgressBar) {
+            Write-Progress -Activity "$progressMessage" -Status "$progress% Complete:" -PercentComplete $progress
+              Write-Host ""
+          }
+    } {
+      if (-Not $OmitUrl) {
+        Write-Host "Downloading($progress%): $_"
+      }
+
+      try {
+        gallery-dl "$_"
+      } catch {} # Supress any error from gallery-dl
+
+        $i++
+        $progress = ($i * 100) / $total
+        $progress = [Math]::Round($progress, 2)
+
+        if ($ProgressBar) {
+          Write-Progress -Activity "$progressMessage" -Status "$progress% Complete:" -PercentComplete $progress
+            Start-Sleep -Milliseconds 250
+        }
+
+        Write-Host ""
+      }
+
+      if ($ProgressBar) {
+        Write-Progress -Activity "$progressMessage" -Status "$progress% Complete:" -PercentComplete $progress
+      }
+
+      Write-Host "`nDownload process has finished!"
+
+      if (Test-Path -Path $tempFile.FullName) {
+        Write-Output "`nDisposing temporal file"
+        Remove-Item $tempFile.FullName
+      }
+
+  } catch {
+    Write-Host "Script has ended unexpectedly...`n"
+
+    if (Test-Path -Path $tempFile.FullName) {
+      Write-Host "Cleaning..."
+      Remove-Item $tempFile.FullName
+    }
+
+    Write-Host "Done..."
   }
-
-  Write-Host "`nDownload process has finished!"
-
-  Write-Output "`nDisposing temporal file"
-  Remove-Item $tempFile.FullName
-
-} catch {
-  Write-Host "Script has ended unexpectedly..."
-  Write-Host "Cleaning..."
-
-  if (Test-Path -Path $tempFile.FullName) {
-    Remove-Item $tempFile.FullName
-  }
-
-  Write-Host "Done..."
 }
 
