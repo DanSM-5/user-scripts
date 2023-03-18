@@ -4,15 +4,31 @@
   Wrapper script for gallery-dl to list links for download.
 
 .DESCRIPTION
-  Wrapper script that will open a temporal buffer in which all
-  links can be listed. When the buffer closes, the script will
-  pass all the links to gallery-dl for download.
+  Wrapper script that will allow passing multiple urls to gallery-dl.
+  It accepts strings from a pipeline, an array of strings or it will open a temporal buffer
+  in which all links can be listed and it will process the urls when the buffer closes.
+  The order of priority is pipeline > argument > temporal buffer.
 
 .PARAMETER ProgressBar
   Display a progress bar that updates a links are downloaded by gallery-dl.
 
 .PARAMETER OmitUrl
   Omit printing the message 'Downloading' with the url on the terminal.
+
+.PARAMETER EditorName
+  Name of the editor to open. It needs to be available in $env:PATH
+
+.PARAMETER UrlsToDownload
+  Array of strings to be process by the script instead of opening a file to add them manually.
+
+.PARAMETER StringUrl
+  String obtain from a pipeline. All strings will be stored and processed at the end.
+
+.INPUTS
+  String object from pipeline.
+
+.OUTPUTS
+  Script does not produce any output. It is meant to be used as last element in pipeline.
 
 .EXAMPLE
   Download-Gld
@@ -24,7 +40,10 @@
   Download-Gld -OmitUrl
 
 .EXAMPLE
-  Download-Gld -Help
+  @('url1', '$url2') | Download-Gld
+
+.EXAMPLE
+  Download-Gld -UrlsToDownload @('url1', '$url2') -ProgressBar
 
 .NOTES
   Script respects the EDITOR environment variable. If not present if defaults to notepad.exe.
@@ -41,6 +60,9 @@ Param (
 
   # Display help message
   [Switch] $Help,
+
+  # Editor to use when opening temporal buffer
+  [String] $EditorName,
 
   # String url from pipe
   [Parameter(ValueFromPipeline = $true)]
@@ -90,7 +112,7 @@ Begin {
 
 '@
 
-  $editor = if ($env:EDITOR) { $env:EDITOR } else { notepad.exe }
+  $editor = if ($EditorName) { $EditorName } elseif ($env:EDITOR) { $env:EDITOR } else { notepad.exe }
   $tempFile = [PSCustomObject] @{ FullName = '' }
   $editorArgs = $()
   $proc = $null
