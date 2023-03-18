@@ -95,6 +95,8 @@ if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW
           local base="$(basename "$path")"
           pathid="$(uuidgen)"
           tizen_tmp="$temp/$pathid"
+          # Clean temporal directory
+          trap "rm -rf -- '$tizen_tmp' 2> /dev/null" EXIT
 
           # Cleanup
           if [ -d "$tizen_tmp" ]; then
