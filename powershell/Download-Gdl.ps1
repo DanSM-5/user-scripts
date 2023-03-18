@@ -114,7 +114,7 @@ Begin {
 
   $editor = if ($EditorName) { $EditorName } elseif ($env:EDITOR) { $env:EDITOR } else { notepad.exe }
   $tempFile = [PSCustomObject] @{ FullName = '' }
-  $editorArgs = $()
+  $editorArgs = @()
   $proc = $null
   $lines = $null
   $linesRaw = $null
