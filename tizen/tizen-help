@@ -70,8 +70,17 @@ if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW
       # Do not default to windows temporal directory if a condition is met
       # - It is using linux tizen and sdb commands (must be in path and no aliases)
       # - Current working directory and argument path is in the windows filesystem
-      if $(is_command "tizen" && is_command "sdb") || [[ "$starting_location" =~ ^/mnt/* && "$arg_in_win_path" == true ]]; then
+      if $(is_command "tizen" && is_command "sdb"); then
         :
+      elif [[ "$starting_location" =~ ^/mnt/* && "$arg_in_win_path" == true ]]; then
+        # Create temporal wrappers for tizen and sdb
+        tizen () {
+          cmd tizen "$@"
+        }
+
+        sdb () {
+          cmd sdb "$@"
+        }
       else
         echo ""
         echo "On WSL path. Defaulting operations to temporal folder of the windows user!"
