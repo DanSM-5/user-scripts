@@ -9,11 +9,11 @@
   in which all links can be listed and it will process the urls when the buffer closes.
   The order of priority is pipeline > argument > temporal buffer.
 
-.PARAMETER ProgressBar
-  Display a progress bar that updates a links are downloaded by gallery-dl.
+.PARAMETER DownloadParallel
+  Allow splitting the download per domain to download simultaneously.
 
-.PARAMETER OmitUrl
-  Omit printing the message 'Downloading' with the url on the terminal.
+.PARAMETER FilePath
+  Specify path to file with links to download
 
 .PARAMETER EditorName
   Name of the editor to open. It needs to be available in $env:PATH
@@ -34,16 +34,13 @@
   Download-Gld
 
 .EXAMPLE
-  Download-Gld -ProgressBar
+  Download-Gld -DownloadParallel -FilePath $HOME/links-to-download.txt
 
 .EXAMPLE
-  Download-Gld -OmitUrl
+  @("$url1", "$url2", "$url3") | Download-Gld
 
 .EXAMPLE
-  @('url1', '$url2') | Download-Gld
-
-.EXAMPLE
-  Download-Gld -UrlsToDownload @('url1', '$url2') -ProgressBar
+  Download-Gld -UrlsToDownload @("$url1", "$url2") -DownloadParallel
 
 .NOTES
   Script respects the EDITOR environment variable. If not present if defaults to notepad.exe.
@@ -52,11 +49,8 @@
 #>
 
 Param (
-  # Add Progress Bar
-  [Switch] $ProgressBar,
-
-  # Do not print the download $url message in the console
-  [Switch] $OmitUrl,
+  # Allow parallel download per domain
+  [Switch] $DownloadParallel,
 
   # Display help message
   [Switch] $Help,
@@ -70,22 +64,14 @@ Param (
 
   # Array of strings to download
   [AllowNull()]
-  [String[]] $UrlsToDownload
+  [String[]] $UrlsToDownload,
+
+  # Path to file to download
+  [String] $FilePath = ''
 )
 
 Begin {
-
-  if ($PSVersionTable.PSVersion.Major -lt 7) {
-    Write-Host -ForegroundColor Red "This script only works on powershell 7 or above."
-      exit 1
-  }
-
-  if (-not (Get-Command 'gallery-dl' -errorAction SilentlyContinue)) {
-    Write-Host -ForegroundColor Red "gallery-dl not found. Please install it and add it to your path to continue."
-      exit 1
-  }
-
-  if ($Help) {
+  function showHelp () {
     Write-Host "
       Wrapper scritp for gallery-dl
 
@@ -94,20 +80,33 @@ Begin {
 
       Flags:
 
-      -ProgressBar                > Display a progress bar.
+        -Help [switch]               > Print this message.
 
-      -OmitUrl                    > Do not print messages with the urls
-                                    in the terminal.
+        -DownloadParallel [switch]   > Allow parallel downloads per domain
 
-      -Help                       > Print this message.
+        -FilePath [string]           > Path to input file
 
-      -EditorName [string]        > Name of the editor to open the temporal buffer.
+        -EditorName [string]         > Name of the editor to open the temporal buffer.
 
-      -UrlsToDownload [string[]]  > Print this message.
+        -UrlsToDownload [string[]]   > Print this message.
 
-      -StringUrl [string]         > Url string from pipeline (pipe only).
-      "
-      exit 0
+        -StringUrl [string]          > Url string from pipeline (pipe only).
+    "
+  }
+
+  if ($Help) {
+    showHelp
+    exit 0
+  }
+
+  if ($PSVersionTable.PSVersion.Major -lt 7) {
+    Write-Host -ForegroundColor Red "This script only works on powershell 7 or above."
+    exit 1
+  }
+
+  if (-not (Get-Command 'gallery-dl' -errorAction SilentlyContinue)) {
+    Write-Host -ForegroundColor Red "gallery-dl not found. Please install it and add it to your path to continue."
+    exit 1
   }
 
   # Important declarations 
@@ -124,11 +123,9 @@ Begin {
   $proc = $null
   $lines = $null
   $linesRaw = $null
-  $total = 0
-  $progress = 0
-  $progressMessage = "Download progress..."
   $stringsFromPipe = @()
   $stringsFromArgs = if ($UrlsToDownload) { $UrlsToDownload } else { @() }
+  $fileToDownload = if ("$FilePath" -and (Test-Path -Path "$FilePath")) { "$FilePath" } else { $null }
 }
 
 Process {
@@ -138,10 +135,53 @@ Process {
 }
 
 End {
+
+  # TODO: Verify is sqlite could have issues with parallel downloads
+  # Snipped from https://github.com/github-account1111
+  # in thread https://github.com/mikf/gallery-dl/issues/31
+
+  function downloadParallel ([String[]] $links) {
+    $links | % {
+      $link = New-Object System.Uri $_
+      $link.Host
+    } | Select-Object -Unique | % {
+      $links -match $_ | Start-ThreadJob {
+        $perDomainInput = New-TemporaryFile
+        $downloadFileName = "$($perDomainInput.FullName)"
+        try {
+          $input | Out-File "$downloadFileName" -Encoding ascii
+          gallery-dl -i "$downloadFileName"
+        } finally {
+          if (Test-Path -Path $downloadFileName) {
+            Remove-Item $downloadFileName -Force
+          }
+        }
+      }
+    } | Receive-Job -Wait -AutoRemoveJob
+  }
+
+  function downloadNormal ([String[]] $links) {
+    $downloadFile = New-TemporaryFile
+    $downloadFileName = "$(downloadFile.FullName)"
+
+    try {
+      $links | Out-File $downloadFileName -Encoding ascii
+
+      gallery-dl -i "$downloadFileName"
+    } finally {
+      # Ensure cleaning file
+      if (Test-Path -Path $downloadFileName) {
+        Remove-Item $downloadFileName -Force
+      }
+    }
+  }
+
   try {
 
     if ($stringsFromPipe) {
       $linesRaw = $stringsFromPipe
+    } elseif ($fileToDownload) {
+      $linesRaw = Get-Content "$fileToDownload"
     } elseif ($stringsFromArgs) {
       $linesRaw = $stringsFromArgs
     } else {
@@ -200,53 +240,18 @@ End {
       }
     }
 
-    $total = $lines.Length
-    $progress = if ($total -eq 0) { 100 } else { 0 }
-    $progressMessage = "Download progress..."
+    if ($DownloadParallel) {
+      downloadParallel $lines
+    } else {
+      downloadNormal $lines
+    }
 
-    $lines | % {
-        $i = 0
-          if ($ProgressBar) {
-            Write-Progress -Activity "$progressMessage" -Status "$progress% Complete:" -PercentComplete $progress
-              Write-Host ""
-          }
-    } {
-      if (-Not $OmitUrl) {
-        Write-Host "Downloading($progress%): $_"
-      }
-
-      try {
-        gallery-dl "$_"
-      } catch {} # Supress any error from gallery-dl
-
-        $i++
-        $progress = ($i * 100) / $total
-        $progress = [Math]::Round($progress, 2)
-
-        if ($ProgressBar) {
-          Write-Progress -Activity "$progressMessage" -Status "$progress% Complete:" -PercentComplete $progress
-            Start-Sleep -Milliseconds 250
-        }
-
-        Write-Host ""
-      }
-
-      if ($ProgressBar) {
-        Write-Progress -Activity "$progressMessage" -Status "$progress% Complete:" -PercentComplete $progress
-      }
-
-      Write-Host "`nDownload process has finished!"
-
-      if (Test-Path -Path $tempFile.FullName) {
-        Write-Output "`nDisposing temporal file"
-        Remove-Item $tempFile.FullName
-      }
-
+    Write-Host "`nDownload process has finished!"
   } catch {
     Write-Host "Script has ended unexpectedly...`n"
-
+  } finally {
     if (Test-Path -Path $tempFile.FullName) {
-      Write-Host "Cleaning..."
+      Write-Output "`nDisposing temporal file"
       Remove-Item $tempFile.FullName
     }
 
