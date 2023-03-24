@@ -145,12 +145,16 @@ End {
       $link = New-Object System.Uri $_
       $link.Host
     } | Select-Object -Unique | % {
+      $hostName = $_
       $links -match $_ | Start-ThreadJob {
         $perDomainInput = New-TemporaryFile
         $downloadFileName = "$($perDomainInput.FullName)"
         try {
           $input | Out-File "$downloadFileName" -Encoding ascii
           gallery-dl -i "$downloadFileName"
+        } catch {
+          Write-Host "An error occurred with a parallel download $hostName"
+          Write-Host -ForegroundColor Red $Error[0]
         } finally {
           if (Test-Path -Path $downloadFileName) {
             Remove-Item $downloadFileName -Force
@@ -162,12 +166,15 @@ End {
 
   function downloadNormal ([String[]] $links) {
     $downloadFile = New-TemporaryFile
-    $downloadFileName = "$(downloadFile.FullName)"
+    $downloadFileName = "$($downloadFile.FullName)"
 
     try {
       $links | Out-File $downloadFileName -Encoding ascii
 
       gallery-dl -i "$downloadFileName"
+    } catch {
+      Write-Host "An error occurred with the regular download"
+      Write-Host -ForegroundColor Red $Error[0]
     } finally {
       # Ensure cleaning file
       if (Test-Path -Path $downloadFileName) {
@@ -249,6 +256,7 @@ End {
     Write-Host "`nDownload process has finished!"
   } catch {
     Write-Host "Script has ended unexpectedly...`n"
+    Write-Host -ForegroundColor Red $Error[0]
   } finally {
     if (Test-Path -Path $tempFile.FullName) {
       Write-Output "`nDisposing temporal file"
