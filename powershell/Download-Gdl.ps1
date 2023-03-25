@@ -24,6 +24,11 @@
 .PARAMETER StringUrl
   String obtain from a pipeline. All strings will be stored and processed at the end.
 
+.PARAMETER GalleryDlArgs
+  Arguments to be passes to gallery-dl.
+  Note: On multy thread downlaods the arguments will be passed to each invokation of gallery-dl.
+  Note: The argument '-i' is always used internally and if included, both will be passed to gallery-dl.
+
 .INPUTS
   String object from pipeline.
 
@@ -38,6 +43,9 @@
 
 .EXAMPLE
   @("$url1", "$url2", "$url3") | Download-Gld
+
+.EXAMPLE
+  Download-Gld -GalleryDlArgs @('-q', '--sleep', '20')
 
 .EXAMPLE
   Download-Gld -UrlsToDownload @("$url1", "$url2") -DownloadParallel
@@ -67,7 +75,11 @@ Param (
   [String[]] $UrlsToDownload,
 
   # Path to file to download
-  [String] $FilePath = ''
+  [String] $FilePath = '',
+
+  # Arguments for gallery-dl
+  [AllowNull()]
+  [String[]] $GalleryDlArgs = @()
 )
 
 Begin {
@@ -82,15 +94,17 @@ Begin {
 
         -Help [switch]               > Print this message.
 
-        -DownloadParallel [switch]   > Allow parallel downloads per domain
+        -DownloadParallel [switch]   > Allow parallel downloads per domain.
 
-        -FilePath [string]           > Path to input file
+        -FilePath [string]           > Path to input file.
 
         -EditorName [string]         > Name of the editor to open the temporal buffer.
 
         -UrlsToDownload [string[]]   > Print this message.
 
         -StringUrl [string]          > Url string from pipeline (pipe only).
+
+        -GalleryDlArgs [string[]]    > Arguments passed to gallery-dl.
     "
   }
 
@@ -151,7 +165,7 @@ End {
         $downloadFileName = "$($perDomainInput.FullName)"
         try {
           $input | Out-File "$downloadFileName" -Encoding ascii
-          gallery-dl -i "$downloadFileName"
+          gallery-dl $GalleryDlArgs -i "$downloadFileName"
         } catch {
           Write-Host "An error occurred with a parallel download $hostName"
           Write-Host -ForegroundColor Red $Error[0]
@@ -171,7 +185,7 @@ End {
     try {
       $links | Out-File $downloadFileName -Encoding ascii
 
-      gallery-dl -i "$downloadFileName"
+      gallery-dl $GalleryDlArgs -i "$downloadFileName"
     } catch {
       Write-Host "An error occurred with the regular download"
       Write-Host -ForegroundColor Red $Error[0]
