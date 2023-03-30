@@ -5,9 +5,11 @@
 
 .DESCRIPTION
   Wrapper script that will allow passing multiple urls to gallery-dl.
-  It accepts strings from a pipeline, an array of strings or it will open a temporal buffer
-  in which all links can be listed and it will process the urls when the buffer closes.
-  The order of priority is pipeline > argument > temporal buffer.
+  The order of priority is pipeline > argument array > argument file > clipboard.
+  All ways of passing urls can be used. Priority only affects order of download.
+  If no urls are provided, a temporal buffer will open to add the urls.
+  All urls will remove empty lines or lines starting with "#".
+  It accepts encoded urls.
 
 .PARAMETER DownloadParallel
   Allow splitting the download per domain to download simultaneously.
@@ -18,11 +20,19 @@
 .PARAMETER EditorName
   Name of the editor to open. It needs to be available in $env:PATH
 
+.PARAMETER ClipBoard
+  Get the content of the clipboard to feed gallery-dl. It used Get-ClipBoard cmdlet.
+
 .PARAMETER UrlsToDownload
   Array of strings to be process by the script instead of opening a file to add them manually.
 
 .PARAMETER StringUrl
   String obtain from a pipeline. All strings will be stored and processed at the end.
+
+.PARAMETER VerifyUrls
+  Make a HEAD request to test each url. If the request fails, the url will be removed.
+  This could remove valid urls if the server blocks the HEAD request for the specific domain.
+  Use it with caution.
 
 .PARAMETER GalleryDlArgs
   Arguments to be passes to gallery-dl.
@@ -39,20 +49,23 @@
   Download-Gld
 
 .EXAMPLE
+  Download-Gld -EditorName vim
+
+.EXAMPLE
   Download-Gld -DownloadParallel -FilePath $HOME/links-to-download.txt
 
 .EXAMPLE
   @("$url1", "$url2", "$url3") | Download-Gld
 
 .EXAMPLE
-  Download-Gld -GalleryDlArgs @('-q', '--sleep', '20')
+  Download-Gld -GalleryDlArgs @('-q', '--sleep', '20') -ClipBoard
 
 .EXAMPLE
   Download-Gld -UrlsToDownload @("$url1", "$url2") -DownloadParallel
 
 .NOTES
   Script respects the EDITOR environment variable. If not present if defaults to notepad.exe.
-  If the -Help flag is present, it will be prioritized over the other arguments.
+  If the -Help flag is present, it will be prioritized over the other arguments and script with exit.
 
 #>
 
@@ -77,9 +90,15 @@ Param (
   # Path to file to download
   [String] $FilePath = '',
 
+  # Get the urls from the clipboard
+  [Switch] $ClipBoard,
+
   # Arguments for gallery-dl
   [AllowNull()]
-  [String[]] $GalleryDlArgs = @()
+  [String[]] $GalleryDlArgs = @(),
+
+  # Verify each url by doing a HEAD request
+  [Switch] $VerifyUrls
 )
 
 Begin {
@@ -100,11 +119,16 @@ Begin {
 
         -EditorName [string]         > Name of the editor to open the temporal buffer.
 
+        -ClipBoard [switch]          > Use the content of the clipboard to get the urls.
+
         -UrlsToDownload [string[]]   > Print this message.
 
         -StringUrl [string]          > Url string from pipeline (pipe only).
 
         -GalleryDlArgs [string[]]    > Arguments passed to gallery-dl.
+
+        -VerifyUrls [switch]         > Make a HEAD request to test the urls before handing
+                                       them over to gallery-dl and remove the failing ones.
     "
   }
 
@@ -121,6 +145,13 @@ Begin {
   if (-not (Get-Command 'gallery-dl' -errorAction SilentlyContinue)) {
     Write-Host -ForegroundColor Red "gallery-dl not found. Please install it and add it to your path to continue."
     exit 1
+  }
+
+  if ($VerifyUrls) {
+    Write-Host -ForegroundColor Yellow "
+      WARNING: Verify the urls may be useful to filter out text that is not a valid url
+      however valid urls could be filter out if the backend service blocks the HEAD method.
+    "
   }
 
   # Important declarations 
@@ -199,13 +230,34 @@ End {
 
   try {
 
+    $linesRaw = @()
+
     if ($stringsFromPipe) {
-      $linesRaw = $stringsFromPipe
-    } elseif ($fileToDownload) {
-      $linesRaw = Get-Content "$fileToDownload"
-    } elseif ($stringsFromArgs) {
-      $linesRaw = $stringsFromArgs
-    } else {
+      foreach ($line in $stringsFromPipe) {
+        $linesRaw += $line
+      }
+    } 
+
+    if ($fileToDownload) {
+      foreach ($line in Get-Content $fileToDownload) {
+        $linesRaw += $line
+      }
+    }
+
+    if ($stringsFromArgs) {
+      foreach ($line in $stringsFromArgs) {
+        $linesRaw += $line
+      }
+    }
+
+    if ($ClipBoard) {
+      foreach ($line in Get-ClipBoard) {
+        $linesRaw += $line
+      }
+    }
+
+    # If no urls where provided, open a buffer
+    if (-not $linesRaw) {
       # Open buffer to get strings
       Write-Output "Opining temporal file... Waiting for file to be closed!"
 
@@ -242,6 +294,10 @@ End {
       }
 
       $url = [System.Web.HttpUtility]::UrlDecode($url)
+
+      if (-not $VerifyUrls) {
+        return "$url"
+      }
 
       try	{
         $request = [System.Net.WebRequest]::Create($url)
