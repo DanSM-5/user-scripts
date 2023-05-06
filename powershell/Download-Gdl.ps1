@@ -182,7 +182,7 @@ Process {
 
 End {
 
-  # TODO: Verify is sqlite could have issues with parallel downloads
+  # TODO: Verify if sqlite could have issues with parallel downloads
   # Snipped from https://github.com/github-account1111
   # in thread https://github.com/mikf/gallery-dl/issues/31
 
