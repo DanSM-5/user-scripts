@@ -88,7 +88,8 @@ Param (
   [String[]] $UrlsToDownload,
 
   # Path to file to download
-  [String] $FilePath = '',
+  [AllowNull()]
+  [String] $FilePath = $null,
 
   # Get the urls from the clipboard
   [Switch] $ClipBoard,
