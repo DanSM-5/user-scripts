@@ -50,6 +50,10 @@ is_command () {
 	command -v "$1" &> /dev/null
 }
 
+is_in_path () {
+  type -P "$1" &> /dev/null
+}
+
 # Detect windows
 if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW) ]]; then
   # It is running on windows
@@ -70,7 +74,7 @@ if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW
       # Do not default to windows temporal directory if a condition is met
       # - It is using linux tizen and sdb commands (must be in path and no aliases)
       # - Current working directory and argument path is in the windows filesystem
-      if $(is_command "tizen" && is_command "sdb"); then
+      if is_in_path "tizen" && is_in_path "sdb"; then
         :
       elif [[ "$starting_location" =~ ^/mnt/* && "$arg_in_win_path" == true ]]; then
         # Create temporal wrappers for tizen and sdb
