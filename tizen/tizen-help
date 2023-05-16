@@ -34,6 +34,7 @@ tmp_dir_name="tmp-dev-dir"
 serial_number="$device_ip:26101"
 
 starting_location="$(pwd)"
+# home_location="$HOME"
 pathid=""
 tizen_tmp=""
 
@@ -61,76 +62,66 @@ if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW
   # Create function to call cmd.exe
   case $(uname) in 
     Linux*) # WSL
+
+      # If using WSL, the tizen command may be a batch script if running the windows
+      # version. That version will cause command prompt (cmd.exe) to default to
+      # the system32 directory if the script is called from the linux filesystem
+      # which will cause an error. It is better to always default to the windows filesystem
+      # as both tizen script versions (linux and windows) will support starting in the windows filesystem.
+      echo ""
+      echo "WSL Detected. Moving operation to the windows filesystem!"
+      echo ""
+
       cmd () {
         cmd.exe /c "$@"
       }
 
-      arg_in_win_path=true
-
-      if [ -f "$2" ] || [ -d "$2" ]; then
-        arg_in_win_path="$(realpath -e "$2" 2>&1 | grep -Ei "^/mnt" &> /dev/null && echo true || echo false)"
-      fi
-
-      # Do not default to windows temporal directory if a condition is met
-      # - It is using linux tizen and sdb commands (must be in path and no aliases)
-      # - Current working directory and argument path is in the windows filesystem
-      if is_in_path "tizen" && is_in_path "sdb"; then
-        :
-      elif [[ "$starting_location" =~ ^/mnt/* && "$arg_in_win_path" == true ]]; then
-        # Create temporal wrappers for tizen and sdb
+      if ! is_command 'tizen'; then
+        # Create temporal wrapper for tizen
         tizen () {
           cmd tizen "$@"
         }
+      fi
 
+      if ! is_command 'sdb'; then
+        # Create temporal wrapper for sdb
         sdb () {
           cmd sdb "$@"
-        }
-      else
-        echo ""
-        echo "On WSL path. Defaulting operations to temporal folder of the windows user!"
-        echo ""
-
-        # Create temporal wrappers for tizen and sdb
-        tizen () {
-          cmd tizen "$@"
-        }
-
-        sdb () {
-          cmd sdb "$@"
-        }
-
-        # Set tizen_tmp directory to allow building using windows tizen and sdb commands 
-        # This is a workaround for CMD.exe not supporting UNC paths E.g. "\\wsl.localhost\Ubuntu"
-        # Using pushd/popd workarounds doesn't play very nice for starting processes.
-        handle_wsl_path () {
-          local path="$1"
-          local temp="$(wslpath $(cmd "echo %TEMP%" | sed -e 's/[[:space:]]*$//'))/tizen-help"
-          local base="$(basename "$path")"
-          pathid="$(uuidgen)"
-          tizen_tmp="$temp/$pathid"
-          # Clean temporal directory
-          trap "rm -rf -- '$tizen_tmp' 2> /dev/null" EXIT
-
-          # Cleanup
-          if [ -d "$tizen_tmp" ]; then
-            rm -rf "$tizen_tmp"
-          fi
-
-          if [ -f "$path" ]; then
-            # Copy file
-
-            # Ensure temp directory
-            mkdir -p "$tizen_tmp"
-            cp "$path" "$tizen_tmp"
-          elif [ -d "$path" ]; then
-            # Make and copy dir
-
-            tizen_tmp="$tizen_tmp/$base"
-            mkdir -p "$tizen_tmp"
-            cp -r "$path/"* "$tizen_tmp"
-          fi
         }
       fi
+
+      # Set tizen_tmp directory to allow building unsing windows or linux commands tizen and sdb. 
+      # This is a workaround for CMD.exe not supporting UNC paths E.g. "\\wsl.localhost\Ubuntu"
+      # Using pushd/popd workarounds doesn't play very nice for starting processes.
+      handle_wsl_path () {
+        local path="$1"
+        local temp="$(wslpath $(cmd "echo %TEMP%" | sed -e 's/[[:space:]]*$//'))/tizen-help"
+        local base="$(basename "$path")"
+        pathid="$(uuidgen)"
+        tizen_tmp="$temp/$pathid"
+        # home_location="$(wslpath $(cmd "echo %USERPROFILE%" | sed -e 's/[[:space:]]*$//'))"
+        # Clean temporal directory
+        trap "rm -rf -- '$tizen_tmp' 2> /dev/null" EXIT
+
+        # Cleanup
+        if [ -d "$tizen_tmp" ]; then
+          rm -rf "$tizen_tmp"
+        fi
+
+        if [ -f "$path" ]; then
+          # Copy file
+
+          # Ensure temp directory
+          mkdir -p "$tizen_tmp"
+          cp "$path" "$tizen_tmp"
+        elif [ -d "$path" ]; then
+          # Make and copy dir
+
+          tizen_tmp="$tizen_tmp/$base"
+          mkdir -p "$tizen_tmp"
+          cp -r "$path/"* "$tizen_tmp"
+        fi
+      }
 
       ;;
     *NT*) # Git bash (MINGW/MSYS)
@@ -324,6 +315,9 @@ start_connection () {
   if [ -z "$device_ip" ]; then
     die "Cannot proceed without a valid IP"
   fi
+
+  serial_number="$device_ip:26101"
+
   echo ""
   echo Connecting to "$device_ip"...
   sdb connect $device_ip
@@ -334,6 +328,8 @@ close_connection () {
   if [ -z "$device_id" ]; then
     set_device_id
   fi
+
+  serial_number="$device_ip:26101"
 
   echo ""
   echo Disconnection from device $device_id at $device_ip...
@@ -486,14 +482,24 @@ case "$1" in
     fi
     ;;
   install)
+    if [ -n "$3" ]; then
+      start_deamon
+      start_connection "$3"
+    fi
+
     tizen_install "$2"
     ;;
   uninstall)
+    if [ -n "$3" ]; then
+      start_deamon
+      start_connection "$3"
+    fi
+
     tizen_uninstall "$2"
     ;;
   debug)
     start_deamon
-    start_connection
+    start_connection "${3:-$device_ip}"
     tizen_debug "$2"
     ;;
   build)
@@ -506,7 +512,7 @@ case "$1" in
     show_app_id "$2"
     ;;
   info)
-    show_current    
+    show_current
     ;;
   syntax)
     syntax_help
