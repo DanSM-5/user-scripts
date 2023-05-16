@@ -90,7 +90,7 @@ if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW
         }
       fi
 
-      # Set tizen_tmp directory to allow building unsing windows or linux commands tizen and sdb. 
+      # Set tizen_tmp directory to allow building unsing windows or linux commands tizen and sdb.
       # This is a workaround for CMD.exe not supporting UNC paths E.g. "\\wsl.localhost\Ubuntu"
       # Using pushd/popd workarounds doesn't play very nice for starting processes.
       handle_wsl_path () {
