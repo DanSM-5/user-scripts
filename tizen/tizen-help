@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-# set -x
+# Using ':' for visible debug comments
+[[ -v debug ]] && set -x
 
 # Common chrome/chromium location
 # mac
@@ -20,6 +21,9 @@
 #   --user-data-dir=/tmp/tmp-dev-dir
 #   --disable-site-isolation-trials
 
+: :: 'Variable declaration'
+version="1.0.1"
+
 # Using linux default
 chromium="${CHROMIUM:-/usr/bin/chromium-browser}"
 device_ip="${SAMSUNG_DEVICE_IP}"
@@ -34,6 +38,7 @@ tmp_dir_name="tmp-dev-dir"
 serial_number="$device_ip:26101"
 
 starting_location="$(pwd)"
+# home_location="$HOME"
 pathid=""
 tizen_tmp=""
 
@@ -43,11 +48,15 @@ get_temp_dir () {
 }
 
 handle_wsl_path () {
-  :
+  : :: 'Empty function'
 }
 
 is_command () {
-	command -v "$1" &> /dev/null
+  command -v "$1" &> /dev/null
+}
+
+is_in_path () {
+  type -P "$1" &> /dev/null
 }
 
 # Detect windows
@@ -57,88 +66,92 @@ if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW
   # Create function to call cmd.exe
   case $(uname) in 
     Linux*) # WSL
+
+      # If using WSL, the tizen command may be a batch script if running the windows
+      # version. That version will cause command prompt (cmd.exe) to default to
+      # the system32 directory if the script is called from the linux filesystem
+      # which will cause an error. It is better to always default to the windows filesystem
+      # as both tizen script versions (linux and windows) will support starting in the windows filesystem.
+      echo ""
+      echo "WSL Detected. Moving operation to the windows filesystem!"
+      echo ""
+
+      : :: 'Creating a wrapper to cmd.exe for WSL'
       cmd () {
         cmd.exe /c "$@"
       }
 
-      arg_in_win_path=true
-
-      if [ -f "$2" ] || [ -d "$2" ]; then
-        arg_in_win_path="$(realpath -e "$2" 2>&1 | grep -Ei "^/mnt" &> /dev/null && echo true || echo false)"
-      fi
-
-      # Do not default to windows temporal directory if a condition is met
-      # - It is using linux tizen and sdb commands (must be in path and no aliases)
-      # - Current working directory and argument path is in the windows filesystem
-      if $(is_command "tizen" && is_command "sdb"); then
-        :
-      elif [[ "$starting_location" =~ ^/mnt/* && "$arg_in_win_path" == true ]]; then
-        # Create temporal wrappers for tizen and sdb
+      if ! is_command 'tizen'; then
+        : :: 'Creating a wrapper for tizen command'
+        # Create temporal wrapper for tizen
         tizen () {
           cmd tizen "$@"
         }
+      fi
 
+      if ! is_command 'sdb'; then
+        : :: 'Creating a wrapper for sdb command'
+        # Create temporal wrapper for sdb
         sdb () {
           cmd sdb "$@"
-        }
-      else
-        echo ""
-        echo "On WSL path. Defaulting operations to temporal folder of the windows user!"
-        echo ""
-
-        # Create temporal wrappers for tizen and sdb
-        tizen () {
-          cmd tizen "$@"
-        }
-
-        sdb () {
-          cmd sdb "$@"
-        }
-
-        # Set tizen_tmp directory to allow building using windows tizen and sdb commands 
-        # This is a workaround for CMD.exe not supporting UNC paths E.g. "\\wsl.localhost\Ubuntu"
-        # Using pushd/popd workarounds doesn't play very nice for starting processes.
-        handle_wsl_path () {
-          local path="$1"
-          local temp="$(wslpath $(cmd "echo %TEMP%" | sed -e 's/[[:space:]]*$//'))/tizen-help"
-          local base="$(basename "$path")"
-          pathid="$(uuidgen)"
-          tizen_tmp="$temp/$pathid"
-          # Clean temporal directory
-          trap "rm -rf -- '$tizen_tmp' 2> /dev/null" EXIT
-
-          # Cleanup
-          if [ -d "$tizen_tmp" ]; then
-            rm -rf "$tizen_tmp"
-          fi
-
-          if [ -f "$path" ]; then
-            # Copy file
-
-            # Ensure temp directory
-            mkdir -p "$tizen_tmp"
-            cp "$path" "$tizen_tmp"
-          elif [ -d "$path" ]; then
-            # Make and copy dir
-
-            tizen_tmp="$tizen_tmp/$base"
-            mkdir -p "$tizen_tmp"
-            cp -r "$path/"* "$tizen_tmp"
-          fi
         }
       fi
+
+      # Set tizen_tmp directory to allow building unsing windows or linux commands tizen and sdb.
+      # This is a workaround for CMD.exe not supporting UNC paths E.g. "\\wsl.localhost\Ubuntu"
+      # Using pushd/popd workarounds doesn't play very nice for starting processes.
+      handle_wsl_path () {
+        : :: 'Handling paths for WSL'
+        local path="$1"
+        local temp="$(wslpath $(cmd "echo %TEMP%" | sed -e 's/[[:space:]]*$//'))/tizen-help"
+        local base="$(basename "$path")"
+        pathid="$(uuidgen)"
+        tizen_tmp="$temp/$pathid"
+        # home_location="$(wslpath $(cmd "echo %USERPROFILE%" | sed -e 's/[[:space:]]*$//'))"
+        # Clean temporal directory
+        trap "rm -rf -- '$tizen_tmp' 2> /dev/null" EXIT
+
+        # Cleanup
+        if [ -d "$tizen_tmp" ]; then
+          rm -rf "$tizen_tmp"
+        fi
+
+        if [ -f "$path" ]; then
+          # Copy file
+          : :: "Target $1 is a file"
+
+          # Ensure temp directory
+          mkdir -p "$tizen_tmp"
+          cp "$path" "$tizen_tmp"
+        elif [ -d "$path" ]; then
+          # Make and copy dir
+          : :: "Target $1 is a directory"
+
+          tizen_tmp="$tizen_tmp/$base"
+          mkdir -p "$tizen_tmp"
+          cp -r "$path/"* "$tizen_tmp"
+        fi
+      }
 
       ;;
     *NT*) # Git bash (MINGW/MSYS)
+      : :: 'Creating a wrapper to cmd.exe for MSYS'
       cmd () {
+        # NOTICE: if automatic path conversion is disabled (variable below)
+        # "MSYS_NO_PATHCONV='1'"
+        # "MSYS2_ARG_CONV_EXCL='*'"
+        # CMD below won't terminate. You need to change '//c' to '/c'
         cmd.exe //c "$@"
       }
 
       # Create temporal wrappers for tizen and sdb
+
+      : :: 'Creating a wrapper for tizen command'
       tizen () {
         cmd tizen "$@"
       }
 
+      : :: 'Creating a wrapper for sdb command'
       sdb () {
         cmd sdb "$@"
       }
@@ -153,19 +166,26 @@ if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW
   }
 fi
 
+print_version () {
+  echo "tizen-help - v$version"
+}
+
 tizen_help () {
   while IFS= read -r line; do
 		printf "  %s\n" "$line"
 	done <<-EOF
 
-  Tizen helper for CLI use
+  Tizen helper for CLI use - v$version
 
   Commands:
     - install       > Install the app provided [wgt-path] in the target tv.
+                      Optional device-ip to target action.
     - uninstall     > Uninstall the app in the tv. It accepts both [app-id] or [wgt-path].
+                      Optional device-ip to target action.
     - debug         > Start a debug session of the app that matches the [app-id] or [wgt-path]
                       If CHROMIUM variable exitst, it will launch it the browser
                       If DISABLE_WEB_SECURITY is "true", it will use disable-web-security flag.
+                      Optional device-ip to target action.
     - build         > Builds a tizen project in the specified directory
                       and outs the results in .buildResult located in the specified directory.
     - package       > Package a tizen app (wgt) in the directory specified.
@@ -176,11 +196,12 @@ tizen_help () {
                       as well as the result of "tizen version" and "sdb version".
     - syntax        > Show syntax help of common uses cases of tizen cli.
     - help          > Prints this message.
+    - version       > Show script version.
 
 	Usage:
-    ${0##*/} install [ wgt-path ]
-    ${0##*/} uninstall [ app-id | wgt-path ]
-    ${0##*/} debug [ app-id | wgt-path ]
+    ${0##*/} install [ wgt-path ] [ device-ip ]
+    ${0##*/} uninstall [ app-id | wgt-path ] [ device-ip ]
+    ${0##*/} debug [ app-id | wgt-path ] [ device-ip ]
     ${0##*/} build [ path-to-build ]
     ${0##*/} package [ path-to-package ]
     ${0##*/} connect [device-ip]
@@ -189,14 +210,36 @@ tizen_help () {
     ${0##*/} info
     ${0##*/} syntax
     ${0##*/} help
+    ${0##*/} version
 
 	Options:
     -h | --help                   Print this message
+    -v | --version                Print script version
 
   Environment variables:
     - CHROMIUM                    Path of the browser executable
     - SAMSUNG_DEVICE_IP           IP Address of the device to connect to
     - DISABLE_WEB_SECURITY        Start the browser with web security disabled [ true | false ]
+
+  Debug errors with the script:
+    > Set a debug environment variable to enable 'set -x' logs
+    $ debug=true ${0##*/} info
+
+  Examples of use:
+    # Build will always create a .buildResult directory
+    $ ${0##*/} build ./build
+
+    # Package your build in a wgt. Current signing profile will be used.
+    $ ${0##*/} package ./build/.buildResult
+
+    # Install can accept a second argument to target a device. Overrides SAMSUNG_DEVICE_IP env variable.
+    $ ${0##*/} install ./build/.buildResult/MY_APP.wgt
+
+    # Debug can accept a second argument to target a device. Overrides SAMSUNG_DEVICE_IP env variable.
+    $ ${0##*/} debug ./build/.buildResult/MY_APP.wgt
+
+    # Uninstall can accept a second argument to target a device. Overrides SAMSUNG_DEVICE_IP env variable.
+    $ ${0##*/} uninstall ./build/.buildResult/MY_APP.wgt
 
 EOF
 }
@@ -206,6 +249,13 @@ syntax_help () {
 		printf "  %s\n" "$line"
 	done <<-EOF
   Tizen syntax:
+
+    Security profiles:
+      Show profiles:
+      - tizen security-profiles list
+      Set a profile:
+      - tizen security-profiles set-active -n [profile-name]
+
     Build:
       - tizen build-web -out [out directory] [-- directory path]
 
@@ -231,7 +281,7 @@ syntax_help () {
       - sdb shell 0 debug [app-id]
       - sdb forward tcp:[port] tcp:[port]
 
-    Restart app (javascript)
+    Restart app (javascript):
       - tizen.application.launch("[app-id]")
 EOF
 }
@@ -246,6 +296,8 @@ open_brwoser () {
     echo ""
     echo "Starting --disable-web-security session"
     local temp_dir="$(get_temp_dir)"
+
+    : :: 'Browser session is located in the temporal directory $temp_dir'
 
     mkdir -p "$temp_dir"
 
@@ -317,9 +369,13 @@ show_current () {
 
 start_connection () {
   device_ip="${1:-$SAMSUNG_DEVICE_IP}"
+
   if [ -z "$device_ip" ]; then
     die "Cannot proceed without a valid IP"
   fi
+
+  serial_number="$device_ip:26101"
+
   echo ""
   echo Connecting to "$device_ip"...
   sdb connect $device_ip
@@ -327,6 +383,13 @@ start_connection () {
 
 close_connection () {
   device_ip="${1:-$SAMSUNG_DEVICE_IP}"
+
+  if [ -z "$device_ip" ]; then
+    die "Cannot proceed without a valid IP"
+  fi
+
+  serial_number="$device_ip:26101"
+
   if [ -z "$device_id" ]; then
     set_device_id
   fi
@@ -468,6 +531,9 @@ if [ -f "$2" ] || [ -d "$2" ]; then
   handle_wsl_path "$2" 
 fi
 
+: ::: Evaluating args :::
+: :: "$@"
+
 case "$1" in
   connect)
     start_deamon
@@ -482,14 +548,24 @@ case "$1" in
     fi
     ;;
   install)
+    if [ -n "$3" ]; then
+      start_deamon
+      start_connection "$3"
+    fi
+
     tizen_install "$2"
     ;;
   uninstall)
+    if [ -n "$3" ]; then
+      start_deamon
+      start_connection "$3"
+    fi
+
     tizen_uninstall "$2"
     ;;
   debug)
     start_deamon
-    start_connection
+    start_connection "${3:-$device_ip}"
     tizen_debug "$2"
     ;;
   build)
@@ -502,13 +578,16 @@ case "$1" in
     show_app_id "$2"
     ;;
   info)
-    show_current    
+    show_current
     ;;
   syntax)
     syntax_help
     ;;
   -h|--help|help)
     tizen_help
+    ;;
+  -v|--version|version)
+    print_version
     ;;
   *)
     echo
