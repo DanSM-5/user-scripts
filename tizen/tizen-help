@@ -22,7 +22,7 @@
 #   --disable-site-isolation-trials
 
 : :: 'Variable declaration'
-version="1.0.1"
+version="1.1.0"
 
 # Using linux default
 chromium="${CHROMIUM:-/usr/bin/chromium-browser}"
@@ -192,6 +192,8 @@ tizen_help () {
     - connect       > Connect to the TV using the provided IP or the IP in SAMSUNG_DEVICE_IP variable.
     - disconnect    > Disconnect from the TV using the provided IP or the IP in SAMSUNG_DEVICE_IP variable.
     - appid         > Show the [app-id] from a given [wgt] file.
+    - profile       > Sets a profile for signing. If no profile is provided, a menu will open to choose
+                      from current profiles. If fzf is available, it will be use to display the menu.
     - info          > Show current value of CHROMIUM and SAMSUNG_DEVICE_IP variables
                       as well as the result of "tizen version" and "sdb version".
     - syntax        > Show syntax help of common uses cases of tizen cli.
@@ -207,6 +209,7 @@ tizen_help () {
     ${0##*/} connect [device-ip]
     ${0##*/} disconnect [device-ip]
     ${0##*/} appid [ wgt-path ]
+    ${0##*/} profile [ profile-name ]
     ${0##*/} info
     ${0##*/} syntax
     ${0##*/} help
@@ -527,6 +530,74 @@ tizen_debug () {
   fi
 }
 
+choose_profile () {
+  local profiles_strs="$(tizen security-profiles list | sed '1d;2d')"
+  # Associative array (key base instead of index)
+  local declare -A profiles=()
+  local count=0
+  local profile=''
+  local selection=''
+
+  while IFS= read -r profile_str; do
+    profile="$(echo "${profile_str/ O}" | sed -E 's/[[:space:]]*$//')"
+    profiles[$count]="$profile"
+
+    # Show currently active profile (Includes a "O" at the end).
+    echo "$count: $profile_str"
+    ((count++))
+  done <<< "$profiles_strs"
+
+  echo "Enter the number of the profile or 'q' to quit:"
+  read -p 'Profile: ' selection
+
+  if [ "$selection" = 'q' ]; then
+    : :: "No profile selected."
+    return
+  fi
+
+  : :: "Selected profile: $selection"
+
+  profile=''
+  profile="${profiles[$selection]}"
+
+  if [ -z "$profile" ]; then
+    die "Selected profile '$selection' is invalid."
+    return 1
+  fi
+
+  tizen security-profiles set-active -n "$profile"
+}
+
+choose_profile_fzf () {
+  local profile="$(tizen security-profiles list | sed '1d;2d' | fzf)"
+  
+  : :: "Selected profile: $profile"
+  if [ -z "$profile" ]; then
+    : :: "No profile selected."
+    return
+  fi
+
+  tizen security-profiles set-active -n "$(echo "${profile/ O}" | sed -E 's/[[:space:]]*$//')"
+}
+
+change_profile () {
+  local profile="$1"
+
+  if [ -n "$profile" ]; then
+    : :: "Setting Profile: $1"
+    tizen security-profiles set-active -n "$profile" 
+    return "$?"
+  fi
+
+  if is_command 'fzf'; then
+    : :: "Using fzf to select profile"
+    choose_profile_fzf
+    return
+  fi
+
+  choose_profile
+}
+
 if [ -f "$2" ] || [ -d "$2" ]; then
   handle_wsl_path "$2" 
 fi
@@ -582,6 +653,9 @@ case "$1" in
     ;;
   syntax)
     syntax_help
+    ;;
+  profile)
+    change_profile "$2"
     ;;
   -h|--help|help)
     tizen_help
