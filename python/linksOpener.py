@@ -186,6 +186,7 @@ class Opener:
 
     def recursiveOpen(self, links, current = 0):
         link = links[current]
+        print(f'Opening: {link}')
         self.open(link)
         next = current + 1
         if next < len(links):
@@ -201,10 +202,10 @@ def getLinksFromFile(file):
         lines = f.readlines()
 
     for l in lines:
-        if not l:
-            continue
-
         line = l.strip()
+
+        if not line:
+            continue
 
         if any(line.startswith(i) for i in commentsStart):
             continue
@@ -216,16 +217,20 @@ def getLinksFromFile(file):
 def getLinksFromStdin():
     links = []
 
-    for l in sys.stdin:
-        if not l:
-            continue
+    # Hack to avoid hanging if pipe stdin is empty
+    if not sys.stdin.isatty():
 
-        line = l.strip()
+        for l in sys.stdin.readlines():
+            line = l.strip()
 
-        if any(line.startswith(i) for i in commentsStart):
-            continue
+            if not line:
+                continue
 
-        links.append(line)
+
+            if any(line.startswith(i) for i in commentsStart):
+                continue
+
+            links.append(line)
 
     return links
 
