@@ -42,12 +42,14 @@ allLinks = []
 # or remove linksString entirely.
 separator = "\n" # Default separator
 
-privateFlags = {
-    "firefox": "--private",
-    "chromium": "--incognito"
-}
+# privateFlags = {
+#     "firefox": "--private",
+#     "chromium": "--incognito"
+# }
 
-privateArgs = "--private --incognito"
+# Known argument to start a browser in its private mode.
+# Using all to avoid matching each per respective browser.
+privateArgs = "--private --incognito -inprivate"
 
 # Known locations of common browsers
 defaultBrowserPaths = {
@@ -58,7 +60,9 @@ defaultBrowserPaths = {
         ],
     },
     "Windows": {
-        "chromium": [],
+        "chromium": [
+            os.path.expandvars("$LOCALAPPDATA/Chromium/Application/chrome.exe").replace('\\', '/')
+        ],
         "chrome": [
             "C:/Program Files/Google/Chrome/Application/chrome.exe",
             "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"
@@ -82,6 +86,7 @@ parser.add_argument('-p', '--path', action = 'store', default = 'links.txt', hel
 parser.add_argument('-d', '--delay', action = 'store', default = 1, help = 'Delay in seconds to use for opening links.', type = int)
 parser.add_argument('-b', '--browser', action = 'store', default = '', help = 'Delay in seconds to use for opening links.')
 parser.add_argument('-s', '--separator', action = 'store', default = '\n', help = 'Separator for link in the file. Line break is the default.')
+parser.add_argument('infile', nargs='?', type = argparse.FileType('r'), default = None, help = 'File to read. Use [-] to read from stdin. WARNING: empty stdin will hang the script.')
 
 args = parser.parse_args()
 
@@ -151,8 +156,6 @@ def getLinuxDefaultBrowser():
 
     return None
 
-
-
 def getPrivateBrowserCmd(browserPath):
     if browserPath:
         # If browserPath exist or it is available in the path, compose the launch command
@@ -194,14 +197,10 @@ class Opener:
         else:
             print("All links opened!")
 
-def getLinksFromFile(file):
+def getLinks(iterable):
     links = []
-    lines = ''
 
-    with open(file, "r") as f:
-        lines = f.readlines()
-
-    for l in lines:
+    for l in iterable:
         line = l.strip()
 
         if not line:
@@ -214,25 +213,31 @@ def getLinksFromFile(file):
 
     return links
 
-def getLinksFromStdin():
-    links = []
+def getLinksFromPath(path):
+    lines = ''
 
+    with open(path, "r") as f:
+        lines = f.readlines()
+
+    return getLinks(lines)
+
+def getLinksFromInFile(file):
     # Hack to avoid hanging if pipe stdin is empty
-    if not sys.stdin.isatty():
+    # if not sys.stdin.isatty():
 
-        for l in sys.stdin.readlines():
-            line = l.strip()
+    #     for l in sys.stdin.readlines():
+    #         line = l.strip()
 
-            if not line:
-                continue
+    #         if not line:
+    #             continue
 
 
-            if any(line.startswith(i) for i in commentsStart):
-                continue
+    #         if any(line.startswith(i) for i in commentsStart):
+    #             continue
 
-            links.append(line)
+    #         links.append(line)
 
-    return links
+    return getLinks(file)
 
 def requestContinuation():
     # In order to append command line arguments to open in private/incognito mode
@@ -286,17 +291,17 @@ def main():
     # Get any link from linksString.
     allLinks = [l for l in linksString.split(separator) if l]
 
-    linksFile = args.path or defaultTarget
+    pathToFile = args.path or defaultTarget
 
-    # Get links from file.
-    if os.path.exists(linksFile):
-        fromFile = getLinksFromFile(linksFile)
-        allLinks.extend(fromFile)
+    # Get links from file using its path.
+    if os.path.exists(pathToFile):
+        fromPath = getLinksFromPath(pathToFile)
+        allLinks.extend(fromPath)
 
-    # Links from STDIN
-    fromStdin = getLinksFromStdin()
-    if len(fromStdin):
-        allLinks.extend(fromStdin)
+    # Links from a file or STDIN
+    if args.infile:
+        fromInFile = getLinksFromInFile(args.infile)
+        allLinks.extend(fromInFile)
 
     if len(allLinks):
         opener = Opener(browserPath)
