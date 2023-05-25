@@ -165,7 +165,7 @@ def getPrivateBrowserCmd(browserPath):
             return None
     # Respect browser env variable
     elif 'BROWSER' in os.environ:
-        return buildPrivateCommand(f'{os.environ["BROWSER"]}')
+        return buildPrivateCommand(os.environ["BROWSER"].replace(' ', '\ '))
     else:
         defaultBrowser = None
 
