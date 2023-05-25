@@ -86,7 +86,7 @@ parser.add_argument('-p', '--path', action = 'store', default = 'links.txt', hel
 parser.add_argument('-d', '--delay', action = 'store', default = 1, help = 'Delay in seconds to use for opening links.', type = int)
 parser.add_argument('-b', '--browser', action = 'store', default = '', help = 'Delay in seconds to use for opening links.')
 parser.add_argument('-s', '--separator', action = 'store', default = '\n', help = 'Separator for link in the file. Line break is the default.')
-parser.add_argument('infile', nargs='?', type = argparse.FileType('r'), default = None, help = 'File to read. Use [-] to read from stdin. WARNING: empty stdin will hang the script.')
+parser.add_argument('infile', nargs='?', type = argparse.FileType('rb'), default = None, help = 'File to read. Use [-] to read from stdin. WARNING: empty stdin will hang the script.')
 
 args = parser.parse_args()
 
@@ -180,64 +180,74 @@ def getPrivateBrowserCmd(browserPath):
             return None
 
 class Opener:
-    def __init__(self, browserPath = None):
-        # print(f'Using browser {browserPath}')
+    """Wrapper for webbrowser to add additional features like open in incognito/private session"""
+    def __init__(self, browserPath = None, isPrivate = False):
         self.browser = webbrowser.get(using = browserPath)
+        self.isPrivate = isPrivate
         
     def open(self, link):
         self.browser.open(link)
 
-    def recursiveOpen(self, links, current = 0):
-        link = links[current]
-        print(f'Opening: {link}')
+    def recursiveOpen(self, linksIterator, current = None):
+        link = current
+
+        if not link:
+            link = linksIterator.next()
+
+        if not self.isPrivate:
+            print(f'Opening: {link}')
+
         self.open(link)
-        next = current + 1
-        if next < len(links):
-            threading.Timer(delay, lambda: self.recursiveOpen(links, next)).start()
+        nextLink = linksIterator.next()
+
+        if nextLink:
+            threading.Timer(delay, lambda: self.recursiveOpen(linksIterator, nextLink)).start()
         else:
             print("All links opened!")
 
-def getLinks(iterable):
-    links = []
+class Iterator:
+    """Combine different generators under the same interface"""
+    # Accepts multi line string, file handler or path to file.
+    def __init__(self, iterators):
+        self.iterators = []
 
-    for l in iterable:
-        line = l.strip()
+        for iterator in iterators:
+            if isinstance(iterator, str):
+                if os.path.exists(iterator):
+                    self.iterators.append(self.creatFileHandlerGenerator(iterator))
+                else:
+                    self.iterators.append((line for line in iterator.split(separator)))
+            else:
+                self.iterators.append(iterator)
 
-        if not line:
-            continue
+    def creatFileHandlerGenerator(self, path):
+        with open(path, 'rb') as fileHandler:
+            for line in fileHandler:
+                yield line
 
-        if any(line.startswith(i) for i in commentsStart):
-            continue
+    def yieldNext(self):
+        for iterator in self.iterators:
+            for line in iterator:
+                if getattr(line, 'decode', None):
+                    text = line.decode('utf-8')
+                else:
+                    text = line
 
-        links.append(line)
+                link = text.strip()
 
-    return links
+                if not link:
+                    continue
 
-def getLinksFromPath(path):
-    lines = ''
+                if any(link.startswith(i) for i in commentsStart):
+                    continue
 
-    with open(path, "r") as f:
-        lines = f.readlines()
+                yield link
 
-    return getLinks(lines)
-
-def getLinksFromInFile(file):
-    # Hack to avoid hanging if pipe stdin is empty
-    # if not sys.stdin.isatty():
-
-    #     for l in sys.stdin.readlines():
-    #         line = l.strip()
-
-    #         if not line:
-    #             continue
-
-
-    #         if any(line.startswith(i) for i in commentsStart):
-    #             continue
-
-    #         links.append(line)
-
-    return getLinks(file)
+    def next(self):
+        try:
+            return next(self.yieldNext())
+        except StopIteration:
+            return None
 
 def requestContinuation():
     # In order to append command line arguments to open in private/incognito mode
@@ -245,10 +255,14 @@ def requestContinuation():
     # Failure to compose the string will result in the inavility to open the
     # browser in private mode.
 
-    print('Request to open links was made using a private session.')
-    print('However browser was not provided or not found and default browser location couldn\'t be found.')
-    print('It is not possible to append command line arguments without a browser command or path.')
-    print('Links opening process can proceed with default browser but it would happen in a normal session.')
+    print(
+        'Request to open links was made using a private session.',
+        'However browser was not provided or not found and default browser location couldn\'t be found.',
+        'It is not possible to append command line arguments without a browser command or path.',
+        'Links opening process can proceed with default browser but it would happen in a normal session.',
+        sep = os.linesep
+    )
+
     answer = str(input('Do you wish to proceed? [Y/y]: '))
 
     try:
@@ -258,6 +272,8 @@ def requestContinuation():
 
 def main():
     browserPath = None
+    allLinks = []
+    pathToFile = args.path or defaultTarget
 
     if args.browser:
         # Provided name of browser
@@ -267,7 +283,7 @@ def main():
                     browserPath = location
                     break
         # Provided path to browser
-        elif os.path.exists(args.browser) or (shutil.which(args.browser) is not None):
+        elif os.path.exists(args.browser) or shutil.which(args.browser):
             browserPath = args.browser
         else:
             print('Invalid browser. Using system default browser')
@@ -288,24 +304,20 @@ def main():
         else:
             browserPath = privateBrowser
 
-    # Get any link from linksString.
-    allLinks = [l for l in linksString.split(separator) if l]
+    if linksString.strip():
+        allLinks.append(linksString)
 
-    pathToFile = args.path or defaultTarget
-
-    # Get links from file using its path.
     if os.path.exists(pathToFile):
-        fromPath = getLinksFromPath(pathToFile)
-        allLinks.extend(fromPath)
+        allLinks.append(pathToFile)
 
-    # Links from a file or STDIN
     if args.infile:
-        fromInFile = getLinksFromInFile(args.infile)
-        allLinks.extend(fromInFile)
+        allLinks.append(args.infile)
 
     if len(allLinks):
-        opener = Opener(browserPath)
-        opener.recursiveOpen(allLinks)
+        iterator = Iterator(allLinks)
+        opener = Opener(browserPath, args.incognito)
+
+        opener.recursiveOpen(iterator)
     else:
         print('No links to open. Ending.')
 
