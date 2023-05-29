@@ -172,6 +172,8 @@ Begin {
   $stringsFromPipe = @()
   $stringsFromArgs = if ($UrlsToDownload) { $UrlsToDownload } else { @() }
   $fileToDownload = if ("$FilePath" -and (Test-Path -Path "$FilePath")) { "$FilePath" } else { $null }
+  $comments = @( '#', '//', ';', ']' )
+  $is_comment_regex = "^(" + ($comments -join '|') + ")"
 }
 
 Process {
@@ -197,6 +199,7 @@ End {
         $downloadFileName = "$($perDomainInput.FullName)"
         try {
           $input | Out-File "$downloadFileName" -Encoding ascii
+          # --input-file or -i
           gallery-dl $GalleryDlArgs -i "$downloadFileName"
         } catch {
           Write-Host "An error occurred with a parallel download $hostName"
@@ -290,7 +293,7 @@ End {
       }
 
       # Omit comments
-      if ("$url" -Like '#*') {
+      if ($url -Match "$is_comment_regex") {
         return
       }
 
