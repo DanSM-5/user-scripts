@@ -54,9 +54,17 @@ privateArgs = "--private --incognito -inprivate"
 # Known locations of common browsers
 defaultBrowserPaths = {
     "Linux": {
-        "firefox": [],
+        "firefox": [
+            "/usr/lib/firefox"
+        ],
         "chromium": [
             "/usr/bin/chromium-browser"
+        ],
+        "chrome": [
+            "/opt/google/chrome"
+        ],
+        "brave": [
+            "/usr/lib/brave-browser"
         ],
     },
     "Windows": {
