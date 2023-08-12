@@ -1,0 +1,9 @@
+players:
+  mpv:
+    executable: mpv
+    opts: []
+
+fzf:
+  executable: fzf
+  opts: []
+  state: true
