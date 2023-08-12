@@ -1,0 +1,15 @@
+# Open file in nvim
+map e $nvim $f
+
+# Use bat as pager
+map i $bat --paging=always $f
+
+# Open new shell
+map w $zsh
+
+# Open docs in bat
+cmd doc $lf -doc | bat --language man -p
+
+# Add icons when starting lf
+set icons
+
