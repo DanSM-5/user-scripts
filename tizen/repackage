@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+[[ -v debug ]] && set -x
+
+# If windows
+if [[ "$(cat /proc/version 2> /dev/null)" =~ (WSL|Microsoft|microsoft|MSYS|MINGW) ]]; then
+  case $(uname) in
+    Linux*) # WSL
+      # Only add tizen if not exist
+      if ! command -v tizen &> /dev/null; then
+        tizen () {
+          cmd.exe /c tizen "$@"
+        }
+      fi
+      ;;
+    *NT*) # Git bash (MINGW/MSYS)
+        tizen () {
+          cmd.exe //c tizen "$@"
+        }
+      ;;
+  esac
+fi
+
+# Check tizen is a command and it works
+if ! command -v tizen &> /dev/null || ! tizen version &> /dev/null; then
+  echo "tizen command not found."
+  exit 1
+fi
+
+# Input is a file
+if ! [ -f "$1" ]; then
+  echo "$1 is not a file"
+  exit 1
+fi
+
+wgtname="$1"
+
+temp_dir='temp-package-files'
+# Cleanup
+trap "rm -rf -- '$temp_dir' &> /dev/null" EXIT
+
+# Extract files
+unzip "$wgtname" -d "$temp_dir"
+mv "$wgtname" "${wgtname}.old"
+
+# Create new package
+tizen package -t wgt -- "$temp_dir"
+mv "$temp_dir"/*.wgt "repackage-${wgtname}"
