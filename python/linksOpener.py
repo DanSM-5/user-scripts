@@ -47,8 +47,8 @@ separator = "\n" # Default separator
 #     "chromium": "--incognito"
 # }
 
-# Known argument to start a browser in its private mode.
-# Using all to avoid matching each per respective browser.
+# Known arguments to start a browser in its private mode.
+# Using all to avoid having to match each with their respective browser.
 privateArgs = "--private --incognito -inprivate"
 
 # Known locations of common browsers
@@ -82,6 +82,11 @@ defaultBrowserPaths = {
         "librewolf": [
             "C:/Program Files/LibreWolf/librewolf.exe"
         ],
+        "brave": [
+            os.path.expandvars(
+                "$LOCALAPPDATA/BraveSoftware/Brave-Browser/Application/brave.exe"
+            ).replace('\\', '/')
+        ],
         "edge": [
             "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
         ]
@@ -92,7 +97,7 @@ parser = argparse.ArgumentParser(prog = 'linksOpener', description = 'Open links
 parser.add_argument('-i', '--incognito', action = argparse.BooleanOptionalAction, default = False, help = 'Open links in a private session.')
 parser.add_argument('-p', '--path', action = 'store', default = 'links.txt', help = 'Path with links to open in browser.')
 parser.add_argument('-d', '--delay', action = 'store', default = 1, help = 'Delay in seconds to use for opening links.', type = int)
-parser.add_argument('-b', '--browser', action = 'store', default = '', help = 'Delay in seconds to use for opening links.')
+parser.add_argument('-b', '--browser', action = 'store', default = '', help = 'Name or path of browser to use')
 parser.add_argument('-s', '--separator', action = 'store', default = '\n', help = 'Separator for link in the file. Line break is the default.')
 parser.add_argument('infile', nargs='?', type = argparse.FileType('rb'), default = None, help = 'File to read. Use [-] to read from stdin. WARNING: empty stdin will hang the script.')
 
@@ -139,6 +144,7 @@ def getLinuxDefaultBrowser():
 
     common_browsers = (
         'firefox',
+        'brave',
         'mozilla-firefox',
         'google-chrome',
         'chrome',
@@ -292,7 +298,7 @@ def main():
                     break
         # Provided path to browser
         elif os.path.exists(args.browser) or shutil.which(args.browser):
-            browserPath = args.browser
+            browserPath = args.browser.replace('\\', '/') # Make sure path uses '/'
         else:
             print('Invalid browser. Using system default browser')
 
