@@ -18,26 +18,34 @@
   Specify path to file with links to download
 
 .PARAMETER EditorName
-  Name of the editor to open. It needs to be available in $env:PATH
+  Name of the editor to open. If not a fullpath, it needs to be available in $env:PATH
 
 .PARAMETER ClipBoard
-  Get the content of the clipboard to feed gallery-dl. It used Get-ClipBoard cmdlet.
+  Get the content of the clipboard to feed gallery-dl. It uses Get-ClipBoard cmdlet.
 
 .PARAMETER UrlsToDownload
   Array of strings to be process by the script instead of opening a file to add them manually.
 
 .PARAMETER StringUrl
-  String obtain from a pipeline. All strings will be stored and processed at the end.
+  String obtain from a pipeline. All pipeline strings will be stored. Download process will happen at the end on End block.
 
 .PARAMETER VerifyUrls
   Make a HEAD request to test each url. If the request fails, the url will be removed.
   This could remove valid urls if the server blocks the HEAD request for the specific domain.
   Use it with caution.
 
-.PARAMETER GalleryDlArgs
+.PARAMETER ArgsForCmd
   Arguments to be passes to gallery-dl.
   Note: On multy thread downlaods the arguments will be passed to each invokation of gallery-dl.
   Note: The argument '-i' is always used internally and if included, both will be passed to gallery-dl.
+
+.PARAMETER InternalDlCmd
+  Command used internally for the download action. By default this script assumes 'gallery-dl' command
+  but this can be overriden for system specific needs
+
+.PARAMETER Help
+  Prints help message on screen. If this argument is passed, execution will end after the help message is print
+  and any other argument will be ignored.
 
 .INPUTS
   String object from pipeline.
@@ -58,7 +66,7 @@
   @("$url1", "$url2", "$url3") | Download-Gld
 
 .EXAMPLE
-  Download-Gld -GalleryDlArgs @('-q', '--sleep', '20') -ClipBoard
+  Download-Gld -ArgsForCmd @('-q', '--sleep', '20') -ClipBoard
 
 .EXAMPLE
   Download-Gld -UrlsToDownload @("$url1", "$url2") -DownloadParallel
@@ -96,7 +104,10 @@ Param (
 
   # Arguments for gallery-dl
   [AllowNull()]
-  [String[]] $GalleryDlArgs = @(),
+  [String[]] $ArgsForCmd = @(),
+
+  # Name of command to use
+  [String] $InternalDlCmd = 'gallery-dl',
 
   # Verify each url by doing a HEAD request
   [Switch] $VerifyUrls
@@ -126,7 +137,9 @@ Begin {
 
         -StringUrl [string]          > Url string from pipeline (pipe only).
 
-        -GalleryDlArgs [string[]]    > Arguments passed to gallery-dl.
+        -ArgsForCmd [string[]]       > Arguments passed to gallery-dl.
+
+        -InternalDlCmd               > Command name or path for gallery-dl. Default is gallery-dl.
 
         -VerifyUrls [switch]         > Make a HEAD request to test the urls before handing
                                        them over to gallery-dl and remove the failing ones.
@@ -143,7 +156,7 @@ Begin {
     exit 1
   }
 
-  if (-not (Get-Command 'gallery-dl' -errorAction SilentlyContinue)) {
+  if (-not (Get-Command "$InternalDlCmd" -errorAction SilentlyContinue)) {
     Write-Host -ForegroundColor Red "gallery-dl not found. Please install it and add it to your path to continue."
     exit 1
   }
@@ -200,7 +213,7 @@ End {
         try {
           $input | Out-File "$downloadFileName" -Encoding ascii
           # --input-file or -i
-          gallery-dl $GalleryDlArgs -i "$downloadFileName"
+          & $InternalDlCmd $ArgsForCmd -i "$downloadFileName"
         } catch {
           Write-Host "An error occurred with a parallel download $hostName"
           Write-Host -ForegroundColor Red $Error[0]
@@ -220,7 +233,7 @@ End {
     try {
       $links | Out-File $downloadFileName -Encoding ascii
 
-      gallery-dl $GalleryDlArgs -i "$downloadFileName"
+      & $InternalDlCmd $ArgsForCmd -i "$downloadFileName"
     } catch {
       Write-Host "An error occurred with the regular download"
       Write-Host -ForegroundColor Red $Error[0]
@@ -281,7 +294,7 @@ End {
       $linesRaw = Get-Content $tempFile.FullName
     }
 
-    Write-Output "Start processing with gallery-dl..."
+    Write-Output "Start processing with $InternalDlCmd..."
 
     $lines = $linesRaw | Where {
       # Get rid of spaces

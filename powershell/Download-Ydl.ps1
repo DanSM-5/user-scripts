@@ -18,26 +18,34 @@
   Specify path to file with links to download
 
 .PARAMETER EditorName
-  Name of the editor to open. It needs to be available in $env:PATH
+  Name of the editor to open. If not a fullpath, it needs to be available in $env:PATH
 
 .PARAMETER ClipBoard
-  Get the content of the clipboard to feed yt-dlp. It used Get-ClipBoard cmdlet.
+  Get the content of the clipboard to feed yt-dlp. It uses Get-ClipBoard cmdlet.
 
 .PARAMETER UrlsToDownload
   Array of strings to be process by the script instead of opening a file to add them manually.
 
 .PARAMETER StringUrl
-  String obtain from a pipeline. All strings will be stored and processed at the end.
+  String obtain from a pipeline. All pipeline strings will be stored. Download process will happen at the end on End block.
 
 .PARAMETER VerifyUrls
   Make a HEAD request to test each url. If the request fails, the url will be removed.
   This could remove valid urls if the server blocks the HEAD request for the specific domain.
   Use it with caution.
 
-.PARAMETER YtdlpArgs
+.PARAMETER ArgsForCmd
   Arguments to be passes to yt-dlp.
   Note: On multy thread downlaods the arguments will be passed to each invokation of yt-dlp.
   Note: The argument '-a' or '--batch-file' is always used internally and if included, both will be passed to yt-dlp.
+
+.PARAMETER InternalDlCmd
+  Command used internally for the download action. By default this script assumes 'yt-dlp' command
+  but this can be overriden for system specific needs
+
+.PARAMETER Help
+  Prints help message on screen. If this argument is passed, execution will end after the help message is print
+  and any other argument will be ignored.
 
 .INPUTS
   String object from pipeline.
@@ -58,7 +66,7 @@
   @("$url1", "$url2", "$url3") | Download-Ydl
 
 .EXAMPLE
-  Download-Yld -YtdlpArgs @('-q', '--sleep', '20') -ClipBoard
+  Download-Yld -ArgsForCmd @('-q', '--sleep', '20') -ClipBoard
 
 .EXAMPLE
   Download-Yld -UrlsToDownload @("$url1", "$url2") -DownloadParallel
@@ -96,7 +104,10 @@ Param (
 
   # Arguments for yt-dlp
   [AllowNull()]
-  [String[]] $YtdlpArgs = @(),
+  [String[]] $ArgsForCmd = @(),
+
+  # Name of command to use
+  [String] $InternalDlCmd = 'yt-dlp',
 
   # Verify each url by doing a HEAD request
   [Switch] $VerifyUrls
@@ -126,7 +137,9 @@ Begin {
 
         -StringUrl [string]          > Url string from pipeline (pipe only).
 
-        -YtdlpArgs [string[]]        > Arguments passed to yt-dlp.
+        -ArgsForCmd [string[]]        > Arguments passed to yt-dlp.
+
+        -InternalDlCmd               > Command name or path for yt-dlp. Default is yt-dlp.
 
         -VerifyUrls [switch]         > Make a HEAD request to test the urls before handing
                                        them over to yt-dlp and remove the failing ones.
@@ -143,7 +156,7 @@ Begin {
     exit 1
   }
 
-  if (-not (Get-Command 'yt-dlp' -errorAction SilentlyContinue)) {
+  if (-not (Get-Command "$InternalDlCmd" -errorAction SilentlyContinue)) {
     Write-Host -ForegroundColor Red "yt-dlp not found. Please install it and add it to your path to continue."
     exit 1
   }
@@ -199,7 +212,7 @@ End {
         try {
           $input | Out-File "$downloadFileName" -Encoding ascii
           # --batch-file or -a
-          yt-dlp $GalleryDlArgs --batch-file "$downloadFileName"
+          & $InternalDlCmd $ArgsForCmd --batch-file "$downloadFileName"
         } catch {
           Write-Host "An error occurred with a parallel download $hostName"
           Write-Host -ForegroundColor Red $Error[0]
@@ -219,7 +232,7 @@ End {
     try {
       $links | Out-File $downloadFileName -Encoding ascii
 
-      yt-dlp $GalleryDlArgs --batch-file "$downloadFileName"
+      & $InternalDlCmd $ArgsForCmd --batch-file "$downloadFileName"
     } catch {
       Write-Host "An error occurred with the regular download"
       Write-Host -ForegroundColor Red $Error[0]
@@ -280,7 +293,7 @@ End {
       $linesRaw = Get-Content $tempFile.FullName
     }
 
-    Write-Output "Start processing with yt-dlp..."
+    Write-Output "Start processing with $InternalDlCmd..."
 
     $lines = $linesRaw | Where {
       # Get rid of spaces
