@@ -8,6 +8,7 @@ import platform
 import argparse
 import shutil
 import subprocess
+import functools
 
 """
     Open links in the default browser of the current system.
@@ -215,7 +216,10 @@ class Opener:
         nextLink = linksIterator.next()
 
         if nextLink:
-            threading.Timer(delay, lambda: self.recursiveOpen(linksIterator, nextLink)).start()
+            threading.Timer(
+                delay,
+                functools.partial(self.recursiveOpen, linksIterator, nextLink)
+            ).start()
         else:
             print("All links opened!")
 
