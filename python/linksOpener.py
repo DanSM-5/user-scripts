@@ -9,6 +9,7 @@ import argparse
 import shutil
 import subprocess
 import functools
+import re
 
 """
     Open links in the default browser of the current system.
@@ -42,6 +43,14 @@ allLinks = []
 # Consider adding the option for file or stdin
 # or remove linksString entirely.
 separator = "\n" # Default separator
+
+
+charsToEscape = " "  # Add here all characters that you want to escape
+charsToEscapeRe = (  # This whole clause is equivalent to:  charsToEscape = r"(?<!\\)( )"
+    r"(?<!\\)("
+    + r"|".join(map(lambda value: re.escape(value), charsToEscape))
+    + r")"
+)
 
 # privateFlags = {
 #     "firefox": "--private",
@@ -100,6 +109,7 @@ parser.add_argument('-p', '--path', action = 'store', default = 'links.txt', hel
 parser.add_argument('-d', '--delay', action = 'store', default = 1, help = 'Delay in seconds to use for opening links.', type = int)
 parser.add_argument('-b', '--browser', action = 'store', default = '', help = 'Name or path of browser to use')
 parser.add_argument('-s', '--separator', action = 'store', default = '\n', help = 'Separator for link in the file. Line break is the default.')
+parser.add_argument('--debug', action = argparse.BooleanOptionalAction, default = False, help = 'Add additional logs in the console for debug.')
 parser.add_argument('infile', nargs='?', type = argparse.FileType('rb'), default = None, help = 'File to read. Use [-] to read from stdin. WARNING: empty stdin will hang the script.')
 
 args = parser.parse_args()
@@ -112,8 +122,19 @@ separator = args.separator or separator
 if systemOs == "Windows":
     from winreg import HKEY_CLASSES_ROOT, HKEY_CURRENT_USER, OpenKey, QueryValueEx
 
-def buildPrivateCommand(browserPath):
+debug = lambda *debugArgs: print('[Links Opener]', *debugArgs) if args.debug else lambda: None
+
+
+def escapeSpaces(stringToEscape):
+    """ Escape all non-escaped spaces in the string to escape """
+    return re.sub(charsToEscapeRe, r'\\\1', stringToEscape)
+
+def buildPrivateCommand(commandPath):
+    browserPath = escapeSpaces(commandPath)
     return f'{browserPath} %s {privateArgs}'
+
+def preparePath(stringPath):
+    return escapeSpaces(stringPath.replace('\\', '/'))
 
 def getWindowsDefaultBrowser():
     browser_path = ''
@@ -178,9 +199,12 @@ def getPrivateBrowserCmd(browserPath):
             return buildPrivateCommand(browserPath)
         else:
             return None
+    # Add script specific variable to avoid conflicts with BROWSER
+    elif 'BROWSER_LINKSOPENER' in os.environ:
+        return buildPrivateCommand(os.environ["BROWSER_LINKSOPENER"])
     # Respect browser env variable
     elif 'BROWSER' in os.environ:
-        return buildPrivateCommand(os.environ["BROWSER"].replace(' ', '\ '))
+        return buildPrivateCommand(os.environ["BROWSER"])
     else:
         defaultBrowser = None
 
@@ -197,6 +221,8 @@ def getPrivateBrowserCmd(browserPath):
 class Opener:
     """Wrapper for webbrowser to add additional features like open in incognito/private session"""
     def __init__(self, browserPath = None, isPrivate = False):
+        debug(f'Browser: {browserPath}')
+        debug(f'Is private session? {isPrivate}')
         self.browser = webbrowser.get(using = browserPath)
         self.isPrivate = isPrivate
         
@@ -209,7 +235,9 @@ class Opener:
         if not link:
             link = linksIterator.next()
 
-        if not self.isPrivate:
+        if args.debug:
+            debug(f'Opening: {link}')
+        elif not self.isPrivate:
             print(f'Opening: {link}')
 
         self.open(link)
@@ -275,9 +303,9 @@ def requestContinuation():
 
     print(
         'Request to open links was made using a private session.',
-        'However browser was not provided or not found and default browser location couldn\'t be found.',
+        'However browser path was not provided or not found and default browser location couldn\'t be found.',
         'It is not possible to append command line arguments without a browser command or path.',
-        'Links opening process can proceed with default browser but it would happen in a normal session.',
+        'Links opening process can proceed with default or requested browser in a normal session.',
         sep = os.linesep
     )
 
@@ -293,6 +321,7 @@ def main():
     allLinks = []
     pathToFile = args.path or defaultTarget
 
+    # Use browser argument if present
     if args.browser:
         # Provided name of browser
         if args.browser in defaultBrowserPaths[systemOs]:
@@ -303,9 +332,13 @@ def main():
         # Provided path to browser
         elif os.path.exists(args.browser) or shutil.which(args.browser):
             browserPath = args.browser.replace('\\', '/') # Make sure path uses '/'
+        # Is a valid browser for webbrowser
+        elif webbrowser._browsers and args.browser in webbrowser._browsers:
+            browserPath = args.browser
         else:
             print('Invalid browser. Using system default browser')
 
+    # If incognito, try creating a command line with private flags
     if args.incognito:
         privateBrowser = getPrivateBrowserCmd(browserPath)
 
@@ -314,13 +347,28 @@ def main():
 
             if shouldContinue:
                 # Set to None so that webbrowser will find the default browser
-                browserPath = None
+                browserPath = escapeSpaces(browserPath) if browserPath else None
             else:
                 print('Terminating process')
                 sys.exit(1)
                 return
         else:
             browserPath = privateBrowser
+    # Need to escape espaces in order to work with webbrowser
+    elif browserPath and os.path.exists(browserPath):
+        # NOTE: webbrowser has a bug in which providing a path will
+        # result in a browser not found unless you register the browser first
+        # however webbrowser handles it correctly when '%s' is present as
+        # it is consider a command line. Use the command line trick for simplicity.
+        browserPath = preparePath(browserPath) + ' %s'
+    # If browser is None, check if there is a browser in the environment variables
+    elif browserPath is None:
+        # Add script specific variable to avoid conflicts with BROWSER
+        if 'BROWSER_LINKSOPENER' in os.environ:
+            browserPath = preparePath(os.environ["BROWSER_LINKSOPENER"]) + ' %s'
+        # Respect browser env variable
+        elif 'BROWSER' in os.environ:
+            browserPath = preparePath(os.environ["BROWSER"]) + ' %s'
 
     if linksString.strip():
         allLinks.append(linksString)
