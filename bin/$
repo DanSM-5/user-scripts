@@ -1,0 +1,10 @@
+#!/bin/sh
+
+if [ -n "$ZSH_VERSION" ] || [ "$(basename $SHELL)" = zsh ]; then
+  DOLLAR_SESSION=1 dolar_zsh "$@"
+elif [ -n "$BASH_VERSION" ] || [ "$(basename $SHELL)" = bash ]; then
+  DOLLAR_SESSION=1 dolar_bash "$@"
+else
+  DOLLAR_SESSION=1 dolar_sh "$@"
+fi
+

@@ -1,0 +1,9 @@
+#!/bin/sh -li
+PS1=''
+PS2=''
+
+eval "${1+shift}
+$1 ${2+"\"\$@\""}"
+
+exit # prevent 1 empty new line by dash in interactive mode
+
