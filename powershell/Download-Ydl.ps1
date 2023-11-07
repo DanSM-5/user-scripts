@@ -118,7 +118,7 @@ Begin {
     Write-Host "
       Wrapper scritp for yt-dlp
 
-      Open a temporal buffer to list all the urls. Once closed,
+      Open a temporary buffer to list all the urls. Once closed,
       the script will feed the urls to yt-dlp to download them.
 
       Flags:
@@ -275,7 +275,7 @@ End {
     # If no urls where provided, open a buffer
     if (-not $linesRaw) {
       # Open buffer to get strings
-      Write-Output "Opining temporal file... Waiting for file to be closed!"
+      Write-Output "Opening temporary file... Waiting for file to be closed!"
 
       $tempFile = New-TemporaryFile
       $instructions >> $tempFile
