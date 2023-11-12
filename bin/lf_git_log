@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+if ! git rev-parse HEAD > /dev/null 2>&1; then
+  exit 0
+fi
+
+fzf_extra_args=()
+
+if [ "$1" = all ]; then
+  fzf_extra_args+=('--all')
+fi
+
+if command -v 'delta' &> /dev/null; then
+  # Pipe to delta to improve preview
+  $__page_command__=" | delta"
+else
+  $__page_command__=""
+fi
+
+
+git log --all --date=short \
+  --format="%C(green)%C(bold)%cd %C(auto)%h%d %s (%an)" \
+  --graph --color=always |
+fzf --height 50% \
+  --min-height 20 \
+  --bind "ctrl-/:change-preview-window(down|hidden|),alt-up:preview-page-up,alt-down:preview-page-down,ctrl-s:toggle-sort" \
+  --border $fzf_extra_args \
+  --ansi --no-sort --reverse --multi \
+  --header 'Press CTRL-S to toggle sort' \
+  --preview '
+    grep -o "[a-f0-9]\{7,\}" <<< {} |
+      xargs git show --color=always'"$__page_command__"' |
+      bat -p --color=always' |
+grep -o "[a-f0-9]\{7,\}"
+

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+if command -v 'starship' &> /dev/null; then
+  lf -remote "send $id cmd on-cd &lf_starship_oncd"
+fi
+

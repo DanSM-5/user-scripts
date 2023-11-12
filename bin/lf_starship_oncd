@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+export STARSHIP_SHELL=
+fmt="$(starship prompt | tr -d '\n')"
+lf -remote "send $id set promptfmt \"$fmt\""
+printf "$id"
+

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+if ! git rev-parse HEAD > /dev/null 2>&1; then
+  exit 0
+fi
+
+branch="$(git branch | fzf)"
+if [ -z "$branch" ]; then
+  exit 0
+fi
+
+git checkout "$branch"
+pwd_shell=$(pwd | sed 's/\\/\\\\/g;s/"/\\"/g')
+lf -remote "send $id updir"
+lf -remote "send $id cd \"$pwd_shell\""
+

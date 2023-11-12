@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+if ! git rev-parse HEAD > /dev/null 2>&1; then
+  exit 0
+fi
+
+clear
+git status
+echo "press ENTER"
+read ENTER
+
