@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+# Change backlash to forward slash of the whole path
+filepath="$(tr '\\' '/' <<< "$@")"
+drive_letter=""
+
+# Check if path starts with /mnt for WSL paths
+if [ "$IS_WSL" = true ]; then
+  # WSL path with -m switch returns windows path with forward slash '/'
+  # the -a switch forces absolute path
+  filepath="$(wslpath -am $filename)"
+
+# Check if path is absolute in gitbash formant /c, /d, etc.
+elif [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ]; then
+  # Force absolute path
+  filepath="$(realpath "$filepath")"
+
+  # Extract drive letter
+  drive_letter="$(sed -rn 's#^/([A-Za-z])/.*#\1#p' <<< "$filepath" | tr '[:lower:]' '[:upper:]')"
+  filepath="${drive_letter}:/${filepath:3}"
+fi
+
+printf "%s" "$filepath"
+

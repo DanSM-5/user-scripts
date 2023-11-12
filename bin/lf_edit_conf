@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# Open config in editor and source on close
+
+# Prefered editor is custom variable from config
+editor="${PREFERED_EDITOR:-${EDITOR:-vim}}"
+
+if [ "$IS_WINDOWS" = true ]; then
+  "$editor" "$HOME/AppData/Local/lf/lfrc"
+  lf -remote "send $id source $HOME/AppData/Local/lf/lfrc"
+else
+  "$editor" ~/.config/lf/lfrc
+  lf -remote "send $id source ~/.config/lf/lfrc"
+fi
+

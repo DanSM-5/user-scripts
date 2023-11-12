@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# Request reload config
+#
+# TODO: Source first a config that clears previous config
+
+if [ "$IS_GITBASH" = true ]; then
+  lf -remote "send $id source $HOME/AppData/Local/lf/lfrc"
+else
+  lf -remote "send $id source ~/.config/lf/lfrc"
+fi
+

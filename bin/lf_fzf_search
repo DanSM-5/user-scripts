@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+RG_PREFIX="rg --column --line-number --no-heading --color=always --smart-case "
+
+res="$(
+    FZF_DEFAULT_COMMAND="$RG_PREFIX ''" \
+      fzf --bind "change:reload:sleep 0.1; $RG_PREFIX {q} || true" \
+      --color "hl:-1:underline,hl+:-1:underline:reverse" \
+      --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(2. fzf> )+enable-search+clear-query+rebind(ctrl-r)" \
+      --bind "ctrl-r:unbind(ctrl-r)+change-prompt(1. ripgrep> )+disable-search+reload($RG_PREFIX {q} || true)+rebind(change,ctrl-f)" \
+      --bind "ctrl-/:change-preview-window(right|hidden|),alt-up:preview-page-up,alt-down:preview-page-down,ctrl-s:toggle-sort" \
+      --ansi --layout=reverse \
+      --disabled \
+      --delimiter : \
+      --prompt '1. Ripgrep> ' \
+      --preview 'bat --color=always {1} --highlight-line {2}' \
+      --preview-window 'up,60%,border-bottom,+{2}+3/3,~3' \
+      --header '╱ CTRL-R (Ripgrep mode) ╱ CTRL-F (fzf mode) ╱ Search in files :' |
+        cut -d':' -f1 | sed 's/\\/\\\\/g;s/"/\\"/g'
+)"
+[ -n "$res" ] && lf -remote "send $id select \"$res\""
+

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+parentdir=""
+
+if [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ]; then
+  parentdir="$(convert_path_to_windows "$(dirname "$PWD")")"
+else
+  parentdir="$(dirname "$PWD")"
+fi
+# Allow moving up/down in parent directory
+dironly="setlocal '$parentdir' dironly"
+lf -remote "send $id :updir; $dironly true; $1; $dironly false; open"
+

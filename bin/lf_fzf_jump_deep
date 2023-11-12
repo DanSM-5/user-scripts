@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+if command -v "fd" &> /dev/null; then
+  res="$(fd | cat <(printf '.\n') - | fzf --reverse --header='Jump to location')"
+  # fd started from bash for windows returns '/' separated paths.
+  # Enable below for additional convertion.
+  # if [ "$IS_POWERSHELL" = true ]; then
+  #   res="$(convert_path_to_unix "$res")"
+  # fi
+else
+  res="$(find . | fzf --reverse --header='Jump to location')"
+fi
+
+if [ -n "$res" ]; then
+    if [ -d "$res" ]; then
+        cmd="cd"
+    else
+        cmd="select"
+    fi
+    res="$(printf '%s' "$res" | sed 's/\\/\\\\/g;s/"/\\"/g')"
+    # If used in a block in lfrc for bash for windows, then it requires double escape
+    # res="$(printf '%s' "$res" | sed 's/\\\\/\\\\\\\\/g;s/"/\\\\"/g')"
+    lf -remote "send $id $cmd \"$res\""
+fi
+
