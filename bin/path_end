@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+# Placeholder script to test if location is in path
+
+exit 0
+
