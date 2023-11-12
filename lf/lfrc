@@ -10,17 +10,57 @@ map i $bat --paging=always "$f"
 # Open new shell
 map w $zsh
 
-map o !echo test
-
 # Open docs in bat
 cmd doc $lf -doc | bat --language man -p
 
 # Add icons when starting lf
 set icons
 
-# Used fzf completition
+# Set preview cursor
+set cursorpreviewfmt "\033[7;90m"
+
+# Show hidden files/dirs
+set hidden
+
+# Reload config
+cmd reload-config $lf_reload_conf
+map Cr reload-config
+
+# Edit and reload config
+cmd edit-config $lf_edit_conf
+map Ce edit-config
+
+# Used fzf completition for selecting file
 cmd fzf_jump $lf_fzf_jump
 map <c-f> :fzf_jump
+# Deep file jump
+cmd fzf_jump_deep $lf_fzf_jump_deep
+map <a-f> :fzf_jump_deep
+
+# Workaround for lf in windows not sending arguments
+# even if lf runs from MINGW environment
+cmd move-parent-down &lf_move_parent down
+cmd move-parent-up &lf_move_parent up
+map J move-parent-down
+map K move-parent-up
+
+# Search using rg and select list in fzf
+cmd fzf_search $lf_fzf_search
+map <c-s> :fzf_search
+
+# Add starship as the prompt
+&command -v 'lf_starship' &> /dev/null && lf_starship
+
+# Git keybinfings
+cmd git-status $lf_git_status
+cmd git-checkout $lf_git_checkout
+cmd git-log $lf_git_log
+cmd git-log-all $lf_git_log all
+
+map gs git-status
+map gck git-checkout
+map glg git-log
+map gla git-log-all
 
 # Detect nested lf instances
 &[ $LF_LEVEL -eq 1 ] || lf -remote "send $id echoerr \"Warning: You're in a nested lf instance!\""
