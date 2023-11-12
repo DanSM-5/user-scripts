@@ -5,7 +5,7 @@
 # Prefered editor is custom variable from config
 editor="${PREFERED_EDITOR:-${EDITOR:-vim}}"
 
-if [ "$IS_WINDOWS" = true ]; then
+if [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ]; then
   "$editor" "$HOME/AppData/Local/lf/lfrc"
   lf -remote "send $id source $HOME/AppData/Local/lf/lfrc"
 else
