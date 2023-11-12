@@ -3,7 +3,9 @@
 parentdir=""
 
 if [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ]; then
-  parentdir="$(convert_path_to_windows "$(dirname "$PWD")")"
+  # convert_path_to_windows returns windows with forward slash but
+  # lf expects the path with backlash for windows
+  parentdir="$(convert_path_to_windows "$(dirname "$PWD")" | tr '/' '\\')"
 else
   parentdir="$(dirname "$PWD")"
 fi
