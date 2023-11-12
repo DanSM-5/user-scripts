@@ -1,3 +1,13 @@
+# Other possible shell options but with some issues
+# set shell zsh
+# set shell powershell
+
+set shell sh
+set shellflag '-c'
+# Using env is feasable with some issues
+# set shell env.exe
+# set shellopts 'MSYS=enable_pcon:MSYSTEM=MINGW64:enable_pcon=1:/usr/bin/zsh'
+
 # Custom open command
 cmd open &lf_open
 

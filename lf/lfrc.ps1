@@ -1,3 +1,6 @@
+# NOTE Do not use. Prefer lfrc.win that uses bash for windows
+# as a wrapper for lf to set sh as the shell
+
 # Set powershell as current shell
 set shell powershell
 
