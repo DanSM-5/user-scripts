@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Change backlash to forward slash of the whole path
+filepath="$(tr '\\' '/' <<< "$@")"
+drive_letter=""
+
+# Check windows absolute path using :
+if [[ "$filepath" =~ : ]]; then
+  # Extract drive letter
+  drive_letter="$(sed -rn 's#^([A-Za-z]):.*#\1#p' <<< "$filepath" | tr '[:upper:]' '[:lower:]')"
+
+  if [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" ]; then
+    # Use /c format
+    filepath="/$drive_letter/${filepath:3}"
+  elif [ "$IS_WSL" = true ]; then
+    # Use /mnt/c format
+    filepath="/mnt/$drive_letter/${filepath:3}"
+  fi
+fi
+
+printf "%s" "$filepath"
+
