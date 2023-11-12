@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# TODO: consider using IFS="\n" for some open options
+
 if [ "$IS_WSL" = true ]; then
   for filename in ${fx[@]}; do
     # xdg-open opens a terminal in linux gui
