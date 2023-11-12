@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+
+if command -v "fd" &> /dev/null; then
+  res="$(fd -d1 | cat <(printf '.\n') - | fzf --reverse --header='Jump to location')"
+else
+  res="$(find . -maxdepth 1 | fzf --reverse --header='Jump to location')"
+fi
+
+if [ -n "$res" ]; then
+    if [ -d "$res" ]; then
+        cmd="cd"
+    else
+        cmd="select"
+    fi
+    res="$(printf '%s' "$res" | sed 's/\\/\\\\/g;s/"/\\"/g')"
+    # If used in a block in lfrc for bash for windows, then it requires double escape
+    # res="$(printf '%s' "$res" | sed 's/\\\\/\\\\\\\\/g;s/"/\\\\"/g')"
+    lf -remote "send $id $cmd \"$res\""
+fi
+

@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+
+if command -v "start" &> /dev/null; then
+  for filename in ${fx[@]}; do
+    # TODO: consider changing start to avoid executing files
+    start "$(convert_path_to_unix "$filename")"
+    # Using powershell doesn't require name conversion
+    # powershell.exe -nolo -nonin -nopro -c "Start-Process $filename"
+  done
+fi
+
