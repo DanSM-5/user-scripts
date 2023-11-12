@@ -4,32 +4,35 @@ if ! git rev-parse HEAD > /dev/null 2>&1; then
   exit 0
 fi
 
-fzf_extra_args=()
+git_extra_args=()
 
 if [ "$1" = all ]; then
-  fzf_extra_args+=('--all')
+  git_extra_args+=('--all')
 fi
 
 if command -v 'delta' &> /dev/null; then
   # Pipe to delta to improve preview
-  $__page_command__=" | delta"
+  __pager_command__=" | delta --true-color=always "
 else
-  $__page_command__=""
+  __pager_command__=""
 fi
 
-
-git log --all --date=short \
+git log $git_extra_args --date=short \
   --format="%C(green)%C(bold)%cd %C(auto)%h%d %s (%an)" \
   --graph --color=always |
-fzf --height 50% \
+fzf --height 99% \
   --min-height 20 \
-  --bind "ctrl-/:change-preview-window(down|hidden|),alt-up:preview-page-up,alt-down:preview-page-down,ctrl-s:toggle-sort" \
-  --border $fzf_extra_args \
+  --bind "ctrl-/:change-preview-window(down|hidden|)" \
+  --bind "alt-up:preview-page-up" \
+  --bind "alt-down:preview-page-down" \
+  --bind "ctrl-s:toggle-sort" \
+  --border \
   --ansi --no-sort --reverse --multi \
   --header 'Press CTRL-S to toggle sort' \
   --preview '
     grep -o "[a-f0-9]\{7,\}" <<< {} |
-      xargs git show --color=always'"$__page_command__"' |
+      xargs git show --color=always'"$__pager_command__"' |
       bat -p --color=always' |
-grep -o "[a-f0-9]\{7,\}"
+grep -o "[a-f0-9]\{7,\}" || true
 
+exit 0
