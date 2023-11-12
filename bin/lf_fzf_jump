@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 if command -v "fd" &> /dev/null; then
   res="$(fd -d1 | cat <(printf '.\n') - | fzf --reverse --header='Jump to location')"
