@@ -15,3 +15,6 @@ node/node_modules
 clink/clink_*
 clink/clink.log
 
+# lf
+lf/history
+
