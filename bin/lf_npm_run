@@ -3,7 +3,7 @@
 # List npm scripts and select one to run
 
 # Exit early if package.json file doesn't exist
-if [ -f "package.json" ]; then
+if ! [ -f "package.json" ]; then
   exit 0
 fi
 
