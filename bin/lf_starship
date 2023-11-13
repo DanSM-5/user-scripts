@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
 if command -v 'starship' &> /dev/null; then
+  # Call it once to replace propmt on lf launch
+  lf_starship_oncd&
+
   lf -remote "send $id cmd on-cd &lf_starship_oncd"
 fi
 
