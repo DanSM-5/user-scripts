@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+
+# Cross platform clipboard-copy helper
+
+if [ "$IS_WINDOWS" = true ]; then
+  pbcopy.exe "$@"
+elif [ "$IS_TERMUX" = true ]; then
+  termux-clipboard-set "$@"
+elif [ "$IS_MAC" = true ]; then
+  pbcopy "$@"
+elif [ "$IS_LINUX" = true ]; then
+  xsel -ib "$@"
+fi
+
