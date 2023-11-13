@@ -11,3 +11,7 @@ python/__pycache__/
 node_modules
 node/node_modules
 
+# clink files
+clink/clink_*
+clink/clink.log
+
