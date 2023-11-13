@@ -11,7 +11,7 @@ if [ "$IS_WSL" = true ]; then
   filepath="$(wslpath -am $filename)"
 
 # Check if path is absolute in gitbash formant /c, /d, etc.
-elif [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ]; then
+elif [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ] || [ "$IS_CMD" = true ]; then
   # Force absolute path
   filepath="$(realpath "$filepath")"
 

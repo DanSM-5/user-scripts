@@ -9,7 +9,7 @@ if [[ "$filepath" =~ : ]]; then
   # Extract drive letter
   drive_letter="$(sed -rn 's#^([A-Za-z]):.*#\1#p' <<< "$filepath" | tr '[:upper:]' '[:lower:]')"
 
-  if [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" ]; then
+  if [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ] || [ "$IS_CMD" = true ]; then
     # Use /c format
     filepath="/$drive_letter/${filepath:3}"
   elif [ "$IS_WSL" = true ]; then
