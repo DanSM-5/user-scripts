@@ -1,3 +1,14 @@
+# Other possible shell options but with some issues
+# set shell zsh
+# set shell powershell
+
+set shell sh
+set shellflag '-c'
+&lf_set_shell
+# Launching using env.exe
+# set shell env.exe
+# set shellopts 'MSYS=enable_pcon:MSYSTEM=MINGW64:enable_pcon=1:/usr/bin/zsh'
+
 # Custom open command
 cmd open &lf_open
 
@@ -30,6 +41,9 @@ map Cr reload-config
 cmd edit-config $lf_edit_conf
 map Ce edit-config
 
+# use enter for shell commands
+map <enter> shell
+
 # Used fzf completition for selecting file
 cmd fzf_jump $lf_fzf_jump
 map <c-f> :fzf_jump
@@ -48,7 +62,7 @@ map K move-parent-up
 cmd fzf_search $lf_fzf_search
 map <c-s> :fzf_search
 
-# Add starship as the prompt
+# Start starship if available for prompt
 &command -v 'lf_starship' &> /dev/null && lf_starship
 
 # Git keybinfings
