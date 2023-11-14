@@ -7,6 +7,6 @@ if [ "$IS_POWERSHELL" = true ] || [ "$IS_CMD" = true ] || [ "$IS_GITBASH" = true
   lf -remote "send $id map \\\\nr push :\$lf_npm_run<space>"
 else
   lf -remote "send $id cmd npm-run \$lf_npm_run \"\$@\""
-  lf -remote "send $id map \\\\nr \$npm-run<space>"
+  lf -remote "send $id map \\\\nr push :npm-run<space>"
 fi
 
