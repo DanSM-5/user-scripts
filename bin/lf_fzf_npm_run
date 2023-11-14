@@ -7,9 +7,12 @@ if ! [ -f "package.json" ]; then
   exit 0
 fi
 
-if [ -z "$1" ]; then
-  exit 0
-fi
+script=$(cat package.json |
+  jq -r '.scripts | keys[] ' |
+  sort |
+  fzf --height 20%)
 
-npm run "$@"
+if [ -n "$script" ]; then
+  npm run "$script"
+fi
 
