@@ -1,23 +1,47 @@
 #!/usr/bin/env bash
 
 # Change backlash to forward slash of the whole path
-filepath="$(tr '\\' '/' <<< "$@")"
-drive_letter=""
+# filepath="$(tr '\\' '/' <<< "$@")"
+# drive_letter=""
 
-# Check if path starts with /mnt for WSL paths
+# # Check if path starts with /mnt for WSL paths
+# if [ "$IS_WSL" = true ]; then
+#   # WSL path with -m switch returns windows path with forward slash '/'
+#   # the -a switch forces absolute path
+#   filepath="$(wslpath -am "$filepath")"
+
+# # Check if path is absolute in gitbash formant /c, /d, etc.
+# elif [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ] || [ "$IS_CMD" = true ]; then
+#   # # Force absolute path
+#   # filepath="$(realpath "$filepath")"
+
+#   # # Extract drive letter
+#   # drive_letter="$(sed -rn 's#^/([A-Za-z])/.*#\1#p' <<< "$filepath" | tr '[:lower:]' '[:upper:]')"
+#   # filepath="${drive_letter}:/${filepath:3}"
+
+#   # Git for windows (and MSYS/Cywing) now comes with cygpath utitly :)
+#   filepath="$(cygpath -am "$@")"
+# fi
+
 if [ "$IS_WSL" = true ]; then
+  filepath="$@"
+  # Match if already windows absolute path (:)
+  # Or if path contains backlash (\) (must be escaped twice)
+  # It is a safe assumption that the path won't use either : or \ in the name
+  if [[ "$@" =~ ^[a-zA-Z]: ]] || [[ "$@" =~ \\\\ ]]; then
+    # wslpath doesn't like to convert to windows an already windows path.
+    # Force a convertion to unix first, so we can get a valid unix absolute path
+    # to convert to windows.
+    filepath="$(wslpath -au "$@")"
+  fi
+
   # WSL path with -m switch returns windows path with forward slash '/'
   # the -a switch forces absolute path
-  filepath="$(wslpath -am $filename)"
+  filepath="$(wslpath -am "$filepath")"
 
-# Check if path is absolute in gitbash formant /c, /d, etc.
 elif [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ] || [ "$IS_CMD" = true ]; then
-  # Force absolute path
-  filepath="$(realpath "$filepath")"
-
-  # Extract drive letter
-  drive_letter="$(sed -rn 's#^/([A-Za-z])/.*#\1#p' <<< "$filepath" | tr '[:lower:]' '[:upper:]')"
-  filepath="${drive_letter}:/${filepath:3}"
+  # Git for windows (and MSYS/Cywing) now comes with cygpath utitly :)
+  filepath="$(cygpath -am "$@")"
 fi
 
 printf "%s" "$filepath"

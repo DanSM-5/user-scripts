@@ -1,21 +1,38 @@
 #!/usr/bin/env bash
 
-# Change backlash to forward slash of the whole path
-filepath="$(tr '\\' '/' <<< "$@")"
-drive_letter=""
+# # Change backlash to forward slash of the whole path
+# filepath="$(tr '\\' '/' <<< "$@")"
+# drive_letter=""
 
-# Check windows absolute path using :
-if [[ "$filepath" =~ : ]]; then
-  # Extract drive letter
-  drive_letter="$(sed -rn 's#^([A-Za-z]):.*#\1#p' <<< "$filepath" | tr '[:upper:]' '[:lower:]')"
+# # Check windows absolute path using :
+# if [[ "$filepath" =~ : ]]; then
+#   # Extract drive letter
+#   drive_letter="$(sed -rn 's#^([A-Za-z]):.*#\1#p' <<< "$filepath" | tr '[:upper:]' '[:lower:]')"
 
-  if [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ] || [ "$IS_CMD" = true ]; then
-    # Use /c format
-    filepath="/$drive_letter/${filepath:3}"
-  elif [ "$IS_WSL" = true ]; then
-    # Use /mnt/c format
-    filepath="/mnt/$drive_letter/${filepath:3}"
+#   if [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ] || [ "$IS_CMD" = true ]; then
+#     # Use /c format
+#     filepath="/$drive_letter/${filepath:3}"
+#   elif [ "$IS_WSL" = true ]; then
+#     # Use /mnt/c format
+#     filepath="/mnt/$drive_letter/${filepath:3}"
+#   fi
+# fi
+
+if [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ] || [ "$IS_CMD" = true ]; then
+  # Git for windows (and MSYS/Cywing) now comes with cygpath utitly :)
+  filepath="$(cygpath -au "$@")"
+elif [ "$IS_WSL" = true ]; then
+  filepath="$@"
+
+  # Check if path is valid, then it is already unix
+  if [ -e "$@" ] || [ -L "$@" ]; then
+    # wslpath doesn't like to convert to unix an already unix path
+    # Force a convertion to windows first, so we can get a valid windows absolute path
+    # to convert to unix.
+    filepath="$(wslpath -am "$@")"
   fi
+
+  filepath="$(wslpath -au "$@")"
 fi
 
 printf "%s" "$filepath"
