@@ -10,6 +10,7 @@ os.setenv('IS_GITBASH', 'false')
 os.setenv('IS_WINDOWS', 'true')
 os.setenv('IS_POWERSHELL', 'false')
 os.setenv('IS_CMD', 'true')
+os.setenv('IS_WINSHELL', 'true')
 
 home = os.getenv('USERPROFILE')
 os.setenv('HOME', home)
