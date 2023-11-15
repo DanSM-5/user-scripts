@@ -21,19 +21,31 @@ $GITBASH_ENVIRONMENT = @(
   # "MSYS2_ARG_CONV_EXCL='*'"
 )
 
-$COMMAND_ARGS = 1..$args.length
+# Start command args with empty array
+$COMMAND_ARGS = @()
 
+if ($args.length) {
+  # Create new array with updated size
+  $COMMAND_ARGS = 1..$args.length
+}
+
+echo "Args: $args"
+echo "Args length: ${args.length}"
 for ( $i = 0; $i -lt $args.length; $i++ ) {
   $arg_value = $args[$i]
 
   # Use gitbash printf to escape all arguments to lf in bash context
   $arg_value = "$(& "$__gitbash__" -c "printf '%q' '$arg_value'")"
+  echo "Arg value: $arg_value"
   # Then lets wrap all arguments in single quotes
   $COMMAND_ARGS[$i] = "'$arg_value'"
 }
 
+echo "Command: $COMMAND_ARGS"
+
 # Call a prepared shell command. It adds MINGW64 environment variables,
 # adds /usr/bin to the start of the path and forward all escaped command arguments 
 & "$__gitenv__" $GITBASH_ENVIRONMENT /usr/bin/bash -c "$APPENDED_ENVIRONMENT lf.exe $COMMAND_ARGS"
+# Debug command
 # Write-Host "&" "$__gitenv__" "$GITBASH_ENVIRONMENT" /usr/bin/bash -c "$APPENDED_ENVIRONMENT lf.exe $COMMAND_ARGS"
 
