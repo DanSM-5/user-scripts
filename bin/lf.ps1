@@ -29,19 +29,19 @@ if ($args.length) {
   $COMMAND_ARGS = 1..$args.length
 }
 
-echo "Args: $args"
-echo "Args length: ${args.length}"
+# echo "Args: $args"
+# echo "Args length: ${args.length}"
 for ( $i = 0; $i -lt $args.length; $i++ ) {
   $arg_value = $args[$i]
 
   # Use gitbash printf to escape all arguments to lf in bash context
   $arg_value = "$(& "$__gitbash__" -c "printf '%q' '$arg_value'")"
-  echo "Arg value: $arg_value"
+  # echo "Arg value: $arg_value"
   # Then lets wrap all arguments in single quotes
   $COMMAND_ARGS[$i] = "'$arg_value'"
 }
 
-echo "Command: $COMMAND_ARGS"
+# echo "Command: $COMMAND_ARGS"
 
 # Call a prepared shell command. It adds MINGW64 environment variables,
 # adds /usr/bin to the start of the path and forward all escaped command arguments 
