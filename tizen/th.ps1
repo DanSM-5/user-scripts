@@ -46,4 +46,4 @@ $GITBASH_ENVIRONMENT = @(
 )
 
 # Required to add /usr/bin in the path for the hashbang in tizen-help script to work
-& $__gitenv__ $GITBASH_ENVIRONMENT /usr/bin/bash -c "export PATH=`"/usr/bin:`$PATH`"; $th_location $args_array"
+& $__gitenv__ $GITBASH_ENVIRONMENT /usr/bin/bash -c "export PATH=`"/mingw64/bin:/usr/local/bin:/usr/bin:/bin:`$PATH`"; $th_location $args_array"
