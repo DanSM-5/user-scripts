@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+# There needs to be at least 1 argument
+# File should not be a directory
+if [ -z "$1" ] || [ -d "$1" ]; then
+  exit
+fi
+
+# Create the file
+\touch "$@"
+
+# Try to select the first file
+lf -remote "send $id select \"$1\""
+

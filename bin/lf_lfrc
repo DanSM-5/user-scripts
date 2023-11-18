@@ -2,11 +2,13 @@
 
 # Executable to configure lf platform specific behavior
 
+
 if [ "$IS_POWERSHELL" = true ] || [ "$IS_CMD" = true ] || [ "$IS_GITBASH" = true ] ; then
   lf -remote "send $id cmd npm-run \$lf_fzf_npm_run"
   lf -remote "send $id map \\\\nr push :\$lf_npm_run<space>"
 else
   lf -remote "send $id cmd npm-run \$lf_npm_run \"\$@\""
   lf -remote "send $id map \\\\nr push :npm-run<space>"
+  lf -remote "send $id :cmd mkdr %lf_mkdir \"\$@\"; cmd touch %lf_touch \"\$@\""
 fi
 

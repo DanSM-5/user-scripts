@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# There needs to be at least 1 argument
+# Do not try to open directory
+if [ -z "$1" ]; then
+  exit
+fi
+
+editor="${PREFERED_EDITOR:-${EDITOR:-vim}}"
+
+# Create the file
+"$editor" "$@"
+
+# Try to select the first argument
+lf -remote "send $id select \"$1\""
+
