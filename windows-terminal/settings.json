@@ -1,10 +1,10 @@
 {
     "$help": "https://aka.ms/terminal-documentation",
     "$schema": "https://aka.ms/terminal-profiles-schema",
-    "actions": 
+    "actions":
     [
         {
-            "command": 
+            "command":
             {
                 "action": "copy",
                 "singleLine": false
@@ -16,7 +16,7 @@
             "keys": "ctrl+shift+v"
         },
         {
-            "command": 
+            "command":
             {
                 "action": "scrollDown"
             },
@@ -27,20 +27,27 @@
             "keys": "ctrl+shift+f"
         },
         {
-            "command": 
-            {
-                "action": "newWindow"
-            },
-            "keys": "ctrl+alt+shift+m"
-        },
-        {
-            "command": 
+            "command":
             {
                 "action": "splitPane",
                 "split": "auto",
                 "splitMode": "duplicate"
             },
             "keys": "alt+shift+d"
+        },
+        {
+            "command":
+            {
+                "action": "newWindow"
+            },
+            "keys": "ctrl+alt+shift+m"
+        },
+        {
+            "command":
+            {
+                "action": "scrollUp"
+            },
+            "keys": "ctrl+shift+k"
         },
         {
             "command": "unbound",
@@ -65,32 +72,31 @@
         {
             "command": "unbound",
             "keys": "ctrl+shift+down"
-        },
-        {
-            "command": 
-            {
-                "action": "scrollUp"
-            },
-            "keys": "ctrl+shift+k"
         }
     ],
     "copyFormatting": "none",
     "copyOnSelect": false,
     "defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
-    "profiles": 
-    {
-        "defaults": 
+    "newTabMenu":
+    [
         {
-            "colorScheme": "Campbell",
+            "type": "remainingProfiles"
+        }
+    ],
+    "profiles":
+    {
+        "defaults":
+        {
+            "colorScheme": "One Half Dark",
             "experimental.pixelShaderPath": "%userprofile%\\.usr_conf\\utils\\wt-shader-outline.hlsl",
-            "font": 
+            "font":
             {
                 "face": "CaskaydiaCove Nerd Font",
                 "size": 14.0
             },
-            "opacity": 50
+            "opacity": 85
         },
-        "list": 
+        "list":
         [
             {
                 "guid": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
@@ -105,7 +111,7 @@
                 "source": "Windows.Terminal.Wsl"
             },
             {
-                "commandline": "%PROGRAMFILES%/Git/usr/bin/env.exe MSYS=enable_pcon MSYSTEM=MINGW64 enable_pcon=1 /usr/bin/zsh -i -l",
+                "commandline": "%PROGRAMFILES%/Git/usr/bin/env.exe MSYS=enable_pcon MSYSTEM=MINGW64 enable_pcon=1 /usr/bin/zsh -il",
                 "guid": "{bc02f9de-c5e1-4a30-ba7f-7163f344febb}",
                 "hidden": false,
                 "icon": "%PROGRAMFILES%/Git/mingw64/share/git/git-for-windows.ico",
@@ -163,7 +169,7 @@
             }
         ]
     },
-    "schemes": 
+    "schemes":
     [
         {
             "background": "#0C0C0C",
@@ -399,3 +405,4 @@
     "themes": [],
     "useAcrylicInTabRow": true
 }
+
