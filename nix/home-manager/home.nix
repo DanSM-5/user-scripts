@@ -59,10 +59,12 @@
     # rclip
     # rclone
     ripgrep
+    # rtorrent
     sad
     sqlite
     starship
     tldr
+    # transmission
     unrar
     yt-dlp
     ytfzf
