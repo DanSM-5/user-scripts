@@ -48,6 +48,7 @@
     fzf
     # gallery-dl
     glow
+    highlight
     imagemagick
     jq
     lf
@@ -66,7 +67,7 @@
     tldr
     # transmission
     unrar
-    yt-dlp
+    # yt-dlp
     ytfzf
   ];
 
