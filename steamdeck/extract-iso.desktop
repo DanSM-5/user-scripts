@@ -1,0 +1,9 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Encoding=UTF-8
+Name=Extract ISO
+Comment=Extract dropped iso file
+Exec=sh -c '"$(dirname -- "$1")"/extract-iso  "$2"' placeholder %k %u
+Icon=utilities-terminal
+Type=Application
+
