@@ -16,13 +16,49 @@ cmd open &lf_open
 map e $nvim "$fx"
 
 # Use bat as pager
-map i $bat --paging=always "$f"
+map i $bat -p --paging=always "$f"
 
 # Open new shell
-map w $zsh
+map w $$SHELL
 
 # Open docs in bat
 cmd doc $lf -doc | bat --language man -p
+
+# Override defaults
+map <f-1> doc
+cmd maps $lf -remote "query $id maps" | bat -p --paging=always
+cmd cmaps $lf -remote "query $id cmaps" | bat -p --paging=always
+cmd cmds $lf -remote "query $id cmds" | bat -p --paging=always
+
+# Override Middle, High, Low
+map M
+map H
+map L
+map MM middle
+map HH high
+map LL low
+
+# Other rename commands
+# map r rename
+map I :rename; cmd-home
+map A :rename; cmd-end
+map Rr :rename; cmd-delete-home
+map RR :rename; cmd-end; cmd-delete-home
+
+# Yank file/paths
+cmd yank-dirname $dirname -- "$f" | head -c-1 | clip-copy
+cmd yank-path $printf '%s' "$fx" | clip-copy
+cmd yank-basename $basename -a -- $fx | head -c-1 | clip-copy
+
+map Yd yank-dirname
+map Yp yank-path
+map Yb yank-basename
+
+# Repeat previous command
+map . :read; cmd-history-prev; cmd-enter
+
+# Toggle and move up
+map <s-space> :toggle; up
 
 # Add icons when starting lf
 set icons
@@ -43,6 +79,18 @@ map Ce edit-config
 
 # use enter for shell commands
 map <enter> shell
+
+# mkdir
+map Md push %lf_mkdir<space>
+map Mf push %lf_touch<space>
+map MF push $lf_vim<space>
+
+# Delete
+map <delete> delete
+
+# execute current file (must be executable)
+map xx $$f
+map xX !$f
 
 # Used fzf completition for selecting file
 cmd fzf_jump $lf_fzf_jump

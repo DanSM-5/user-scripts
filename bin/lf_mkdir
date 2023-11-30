@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+# There needs to be at least 1 argument
+# File should not exist
+if [ -z "$1" ] || [ -e "$1" ]; then
+  exit
+fi
+
+# Use -p to allow recursive dir creation
+\mkdir -p "$@"
+
+# Try to select the first directory created if multiple were passed
+lf -remote "send $id select \"$1\""
+

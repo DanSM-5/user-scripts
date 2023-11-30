@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+full_name="$@"
+file_name="${full_name##*/}" # File name
+file_name="${file_name%.*}" # Remove extension
+
+if ! [[ "$full_name" =~ \.iso$ ]]; then
+  exit
+fi
+
+7z x "$full_name" -o./"$file_name"
+
