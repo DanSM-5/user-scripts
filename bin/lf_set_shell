@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
-shell="$(basename "${SHELL%.*}")"
+# shell="$(basename "${SHELL%.*}")"
+shell="${SHELL##*/}"
 lf -remote "send $id set shell $shell"
 
