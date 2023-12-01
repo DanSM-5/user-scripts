@@ -39,6 +39,7 @@
     bat
     btop
     delta
+    dua
     erdtree
     fastfetch
     # fclones
