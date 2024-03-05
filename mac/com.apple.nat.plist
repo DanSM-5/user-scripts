@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NAT</key>
+	<dict>
+		<key>AirPort</key>
+		<dict>
+			<key>40BitEncrypt</key>
+			<integer>1</integer>
+			<key>Channel</key>
+			<integer>0</integer>
+			<key>Enabled</key>
+			<integer>0</integer>
+			<key>NetworkName</key>
+			<string>Stephanie Malek</string>
+			<key>NetworkPassword</key>
+			<data>
+			</data>
+		</dict>
+		<key>Enabled</key>
+		<integer>0</integer>
+		<key>NatPortMapDisabled</key>
+		<false/>
+		<key>PrimaryInterface</key>
+		<dict>
+			<key>Device</key>
+			<string></string>
+			<key>Enabled</key>
+			<integer>0</integer>
+			<key>HardwareKey</key>
+			<string></string>
+			<key>PrimaryUserReadable</key>
+			<string>Toronto VPN</string>
+		</dict>
+		<key>PrimaryService</key>
+		<string>49B55D30-9EC8-4DB8-951F-474F6EFCA36B</string>
+		<key>SharingDevices</key>
+		<array>
+			<string>en0</string>
+			<string>en2</string>
+		</array>
+		<key>SharingNetworkMask</key>
+		<string>255.255.255.0</string>
+		<key>SharingNetworkNumberEnd</key>
+		<string>192.168.137.50</string>
+		<key>SharingNetworkNumberStart</key>
+		<string>192.168.137.0</string>
+	</dict>
+</dict>
+</plist>
