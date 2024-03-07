@@ -1,0 +1,87 @@
+{
+  "workbench.iconTheme": "vscode-icons",
+  "editor.wordWrap": "on",
+  "workbench.editorAssociations": {
+        "*.ipynb": "default"
+  },
+  "markdown-preview-enhanced.automaticallyShowPreviewOfMarkdownBeingEdited": true,
+  "markdown-preview-enhanced.mermaidTheme": "dark",
+  "security.workspace.trust.untrustedFiles": "open",
+  "editor.tabSize": 2,
+  "powershell.powerShellAdditionalExePaths": [
+      {
+          "enable": true,
+          "exePath": "C:\\Users\\Eduardo-Sanchez\\AppData\\Local\\Microsoft\\WindowsApps\\pwsh.exe",
+          "versionName": "7.2.1"
+      }
+  ],
+  "omnisharp.useModernNet": true,
+  "omnisharp.dotnetPath": "C:\\Program Files\\dotnet",
+  "editor.fontFamily": "CaskaydiaCove Nerd Font",
+  "editor.fontLigatures": true,
+  "debug.javascript.autoAttachFilter": "disabled",
+  "telemetry.telemetryLevel": "off",
+  "terminal.external.windowsExec": "wt -p Ubuntu --title \"VSCode debugger\" Ubuntu",
+  "editor.guides.bracketPairs": true,
+  "editor.guides.highlightActiveBracketPair": true,
+  "scm.alwaysShowActions": true,
+  "vsicons.dontShowNewVersionMessage": true,
+  "git.mergeEditor": false,
+  "editor.stickyScroll.enabled": true,
+  "terminal.integrated.fontFamily": "CaskaydiaCove Nerd Font",
+  "workbench.colorCustomizations": {
+    "statusBar.background" : "#833ea6",
+    "statusBar.noFolderBackground" : "#212121",
+    "statusBar.debuggingBackground": "#ee14f2b3"
+  },
+  "editor.accessibilitySupport": "off",
+  "vscode-neovim.neovimInitVimPaths.linux": "~/.config/vscode-nvim/init.vim",
+  "vscode-neovim.neovimInitVimPaths.win32": "~/.config/vscode-nvim/init.vim",
+  "editor.lineNumbers": "relative",
+  "diffEditor.diffAlgorithm": "advanced",
+  "cSpell.userWords": [
+    "vsicons"
+  ],
+  "js/ts.implicitProjectConfig.strictNullChecks": true,
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "source": "PowerShell",
+      "icon": "terminal-powershell"
+    },
+    "Command Prompt": {
+      "path": [
+        "${env:windir}\\Sysnative\\cmd.exe",
+        "${env:windir}\\System32\\cmd.exe"
+      ],
+      "args": [],
+      "icon": "terminal-cmd"
+    },
+    "Git Bash": {
+      "source": "Git Bash"
+    },
+    "Git Zsh": {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\env.exe",
+      "args": [
+        "MSYS=enable_pcon",
+        "MSYSTEM=MINGW64",
+        "enable_pcon=1",
+        "/usr/bin/zsh",
+        "-li"
+      ],
+      "icon": "terminal-bash",
+      "overrideName": true
+    }
+  },
+  "git.defaultBranchName": "master",
+  "window.zoomLevel": 3,
+  "liveServer.settings.donotShowInfoMsg": true,
+  "extensions.experimental.affinity": {
+    "asvetliakov.vscode-neovim": 1
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "search.useIgnoreFiles": false,
+  "files.eol": "\n",
+  "liveServer.settings.donotVerifyTags": true,
+}
