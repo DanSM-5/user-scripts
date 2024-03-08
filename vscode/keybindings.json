@@ -1,16 +1,46 @@
 // Place your key bindings in this file to override the defaults
 [
   {
-      "command": "vscode-neovim.compositeEscape1",
-      "key": "j",
-      "when": "neovim.mode == insert && editorTextFocus",
-      "args": "j"
+    "key": "ctrl+u",
+    "when": "editorTextFocus && neovim.init && neovim.mode == 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'",
+    "command": "cursorUndo",
   },
   {
-      "command": "vscode-neovim.compositeEscape2",
-      "key": "k",
-      "when": "neovim.mode == insert && editorTextFocus",
-      "args": "k"
+    "key": "ctrl+d",
+    "when": "editorTextFocus && neovim.init && neovim.mode == 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'",
+    "command": "editor.action.addSelectionToNextFindMatch",
+  },
+  {
+    "key": "ctrl+shift+d",
+    "when": "editorTextFocus && neovim.init && neovim.mode == 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'",
+    "command": "editor.action.addSelectionToPreviousFindMatch",
+  },
+  {
+    "key": "ctrl+k ctrl+shift+d",
+    "when": "editorTextFocus && neovim.init && neovim.mode == 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'",
+    "command": "editor.action.moveSelectionToPreviousFindMatch",
+  },
+  {
+    "key": "ctrl+shift+v",
+    "when": "neovim.init && neovim.mode == insert && editorTextFocus",
+    "command": "editor.action.clipboardPasteAction",
+  },
+  {
+    "key": "ctrl+shift+c",
+    "when": "neovim.init && neovim.mode == insert && editorTextFocus",
+    "command": "editor.action.clipboardCopyAction",
+  },
+  {
+    "command": "vscode-neovim.compositeEscape1",
+    "key": "j",
+    "when": "neovim.mode == insert && editorTextFocus",
+    "args": "j",
+  },
+  {
+    "command": "vscode-neovim.compositeEscape2",
+    "key": "k",
+    "when": "neovim.mode == insert && editorTextFocus",
+    "args": "k",
   },
   {
     "command": "workbench.action.toggleActivityBarVisibility",
@@ -19,5 +49,5 @@
   {
     "command": "workbench.action.toggleSidebarVisibility",
     "key": "ctrl+alt+h",
-  }
+  },
 ]
