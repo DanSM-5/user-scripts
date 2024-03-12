@@ -62,6 +62,7 @@
     # rclone
     ripgrep
     # rtorrent
+    sd
     sad
     sqlite
     starship
