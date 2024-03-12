@@ -37,6 +37,7 @@
   "editor.accessibilitySupport": "off",
   "vscode-neovim.neovimInitVimPaths.linux": "~/.config/vscode-nvim/init.vim",
   "vscode-neovim.neovimInitVimPaths.win32": "~/.config/vscode-nvim/init.vim",
+  "vscode-neovim.neovimInitVimPaths.darwin": "~/.config/vscode-nvim/init.vim",
   "editor.lineNumbers": "relative",
   "diffEditor.diffAlgorithm": "advanced",
   "cSpell.userWords": [
