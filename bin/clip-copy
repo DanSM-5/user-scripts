@@ -3,7 +3,7 @@
 # Cross platform clipboard-copy helper
 
 if [ "$IS_WINDOWS" = true ]; then
-  pbcopy.exe "$@"
+  printf "%s" "$@" | pbcopy.exe
 elif [ "$IS_TERMUX" = true ]; then
   termux-clipboard-set "$@"
 elif [ "$IS_MAC" = true ]; then

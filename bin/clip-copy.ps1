@@ -1,5 +1,18 @@
 #!/usr/bin/env pwsh
 
+[CmdletBinding()]
+param(
+  $RegularInput = $null,
+  [Parameter(ValueFromPipeline = $true)]
+  $PipeInput
+)
+
+$value = if ($PipeInput) { $PipeInput } else { $RegularInput }
+
+if (-not $value) {
+  exit
+}
+
 # Cross platform clipboard-copy helper
 # NOTE: only windows from prowershell should ever land here
 # but let the whole structure in case running powershell somewhere else.
@@ -7,13 +20,16 @@
 # TODO: requires transformation to accept pipe input
 # This currently hangs
 
-if ("${env:IS_WINDOWS}" -eq 'true' ) {
-  pbcopy.exe $args
+# This could use Set-Clipboard cmdlet but since that
+# should be available out of the box, then use here a native binary
+
+if ($IsWindows) {
+  $value | pbcopy
 } elseif ("${env:IS_TERMUX}" -eq 'true' ) {
   termux-clipboard-set $args
-} elseif ("${env:IS_MAC}" -eq 'true' ) {
+} elseif ($IsMacos) {
   pbpcopy $args
-} elseif ("${env:IS_LINUX}" -eq 'true' ) {
+} elseif ($IsLinux) {
   xsel -ib $args
 }
 
