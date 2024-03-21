@@ -2,12 +2,16 @@
 
 [CmdletBinding()]
 param(
-  $RegularInput = $null,
+  [Parameter(ValueFromRemainingArguments = $true)]
+  [String[]]
+  $RegularInput = @(),
   [Parameter(ValueFromPipeline = $true)]
-  $PipeInput
+  [String[]]
+  $PipeInput = @()
 )
 
-$value = if ($PipeInput) { $PipeInput } else { $RegularInput }
+# $value = if ($PipeInput) { $PipeInput } else { $RegularInput }
+$value = $PipeInput + $RegularInput
 
 if (-not $value) {
   exit
