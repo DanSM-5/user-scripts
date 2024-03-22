@@ -2,8 +2,28 @@
 
 # Cross platform clipboard-copy helper
 
+# NOTE: this won't work using -n and checking for existance of
+# arguments first like piping into pbcopy.exe
+# It should always check if no argument is passed with -z
+if [ -z "$@" ]; then
+
+  # Should take input from pipe
+  if [ "$IS_WINDOWS" = true ]; then
+    pbcopy.exe "$@"
+  elif [ "$IS_TERMUX" = true ]; then
+    termux-clipboard-set
+  elif [ "$IS_MAC" = true ]; then
+    pbcopy
+  elif [ "$IS_LINUX" = true ]; then
+    xsel -ib
+  fi
+
+  exit 0
+fi
+
+# Passed arguments
 if [ "$IS_WINDOWS" = true ]; then
-  pbcopy.exe "$@"
+  printf "%s" "$@" | pbcopy.exe
 elif [ "$IS_TERMUX" = true ]; then
   termux-clipboard-set "$@"
 elif [ "$IS_MAC" = true ]; then

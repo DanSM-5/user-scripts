@@ -4,13 +4,15 @@
 # NOTE: only windows from prowershell should ever land here
 # but let the whole structure in case running powershell somewhere else.
 
-if ("${env:IS_WINDOWS}" -eq 'true' ) {
-  pbpaste.exe $args
-} elseif ("${env:IS_TERMUX}" -eq 'true' ) {
-  termux-clipboard-get $args
-} elseif ("${env:IS_MAC}" -eq 'true' ) {
+# This could use Get-Clipboard cmdlet but since that
+# should be available out of the box, then use here a native binary
+
+if ($IsWindows) {
   pbpaste $args
-} elseif ("${env:IS_LINUX}" -eq 'true' ) {
+} elseif ("${env:IS_TERMUX}" -eq 'true' ) {
+  termux-clipboard-set $args
+} elseif ($IsMacos) {
+  pbpaste $args
+} elseif ($IsLinux) {
   xsel -ob $args
 }
-
