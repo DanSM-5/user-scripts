@@ -50,4 +50,34 @@
     "command": "workbench.action.toggleSidebarVisibility",
     "key": "ctrl+alt+h",
   },
+  {
+    "key": "ctrl+shift+j",
+    "command": "workbench.action.togglePanel",
+    "when": "!(inSearchEditor || searchViewletFocus)"
+  },
+  {
+    "key": "ctrl+j",
+    "command": "-workbench.action.togglePanel"
+  },
+  {
+    "key": "ctrl+p",
+    "command": "-workbench.action.quickOpenSelectPrevious",
+    "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
+  },
+  {
+    "key": "ctrl+n",
+    "command": "-workbench.action.quickOpenSelectNext",
+    "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
+  },
+  {
+    "key": "ctrl+k",
+    "command": "workbench.action.quickOpenSelectPrevious",
+    "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
+  },
+  {
+    "key": "ctrl+j",
+    "command": "workbench.action.quickOpenSelectNext",
+    "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
+  },
 ]
+
