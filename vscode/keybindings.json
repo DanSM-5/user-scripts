@@ -80,4 +80,3 @@
     "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
   },
 ]
-

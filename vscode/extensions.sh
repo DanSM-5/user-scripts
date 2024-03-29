@@ -28,5 +28,5 @@ ritwickdey.liveserver
 # sumneko.lua
 # syler.sass-indented
 thejustinwalsh.textproto-grammer
-vs-publisher-1448185.keyoti-changeallendoflinesequence
+# vs-publisher-1448185.keyoti-changeallendoflinesequence
 vscode-icons-team.vscode-icons
