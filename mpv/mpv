@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+# Ensure mpv from nix package manager is wrapped in nixGL
+
+if [ -f "$HOME/.nix-profile/bin/mpv" ] && ! [ "$USE_NIXGL" = false ]; then
+  nixGL -- "$HOME/.nix-profile/bin/mpv" "$@"
+else
+  "$HOME/.nix-profile/bin/mpv" "$@"
+fi
+
