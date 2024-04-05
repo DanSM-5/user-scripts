@@ -1,4 +1,7 @@
 
+# Unwanted files
+.DS_Store
+
 # Repositories
 kitty/kitty_grab
 ff2mpv
