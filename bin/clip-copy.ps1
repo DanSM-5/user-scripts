@@ -2,38 +2,63 @@
 
 [CmdletBinding()]
 param(
-  [Parameter(ValueFromRemainingArguments = $true)]
+  [Parameter(ValueFromRemainingArguments = $true, position = 0)]
   [String[]]
   $RegularInput = @(),
-  [Parameter(ValueFromPipeline = $true)]
+  [Parameter(
+    ValueFromPipeline = $true,
+    ValueFromPipelineByPropertyName = $true
+  )]
   [String[]]
   $PipeInput = @()
 )
 
-# $value = if ($PipeInput) { $PipeInput } else { $RegularInput }
-$value = $PipeInput + $RegularInput
-
-if (-not $value) {
-  exit
+Begin {
+  $to_clipboard_list = New-Object System.Collections.ArrayList
 }
 
-# Cross platform clipboard-copy helper
-# NOTE: only windows from prowershell should ever land here
-# but let the whole structure in case running powershell somewhere else.
-
-# TODO: requires transformation to accept pipe input
-# This currently hangs
-
-# This could use Set-Clipboard cmdlet but since that
-# should be available out of the box, then use here a native binary
-
-if ($IsWindows) {
-  $value | pbcopy
-} elseif ("${env:IS_TERMUX}" -eq 'true' ) {
-  termux-clipboard-set $args
-} elseif ($IsMacos) {
-  pbpcopy $args
-} elseif ($IsLinux) {
-  xsel -ib $args
+Process {
+  Write-Verbose 'Pipe process'
+  # Because we should be able to accept both pipe input and
+  # regular input, then lets hold everthing in memory for second,
+  # merge the inputs in the list, then pass it to the native binary command
+  foreach ($strg in $PipeInput) {
+    Write-Verbose "String from pipe: $strg" 
+    $null = $to_clipboard_list.Add($strg)
+  }
 }
 
+End {
+
+  # $value = if ($PipeInput) { $PipeInput } else { $RegularInput }
+  # $value = $PipeInput + $RegularInput
+
+  foreach ($strg in $RegularInput) {
+    $null = $to_clipboard_list.Add($strg)
+  }
+
+
+  if (-not $to_clipboard_list) {
+    exit
+  }
+
+  # Cross platform clipboard-copy helper
+  # NOTE: only windows from prowershell should ever land here
+  # but let the whole structure in case running powershell somewhere else.
+
+  # TODO: requires transformation to accept pipe input
+  # This currently hangs
+
+  # This could use Set-Clipboard cmdlet but since that
+  # should be available out of the box, then use here a native binary
+
+  if ($IsWindows) {
+    $to_clipboard_list | pbcopy
+  } elseif ("${env:IS_TERMUX}" -eq 'true' ) {
+    termux-clipboard-set @to_clipboard_list
+  } elseif ($IsMacos) {
+    pbpcopy @to_clipboard_list
+  } elseif ($IsLinux) {
+    xsel -ib @to_clipboard_list
+  }
+}
