@@ -88,7 +88,7 @@
         "defaults":
         {
             "colorScheme": "One Half Dark",
-            "experimental.pixelShaderPath": "%userprofile%\\.usr_conf\\utils\\wt-shader-outline.hlsl",
+            // "experimental.pixelShaderPath": "%userprofile%\\.usr_conf\\utils\\wt-shader-outline.hlsl",
             "font":
             {
                 "face": "CaskaydiaCove Nerd Font",
