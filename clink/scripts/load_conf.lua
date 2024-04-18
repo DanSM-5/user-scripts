@@ -11,6 +11,7 @@ os.setenv('IS_WINDOWS', 'true')
 os.setenv('IS_POWERSHELL', 'false')
 os.setenv('IS_CMD', 'true')
 os.setenv('IS_WINSHELL', 'true')
+os.setenv('IS_NIXONDROID', 'false')
 
 home = os.getenv('USERPROFILE')
 os.setenv('HOME', home)
@@ -18,6 +19,9 @@ os.setenv('user_scripts_path', home .. '\\user-scripts')
 os.setenv('user_conf_path', home .. '\\.usr_conf')
 os.setenv('prj', home .. '\\prj')
 
+-- Add ~/.local/bin at the top
+os.setenv('PATH', home .. '\\.local\\bin' .. ';'.. home .. '\\bin' .. ';' .. os.getenv('PATH') )
+-- Add ~/user-scripts/bin at the bottom
 os.setenv('PATH', os.getenv('PATH') .. ';' .. home .. '\\user-scripts\\bin')
 
 -- function lf ()
