@@ -2,6 +2,9 @@
 SETLOCAL ENABLEEXTENSIONS
 COLOR 0A
 
+REM Add context menu to copy path as MinGW/Msys/Cygwin
+REM Ref: https://github.com/slyfox1186/script-repo/blob/main/Batch/copy-windows-path-as-linux.bat
+
 CLS
 
 ECHO Select an option: & ECHO=
