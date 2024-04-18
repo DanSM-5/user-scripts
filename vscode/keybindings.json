@@ -1,4 +1,5 @@
 // Place your key bindings in this file to override the defaults
+// Place your key bindings in this file to override the defaults
 [
   {
     "key": "ctrl+u",
@@ -14,6 +15,11 @@
     "key": "ctrl+shift+d",
     "when": "editorTextFocus && neovim.init && neovim.mode == 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'",
     "command": "editor.action.addSelectionToPreviousFindMatch",
+  },
+  {
+    "key": "ctrl+k ctrl+d",
+    "when": "editorTextFocus && neovim.init && neovim.mode == 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'",
+    "command": "editor.action.moveSelectionToNextFindMatch",
   },
   {
     "key": "ctrl+k ctrl+shift+d",
@@ -51,32 +57,11 @@
     "key": "ctrl+alt+h",
   },
   {
-    "key": "ctrl+shift+j",
-    "command": "workbench.action.togglePanel",
-    "when": "!(inSearchEditor || searchViewletFocus)"
+    "key": "shift+alt+u",
+    "command": "find-it-faster.findWithinFilesWithType"
   },
   {
-    "key": "ctrl+j",
-    "command": "-workbench.action.togglePanel"
-  },
-  {
-    "key": "ctrl+p",
-    "command": "-workbench.action.quickOpenSelectPrevious",
-    "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
-  },
-  {
-    "key": "ctrl+n",
-    "command": "-workbench.action.quickOpenSelectNext",
-    "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
-  },
-  {
-    "key": "ctrl+k",
-    "command": "workbench.action.quickOpenSelectPrevious",
-    "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
-  },
-  {
-    "key": "ctrl+j",
-    "command": "workbench.action.quickOpenSelectNext",
-    "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
+    "key": "ctrl+shift+alt+u",
+    "command": "-find-it-faster.findWithinFilesWithType"
   },
 ]
