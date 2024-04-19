@@ -186,6 +186,7 @@ Begin {
   $stringsFromArgs = if ($UrlsToDownload) { $UrlsToDownload } else { @() }
   $fileToDownload = if ("$FilePath" -and (Test-Path -Path "$FilePath")) { "$FilePath" } else { $null }
   $comments = @( '#', '//', ';', ']' )
+  $is_comment_regex = "^(" + ($comments -join '|') + ")"
 }
 
 Process {
@@ -208,7 +209,7 @@ End {
       $hostName = $_
       $links -match $_ | Start-ThreadJob {
         $perDomainInput = New-TemporaryFile
-        $downloadFileName = "$($perDomainInput.FullName)"
+        $downloadFileName = $perDomainInput.FullName
         try {
           $input | Out-File "$downloadFileName" -Encoding ascii
           # --batch-file or -a
@@ -227,7 +228,7 @@ End {
 
   function downloadNormal ([String[]] $links) {
     $downloadFile = New-TemporaryFile
-    $downloadFileName = "$($downloadFile.FullName)"
+    $downloadFileName = $downloadFile.FullName
 
     try {
       $links | Out-File $downloadFileName -Encoding ascii
