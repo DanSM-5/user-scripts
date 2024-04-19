@@ -14,6 +14,8 @@ param(
 )
 
 Begin {
+  # Set UTF-8 formatting when setting text with special characters
+  chcp 65001 > $null
   $to_clipboard_list = New-Object System.Collections.ArrayList
 }
 
