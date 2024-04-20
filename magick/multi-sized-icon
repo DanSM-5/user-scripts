@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+img_file="$1"
+out_file="${2:-icon.ico}"
+
+if [ -z "$img_file" ]; then
+  printf "No Image"
+  exit
+fi
+
+ico_sizes="16,20,32,48,64,96,128,256"
+
+magick convert "$img_file" -colorspace sRGB -resize 256x256 -define icon:auto-resize="$ico_sizes" "$out_file"
+

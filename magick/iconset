@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+img_file="$1"
+ext="${2:-png}"
+
+if [ -z "$img_file" ]; then
+  printf "No Image"
+  exit
+fi
+
+# Icon sizes
+sizes=(16,20,32,48,64,96,128,256)
+outdir="output-$(date +%s)"
+
+# Make outdir
+mkdir -p "$outdir"
+
+for size in "${sizes[@]}"; do
+  magick conver "$img_file" -colorspace sRGB -resize "${size}x${size}" "$outdir/icon${size}.$ext"
+done
+

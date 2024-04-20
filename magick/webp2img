@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# Ref: https://github.com/slyfox1186/script-repo/blob/main/Batch/convert-webp-file-to-multi-sized-icon.bat
+
+img_file="$1"
+out_file="${2:-output.png}"
+
+if [ -z "$img_file" ]; then
+  printf "No Image"
+  exit
+fi
+
+# Not sure why using ffmpeg but keep just in case
+ffmpeg -y -hide_banner -stats -i "$img_file" "$out_file"
+
