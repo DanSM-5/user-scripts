@@ -19,5 +19,5 @@ if ((-not $size) -or (-not "$img_file")) {
   exit
 }
 
-magick convert -resize "${size}x${size}" "$img_file" "icon${size}.$ext"
+magick convert -colorspace sRGB -resize "${size}x${size}" "$img_file" "icon${size}.$ext"
 
