@@ -24,5 +24,5 @@ $outdir = "output-$(Get-Date -UFormat %s)"
 New-Item $outdir -ItemType Directory -ea 0
 
 foreach ($size in $sizes) {
-  magick conver "$img_file" -colorspace sRGB -resize "${size}x${size}" "$outdir/icon${size}.$ext"
+  magick convert "$img_file" -colorspace sRGB -resize "${size}x${size}" "$outdir/icon${size}.$ext"
 }
