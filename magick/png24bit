@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+img_file="$1"
+out_file="${2:-img24.png}"
+
+if [ -z "$img_file" ]; then
+  printf "No Image"
+  exit
+fi
+
+magick convert "$img_file" -depth 24 -type TrueColor PNG24:"$out_file"

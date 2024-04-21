@@ -9,5 +9,5 @@ if [ -z "$size" ] || [ -z "$img_file" ]; then
   exit
 fi
 
-magick convert -resize "${size}x${size}" "$img_file" "icon${size}.$ext"
+magick convert -colorspace sRGB -resize "${size}x${size}" "$img_file" "icon${size}.$ext"
 

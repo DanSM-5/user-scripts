@@ -39,7 +39,6 @@ End {
     $null = $to_clipboard_list.Add($strg)
   }
 
-
   if (-not $to_clipboard_list) {
     exit
   }
@@ -55,7 +54,9 @@ End {
   # should be available out of the box, then use here a native binary
 
   if ($IsWindows) {
-    $to_clipboard_list | pbcopy
+    With-UTF8 {
+      $to_clipboard_list | pbcopy
+    }
   } elseif ("${env:IS_TERMUX}" -eq 'true' ) {
     termux-clipboard-set @to_clipboard_list
   } elseif ($IsMacos) {

@@ -8,7 +8,9 @@
 # should be available out of the box, then use here a native binary
 
 if ($IsWindows) {
-  pbpaste $args
+  With-UTF8 {
+    pbpaste $args
+  }
 } elseif ("${env:IS_TERMUX}" -eq 'true' ) {
   termux-clipboard-set $args
 } elseif ($IsMacos) {
