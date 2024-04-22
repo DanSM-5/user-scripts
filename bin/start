@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+# For WSL and Gitbash
+transform_path () {
+  local cmdpath="$1" # wslpath pr cygpath
+  local filepath="${@:2}"
+
+  # Prevent wslpath to error with "wslpath: /some/unix/path"
+  sed "s|$cmdpath: ||g" <<< "$("$cmdpath" -aw "$filepath" 2>&1)"
+}
+
+# Detect platform
+case "$(uname -a)" in
+  MINGW*|MSYS*|CYGWIN*|*NT*)
+    # Gitbash
+
+    # Trim input string
+    item="$(printf "%s" "$@" | sed -E 's/^[[:space:]]*//' | sed -E 's/[[:space:]]*$//')"
+
+    if [ -f "$item" ] || [ -d "$item" ]; then
+      item="$(transform_path cygpath "$item")"
+      # item="$(cygpath -aw "$item" 2>&1)"
+    fi
+
+    # NOTE: This could use native start from gitbash
+    # /usr/bin/start "$@"
+    # This may save path convertion or other workarounds here
+
+    pwsh.exe -NoLogo -NonInteractive -NoProfile -Command "Start-Process $item"
+    ;;
+  *[mM]icrosoft*)
+    # WSL 1 or 2
+
+    # Trim input string
+    item="$(printf "%s" "$@" | sed -E 's/^[[:space:]]*//' | sed -E 's/[[:space:]]*$//')"
+
+    if [ -f "$item" ] || [ -d "$item" ]; then
+      item="$(transform_path wslpath "$item")"
+      # item="$(sed "s|wslpath: ||g" <<< "$(wslpath -aw "$item" 2>&1)")"
+    fi
+
+    pwsh.exe -NoLogo -NonInteractive -NoProfile -Command "Start-Process $item"
+    ;;
+  Linux*)
+    # xdg-open "$@" &
+    xdg-open "$@" < /dev/null > /dev/null 2>&1 &
+    disown
+    ;;
+  Darwin*)
+    open "$@"
+    ;;
+esac
+
