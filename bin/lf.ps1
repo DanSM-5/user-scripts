@@ -1,3 +1,5 @@
+#!/usr/bin/env pwsh
+
 # Run lf in the context of MINGW
 
 # Important to use @args and no $args when sending arguments to this script
