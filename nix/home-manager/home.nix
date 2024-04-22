@@ -41,6 +41,7 @@
     delta
     dua
     erdtree
+    eza
     fastfetch
     # fclones
     # fdupes
