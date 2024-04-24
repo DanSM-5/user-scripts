@@ -1,0 +1,71 @@
+#!/usr/bin/bash
+
+# Shell and platform detection script utility.
+# This is a set of environment variables which will make easy to detect in which context you are running
+# or it can serve as an example on how to detect some specific platform using uname.
+# If not need to detect Windows (wsl and gitbash) or termux, you can use `uname` only
+# Although some variables like IS_POWERSHELL or IS_CMD are not needed, I added them
+# to align with the variable definition on other shells so programs that expect environment
+# variables like (n)vim behave correctly.
+
+IS_WSL=false
+IS_WSL1=false
+IS_WSL2=false
+IS_TERMUX=false
+IS_LINUX=false
+IS_MAC=false
+IS_GITBASH=false
+IS_WINDOWS=false # Like IS_WINSHELL but includes WSL
+IS_POWERSHELL=false # Should never be true
+IS_CMD=false # Should never be true
+IS_WINSHELL=false # PWSH, GITBASH or CMD
+IS_NIXONDROID="${IS_NIXONDROID:-false}" # Can only be true if set from home-manager
+
+# Detect platform
+case "$(uname -a)" in
+  MINGW*|MSYS*|CYGWIN*|*NT*)
+    # Gitbash
+    IS_WINDOWS=true
+    IS_WINSHELL=true
+    IS_GITBASH=true
+    ;;
+  *WSL2*)
+    IS_WINDOWS=true
+    IS_WSL=true
+    IS_WSL2=true
+    ;;
+  *[mM]icrosoft*)
+    # WSL 1 or 2
+    # so make sure this is after the WSL2 case
+    IS_WINDOWS=true
+    IS_WSL=true
+    IS_WSL2=true
+    ;;
+  *Android)
+    # Termux
+    # It also starts with Linux
+    # so make sure this is before the Linux case
+    IS_TERMUX=true
+    ;;
+  Linux*)
+    IS_LINUX=true
+    ;;
+  Darwin*)
+    IS_MAC=true
+    ;;
+esac
+
+# export variables for detection
+export IS_WSL
+export IS_WSL1
+export IS_WSL2
+export IS_TERMUX
+export IS_LINUX
+export IS_MAC
+export IS_GITBASH
+export IS_WINDOWS
+export IS_POWERSHELL
+export IS_CMD
+export IS_WINSHELL
+export IS_NIXONDROID
+
