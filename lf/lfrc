@@ -131,6 +131,9 @@ map \\fnr npm-run-fzf
 # Add logic that is platform independent
 &command -v 'lf_lfrc' &> /dev/null && lf_lfrc
 
+# lf_preview on linux and lf_preview.bat in windows
+set previewer lf_preview
+
 # Detect nested lf instances
 &[ $LF_LEVEL -eq 1 ] || lf -remote "send $id echoerr \"Warning: You're in a nested lf instance!\""
 

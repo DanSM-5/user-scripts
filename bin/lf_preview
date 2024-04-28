@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+"$HOME/.usr_conf/utils/fzf-preview.sh" "$1"
+
