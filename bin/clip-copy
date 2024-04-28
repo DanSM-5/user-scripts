@@ -1,6 +1,12 @@
 #!/usr/bin/env sh
 
 # Cross platform clipboard-copy helper
+#
+# Dependencies
+# Windows: `pasteboard` package. Install from scoop: `scoop install pasteboard`
+# Linux: `xsel`. Install xsel from your package manager e.g. `sudo apt install xsel`
+
+# About variables: See detection script
 
 # NOTE: this won't work using -n and checking for existance of
 # arguments first like piping into pbcopy.exe

@@ -1,5 +1,13 @@
 #!/usr/bin/env pwsh
 
+# Cross platform clipboard-copy helper
+#
+# Dependencies
+# Windows: `pasteboard` package. Install from scoop: `scoop install pasteboard`
+# Linux: `xsel`. Install xsel from your package manager e.g. `sudo apt install xsel`
+
+# About variables: See detection script
+
 [CmdletBinding()]
 param(
   [Parameter(ValueFromRemainingArguments = $true, position = 0)]
@@ -46,9 +54,6 @@ End {
   # Cross platform clipboard-copy helper
   # NOTE: only windows from prowershell should ever land here
   # but let the whole structure in case running powershell somewhere else.
-
-  # TODO: requires transformation to accept pipe input
-  # This currently hangs
 
   # This could use Set-Clipboard cmdlet but since that
   # should be available out of the box, then use here a native binary

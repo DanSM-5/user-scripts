@@ -1024,26 +1024,18 @@ addexflags(clink.argmatcher('fzf'), {
 -- Custom Variables.
 
 home = os.getenv('USERPROFILE')
-fzf_preview_script = home .. '\\.usr_conf\\utils\\PsFzfTabExpansion-Preview.ps1'
+-- user_conf_path = home .. '\\.usr_conf'
+fzf_preview_script = home .. '\\.usr_conf\\utils\\fzf-preview.ps1'
 fzf_copy_helper = home .. '\\.usr_conf\\utils\\copy-helper.ps1'
 fzf_log_helper = home .. '\\.usr_conf\\utils\\log-helper.ps1'
 
-os.setenv('FZF_DEFAULT_OPTS', '--height=80% --layout=reverse --border')
-os.setenv('FZF_DEFAULT_COMMAND', 'rg --files --no-ignore --hidden --glob "!.git" --glob "!node_modules" --follow')
-
-os.setenv('FZF_CTRL_R_OPTS', '--preview "pwsh -NoLogo -NonInteractive -NoProfile -File ' .. fzf_log_helper .. ' {}" --preview-window up:3:hidden:wrap --bind "ctrl-/:toggle-preview,ctrl-s:toggle-sort" --bind "ctrl-y:execute-silent(pwsh -NoLogo -NonInteractive -NoProfile -File ' .. fzf_copy_helper .. ' {})+abort" --color header:italic --header "Press CTRL-Y to copy command into clipboard"')
-
-os.setenv('FZF_CTRL_T_OPTS', '--preview "pwsh -NoProfile -NonInteractive -NoLogo -File ' .. fzf_preview_script .. ' . {}" --bind "ctrl-/:change-preview-window(down|hidden|),alt-up:preview-page-up,alt-down:preview-page-down,ctrl-s:toggle-sort"')
-
-os.setenv('FZF_ALT_C_OPTS', os.getenv('FZF_CTRL_T_OPTS'))
-
-FD_SHOW_OPTIONS = {
+FD_SHOW_OPTIONS_LIST = {
   '--follow',
   '--hidden',
   '--no-ignore'
 }
 
-FD_EXCLUDE_OPTIONS = {
+FD_EXCLUDE_OPTIONS_LIST = {
   '--exclude', 'AppData',
   '--exclude', 'Android',
   '--exclude', 'OneDrive',
@@ -1064,6 +1056,7 @@ FD_EXCLUDE_OPTIONS = {
   '--exclude', '.azure',
   '--exclude', '.SpaceVim',
   '--exclude', '.cache',
+  '--exclude', '.jenv',
   '--exclude', '.node-gyp',
   '--exclude', '.npm',
   '--exclude', '.nvm',
@@ -1072,14 +1065,49 @@ FD_EXCLUDE_OPTIONS = {
   '--exclude', '.DS_Store',
   '--exclude', '.vscode',
   '--exclude', '.vim',
-  '--exclude', '.bun'
+  '--exclude', '.bun',
+  '--exclude', '.nuget',
+  '--exclude', '.dotnet',
+  '--exclude', '.pnpm-store',
+  '--exclude', '.pnpm*',
+  '--exclude', '.zsh_history.*',
+  '--exclude', '.android',
+  '--exclude', '.sony',
+  '--exclude', '.chocolatey',
+  '--exclude', '.gem',
+  '--exclude', '.jdks',
+  '--exclude', '.nix-profile',
+  '--exclude', '.sdkman',
+  '--exclude', '__pycache__',
+  '--exclude', '.local/pipx/*',
+  '--exclude', '.local/share/*',
+  '--exclude', '.local/state/*',
+  '--exclude', '.local/lib/*',
+  '--exclude', 'cache',
+  '--exclude', 'browser-data',
+  '--exclude', 'go',
+  '--exclude', 'nodejs',
+  '--exclude', 'podman',
+  '--exclude', 'PlayOnLinux*',
+  '--exclude', '.PlayOnLinux'
 }
 
-FD_OPTIONS = table.concat(FD_SHOW_OPTIONS, ' ') .. ' ' .. table.concat(FD_EXCLUDE_OPTIONS, ' ')
+FD_EXCLUDE_OPTIONS = table.concat(FD_EXCLUDE_OPTIONS_LIST, ' ')
+FD_SHOW_OPTIONS = table.concat(FD_SHOW_OPTIONS_LIST, ' ')
+FD_OPTIONS = FD_SHOW_OPTIONS .. ' ' .. FD_EXCLUDE_OPTIONS
+
+os.setenv('FZF_DEFAULT_OPTS', '--height=80% --layout=reverse --border')
+os.setenv('FZF_DEFAULT_COMMAND', 'rg --files --no-ignore --hidden --glob "!.git" --glob "!node_modules" --follow')
+
+os.setenv('FZF_CTRL_R_OPTS', '--preview "pwsh -NoLogo -NonInteractive -NoProfile -File ' .. fzf_log_helper .. ' {}" --preview-window up:3:hidden:wrap --bind "ctrl-/:toggle-preview,ctrl-s:toggle-sort" --bind "ctrl-y:execute-silent(pwsh -NoLogo -NonInteractive -NoProfile -File ' .. fzf_copy_helper .. ' {})+abort" --color header:italic --header "Press CTRL-Y to copy command into clipboard"')
+
+os.setenv('FZF_CTRL_T_OPTS', '--preview "pwsh -NoProfile -NonInteractive -NoLogo -File ' .. fzf_preview_script .. ' . {}" --multi --ansi --cycle --header "ctrl-a: All | ctrl-d: Dirs | ctrl-f: Files | ctrl-y: Copy | ctrl-t: CWD" --prompt "All> " --bind "ctrl-a:change-prompt(All >)+reload(fd --color=always ' .. FD_OPTIONS .. ')" --bind "ctrl-f:change-prompt(Files >)+reload(fd --color=always --type file ' .. FD_OPTIONS .. ')" --bind "ctrl-d:change-prompt(Dirs >)+reload(fd --color=always --type directory ' .. FD_OPTIONS .. ')" --bind "ctrl-t:change-prompt(CWD >)+reload(eza --color=always --all --oneline --dereference --group-directories-first)" --bind "ctrl-y:execute-silent(pwsh -NoLogo -NonInteractive -NoProfile -File ' .. fzf_copy_helper .. ' {+f})+abort" --bind "ctrl-o:execute-silent(pwsh -NoLogo -NoProfile -NonInteractive -Command Start-Process {})+abort" --bind "alt-a:select-all" --bind "alt-d:deselect-all" --bind "alt-f:first" --bind "alt-l:last" --bind "alt-c:clear-query" --bind "ctrl-/:change-preview-window(down|hidden|),alt-up:preview-page-up,alt-down:preview-page-down,ctrl-s:toggle-sort"')
+
+os.setenv('FZF_ALT_C_OPTS', '--ansi --preview "pwsh -NoProfile -NonInteractive -NoLogo -File ' .. fzf_preview_script .. ' . {}" --bind "ctrl-/:change-preview-window(down|hidden|),alt-up:preview-page-up,alt-down:preview-page-down,ctrl-s:toggle-sort"')
 
 os.setenv('FD_SHOW_OPTIONS', FD_SHOW_OPTIONS)
 os.setenv('FD_EXCLUDE_OPTIONS', FD_EXCLUDE_OPTIONS)
 os.setenv('FD_OPTIONS', FD_OPTIONS)
-os.setenv('FZF_CTRL_T_COMMAND', 'fd ' .. FD_OPTIONS)
-os.setenv('FZF_ALT_C_COMMAND', 'fd --type d ' .. FD_OPTIONS)
+os.setenv('FZF_CTRL_T_COMMAND', 'fd --color=always ' .. FD_OPTIONS)
+os.setenv('FZF_ALT_C_COMMAND', 'fd --type directory --color=always ' .. FD_OPTIONS)
 

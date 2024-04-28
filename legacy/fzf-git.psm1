@@ -5,6 +5,28 @@
 # using bash from git for windows.
 # This is archived as an example to make such a hack work.
 
+# Requires to have git bash in the path
+# $__gitenv__ = where.exe env | grep 'Git\\usr\\bin\\env'
+$__gitenv__ = "$(where.exe env | Select-String 'Git\\usr\\bin\\env')"
+
+# Environment variables to setup bash from git for windows
+$GITBASH_ENVIRONMENT = @(
+  # Enable MINGW work as running gitbash directly
+  "MSYS='enable_pcon'"
+  "MSYSTEM='MINGW64'"
+  "enable_pcon='1'"
+  # Avoid POSIX to WINDOWS path conversions
+  # "MSYS_NO_PATHCONV='1'"
+  # "MSYS2_ARG_CONV_EXCL='*'"
+)
+
+# Need /usr/bin to the start of the path
+$__append_path__ = "export PATH=`"/usr/bin:`$PATH`";"
+
+# Final command structure
+# & "$script:__gitenv__" $script:GITBASH_ENVIRONMENT /usr/bin/bash -c "$script:__append_path__ $script:fgt_command"
+# & "C:\Program Files\Git\usr\bin\env.exe" MSYS=enable_pcon MSYSTEM=MINGW64 enable_pcon=1 /usr/bin/bash -c 'export PATH=/usr/bin:$PATH; COMMAND'
+
 $fzf_down = ' SHELL="/bin/bash" fzf --height 50% --min-height 20 --layout=reverse --border --bind "ctrl-/:change-preview-window(down|hidden|),alt-up:preview-page-up,alt-down:preview-page-down,ctrl-s:toggle-sort" '
 # $fzf_down = ' SHELL="/bin/bash" fzf --height 50% --min-height 20 --layout=reverse --border --bind \"ctrl-/:change-preview-window(down|hidden|),alt-up:preview-page-up,alt-down:preview-page-down\" '
 
