@@ -1,5 +1,4 @@
 // Place your key bindings in this file to override the defaults
-// Place your key bindings in this file to override the defaults
 [
   {
     "key": "ctrl+u",
@@ -36,18 +35,18 @@
     "when": "neovim.init && neovim.mode == insert && editorTextFocus",
     "command": "editor.action.clipboardCopyAction",
   },
-  {
-    "command": "vscode-neovim.compositeEscape1",
-    "key": "j",
-    "when": "neovim.mode == insert && editorTextFocus",
-    "args": "j",
-  },
-  {
-    "command": "vscode-neovim.compositeEscape2",
-    "key": "k",
-    "when": "neovim.mode == insert && editorTextFocus",
-    "args": "k",
-  },
+  // {
+  //   "command": "vscode-neovim.compositeEscape1",
+  //   "key": "j",
+  //   "when": "neovim.mode == insert && editorTextFocus",
+  //   "args": "j",
+  // },
+  // {
+  //   "command": "vscode-neovim.compositeEscape2",
+  //   "key": "k",
+  //   "when": "neovim.mode == insert && editorTextFocus",
+  //   "args": "k",
+  // },
   {
     "command": "workbench.action.toggleActivityBarVisibility",
     "key": "ctrl+alt+shift+h",
@@ -57,11 +56,48 @@
     "key": "ctrl+alt+h",
   },
   {
+    "key": "ctrl+shift+j",
+    "command": "workbench.action.togglePanel",
+    "when": "!(inSearchEditor || searchViewletFocus)"
+  },
+  {
+    "key": "ctrl+j",
+    "command": "-workbench.action.togglePanel"
+  },
+  {
+    "key": "ctrl+p",
+    "command": "-workbench.action.quickOpenSelectPrevious",
+    "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
+  },
+  {
+    "key": "ctrl+n",
+    "command": "-workbench.action.quickOpenSelectNext",
+    "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
+  },
+  {
+    "key": "ctrl+k",
+    "command": "workbench.action.quickOpenSelectPrevious",
+    "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
+  },
+  {
+    "key": "ctrl+j",
+    "command": "workbench.action.quickOpenSelectNext",
+    "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
+  },
+  {
     "key": "shift+alt+u",
     "command": "find-it-faster.findWithinFilesWithType"
   },
   {
+    "key": "ctrl+alt+shift+j",
+    "command": "find-it-faster.findFiles"
+  },
+  // {
+  //   "key": "shift+alt+u",
+  //   "command": "find-it-faster.findWithinFilesWithType"
+  // },
+  {
     "key": "ctrl+shift+alt+u",
-    "command": "-find-it-faster.findWithinFilesWithType"
+    "command": "find-it-faster.findWithinFilesWithType"
   },
 ]
