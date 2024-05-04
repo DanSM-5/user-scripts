@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env sh
 
 # Shell and platform detection script utility.
 # This is a set of environment variables which will make easy to detect in which context you are running
