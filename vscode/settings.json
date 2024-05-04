@@ -2,7 +2,7 @@
   "workbench.iconTheme": "vscode-icons",
   "editor.wordWrap": "on",
   "workbench.editorAssociations": {
-        "*.ipynb": "default"
+    "*.ipynb": "default"
   },
   "markdown-preview-enhanced.automaticallyShowPreviewOfMarkdownBeingEdited": true,
   "markdown-preview-enhanced.mermaidTheme": "dark",
