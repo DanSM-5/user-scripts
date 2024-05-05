@@ -5,6 +5,7 @@
 # Repositories
 kitty/kitty_grab
 ff2mpv
+fzf-tab-completion
 
 # python
 __pycache__/
