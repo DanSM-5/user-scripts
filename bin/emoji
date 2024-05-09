@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+cache_dir="${user_config_cache:-$HOME/.cache/.user_config_cache}/emojis"
+emoji_file="$cache_dir/emoji"
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -c|-[Cc]lean|--clean)
+      shift # past argument
+      rm -f "$emoji_file" &>/dev/null
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
+# Fetch if no emoji file
+if ! [ -f "$emoji_file" ]; then
+  mkdir -p "$cache_dir"
+  curl -sSL 'https://git.io/JXXO7' > "$emoji_file"
+fi
+
+if [[ "$(uname)" =~ MSYS.*|MINGW.*|CYGWIN.* ]]; then
+  chcp.com 65001 &> /dev/null
+fi
+
+selected_emoji=($(cat "$emoji_file" |
+  fzf --multi --ansi \
+    --height 80% --min-height 20 --border \
+    --info=inline \
+    --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+    --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+    --bind 'ctrl-s:toggle-sort' \
+    --bind 'alt-f:first' \
+    --bind 'alt-l:last' \
+    --bind 'alt-c:clear-query' \
+    --with-shell 'bash -c' \
+    --bind "ctrl-y:execute-silent(awk 'NF { print \$1 }' '{+f}' | clip-copy)" \
+    --bind "ctrl-u:execute-silent(awk 'NF { print \$2 }' '{+f}' | clip-copy)" \
+    --bind "ctrl-t:execute-silent(awk 'NF { print \$0 }' '{+f}' | clip-copy)" \
+    --header 'Copy emoji: ctrl-y | Copy desc: ctrl-u | Copy all: ctrl-t' |
+  awk '{ print $1 }' \
+))
+
+printf '%s\n' "${selected_emoji[@]}"
+
