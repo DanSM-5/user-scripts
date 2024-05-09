@@ -14,27 +14,59 @@
 if [ -z "$@" ]; then
 
   # Should take input from pipe
-  if [ "$IS_WINDOWS" = true ]; then
+  if [ "$IS_WSL2" ]; then
+    if [ -n "$WAYLAND_DISPLAY" ] && command -v wl-copy 1>/dev/null 2>&1; then
+      wl-copy --foreground --type text/plain
+    elif [ -n "$DISPLAY" ] && command -v xsel 1>/dev/null 2>&1; then
+      xsel -i -b
+    elif [ -n "$DISPLAY" ] && command -v xclip 1>/dev/null 2>&1; then
+      xclip -i -selection clipboard
+    else
+      pbcopy.exe "$@"
+    fi
+  elif [ "$IS_WINDOWS" = true ]; then
     pbcopy.exe "$@"
   elif [ "$IS_TERMUX" = true ]; then
     termux-clipboard-set
   elif [ "$IS_MAC" = true ]; then
     pbcopy
   elif [ "$IS_LINUX" = true ]; then
-    xsel -ib
+    if [ -n "$WAYLAND_DISPLAY" ] && command -v wl-copy 1>/dev/null 2>&1; then
+      wl-copy --foreground --type text/plain
+    elif [ -n "$DISPLAY" ] && command -v xsel 1>/dev/null 2>&1; then
+      xsel -i -b
+    elif [ -n "$DISPLAY" ] && command -v xclip 1>/dev/null 2>&1; then
+      xclip -i -selection clipboard
+    fi
   fi
 
   exit 0
 fi
 
 # Passed arguments
-if [ "$IS_WINDOWS" = true ]; then
+if [ "$IS_WSL2" ]; then
+  if [ -n "$WAYLAND_DISPLAY" ] && command -v wl-copy 1>/dev/null 2>&1; then
+    wl-copy --foreground --type text/plain "$@"
+  elif [ -n "$DISPLAY" ] && command -v xsel 1>/dev/null 2>&1; then
+    xsel -i -b "$@"
+  elif [ -n "$DISPLAY" ] && command -v xclip 1>/dev/null 2>&1; then
+    xclip -i -selection clipboard "$@"
+  else
+    printf "%s" "$@" | pbcopy.exe
+  fi
+elif [ "$IS_WINDOWS" = true ]; then
   printf "%s" "$@" | pbcopy.exe
 elif [ "$IS_TERMUX" = true ]; then
   termux-clipboard-set "$@"
 elif [ "$IS_MAC" = true ]; then
   pbcopy "$@"
 elif [ "$IS_LINUX" = true ]; then
-  xsel -ib "$@"
+  if [ -n "$WAYLAND_DISPLAY" ] && command -v wl-copy 1>/dev/null 2>&1; then
+    wl-copy --foreground --type text/plain "$@"
+  elif [ -n "$DISPLAY" ] && command -v xsel 1>/dev/null 2>&1; then
+    xsel -i -b "$@"
+  elif [ -n "$DISPLAY" ] && command -v xclip 1>/dev/null 2>&1; then
+    xclip -i -selection clipboard "$@"
+  fi
 fi
 

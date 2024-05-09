@@ -9,7 +9,7 @@
 # About variables: See detection script
 
 [CmdletBinding()]
-param(
+Param(
   [Parameter(ValueFromRemainingArguments = $true, position = 0)]
   [String[]]
   $RegularInput = @(),
@@ -24,6 +24,7 @@ param(
 Begin {
   # Set UTF-8 formatting when setting text with special characters
   chcp 65001 > $null
+  $OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.Utf8Encoding
   $to_clipboard_list = New-Object System.Collections.ArrayList
 }
 

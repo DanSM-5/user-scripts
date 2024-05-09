@@ -1,6 +1,5 @@
 #!/usr/bin/env pwsh
 
-
 # Cross platform clipboard-paste helper
 #
 # Dependencies
@@ -15,6 +14,9 @@
 
 # About variables: See detection script
 
+# UTF-8 for windows
+$OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.Utf8Encoding
+
 if ($IsWindows) {
   With-UTF8 {
     pbpaste $args
@@ -26,3 +28,4 @@ if ($IsWindows) {
 } elseif ($IsLinux) {
   xsel -ob $args
 }
+
