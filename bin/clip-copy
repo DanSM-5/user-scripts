@@ -14,9 +14,10 @@
 if [ -z "$@" ]; then
 
   # Should take input from pipe
-  if [ "$IS_WSL2" ]; then
+  if [ "$IS_WSL2" = true ]; then
     if [ -n "$WAYLAND_DISPLAY" ] && command -v wl-copy 1>/dev/null 2>&1; then
-      wl-copy --foreground --type text/plain
+      # wl-copy --foreground --type text/plain
+      wl-copy
     elif [ -n "$DISPLAY" ] && command -v xsel 1>/dev/null 2>&1; then
       xsel -i -b
     elif [ -n "$DISPLAY" ] && command -v xclip 1>/dev/null 2>&1; then
@@ -44,13 +45,13 @@ if [ -z "$@" ]; then
 fi
 
 # Passed arguments
-if [ "$IS_WSL2" ]; then
+if [ "$IS_WSL2" = true ]; then
   if [ -n "$WAYLAND_DISPLAY" ] && command -v wl-copy 1>/dev/null 2>&1; then
     wl-copy --foreground --type text/plain "$@"
   elif [ -n "$DISPLAY" ] && command -v xsel 1>/dev/null 2>&1; then
-    xsel -i -b "$@"
+    printf '%s' "$@" | xsel -i -b
   elif [ -n "$DISPLAY" ] && command -v xclip 1>/dev/null 2>&1; then
-    xclip -i -selection clipboard "$@"
+    printf '%s' "$@" | xclip -i -selection clipboard
   else
     printf "%s" "$@" | pbcopy.exe
   fi
@@ -62,11 +63,12 @@ elif [ "$IS_MAC" = true ]; then
   pbcopy "$@"
 elif [ "$IS_LINUX" = true ]; then
   if [ -n "$WAYLAND_DISPLAY" ] && command -v wl-copy 1>/dev/null 2>&1; then
-    wl-copy --foreground --type text/plain "$@"
+    # wl-copy --foreground --type text/plain "$@"
+    wl-copy "$@"
   elif [ -n "$DISPLAY" ] && command -v xsel 1>/dev/null 2>&1; then
-    xsel -i -b "$@"
+    printf '%s' "$@" | xsel -i -b
   elif [ -n "$DISPLAY" ] && command -v xclip 1>/dev/null 2>&1; then
-    xclip -i -selection clipboard "$@"
+    printf '%s' "$@" | xclip -i -selection clipboard
   fi
 fi
 
