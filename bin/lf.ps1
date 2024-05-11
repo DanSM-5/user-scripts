@@ -65,15 +65,19 @@ for ($i = 0; $i -lt $args.length; $i++) {
 # Original test with Start-Process
 # $test = Start-Process -FilePath "C:\Program Files\Git\usr\bin\env.exe" -ArgumentList @("MSYS=enable_pcon", "MSYSTEM=MINGW64", "enable_pcon=1", "SHELL=/usr/bin/bash", "/usr/bin/bash", "-c", "`"PATH=\`"/usr/bin:`$PATH\`" lf.exe`"") -NoNewWindow -PassThru; $test.WaitForExit(); $test.WaitForExit()
 
+$std_out = New-Temporaryfile
+
 # Use Start-Process to execute the command
 $proc = Start-Process -FilePath "$gitenv" -ArgumentList @(
   $GITBASH_ENVIRONMENT
   "$APPENDED_ENVIRONMENT lf.exe $COMMAND_ARGS"
-) -NoNewWindow -PassThru
+) -NoNewWindow -PassThru -RedirectStandardOutput $std_out.FullName
 
 # Wait for lf to exit
 $proc.WaitForExit()
 
 # Clean process reference
 $proc = $null
+
+Get-Content $std_out
 

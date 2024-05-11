@@ -16,11 +16,11 @@
 #
 
 if (Get-Command -Name "lf.exe" -ErrorAction SilentlyContinue) {
-  $(lf.ps1 -print-last-dir @args) | Set-Location
+  return lf.ps1 -print-last-dir @args
 }
 
 # For user in other platforms
 if ((Get-Command -Name "lf" -ErrorAction SilentlyContinue) -and !$IsWindows) {
-  lf -print-last-dir @args | Set-Location
+  return lf -print-last-dir @args
 }
 
