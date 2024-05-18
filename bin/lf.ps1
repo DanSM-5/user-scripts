@@ -5,7 +5,7 @@
 # Important to use @args and no $args when sending arguments to this script
 
 # Find path location of binaries env and bash so they can be located
-# in arbitrary path locations for custom installations. 
+# in arbitrary path locations for custom installations.
 $gitenv = $(where.exe env | grep 'Git\\usr\\bin\\env')
 $gitbash = $(where.exe bash | grep 'Git\\usr\\bin\\bash')
 
@@ -57,7 +57,7 @@ for ($i = 0; $i -lt $args.length; $i++) {
 }
 
 # Call a prepared shell command. It adds MINGW64 environment variables,
-# adds /usr/bin to the start of the path and forward all escaped command arguments 
+# adds /usr/bin to the start of the path and forward all escaped command arguments
 # & "$gitenv" $GITBASH_ENVIRONMENT /usr/bin/bash -c "$APPENDED_ENVIRONMENT lf.exe $COMMAND_ARGS"
 # Debug command
 # Write-Host "&" "$gitenv" "$GITBASH_ENVIRONMENT" /usr/bin/bash -c "$APPENDED_ENVIRONMENT lf.exe $COMMAND_ARGS"
@@ -65,7 +65,18 @@ for ($i = 0; $i -lt $args.length; $i++) {
 # Original test with Start-Process
 # $test = Start-Process -FilePath "C:\Program Files\Git\usr\bin\env.exe" -ArgumentList @("MSYS=enable_pcon", "MSYSTEM=MINGW64", "enable_pcon=1", "SHELL=/usr/bin/bash", "/usr/bin/bash", "-c", "`"PATH=\`"/usr/bin:`$PATH\`" lf.exe`"") -NoNewWindow -PassThru; $test.WaitForExit(); $test.WaitForExit()
 
-$std_out = New-Temporaryfile
+
+# When calling this from pwsh (powershell 7),
+# the script will inherit the PSModulePath environment variable
+# which causes New-TemporaryFile to fail.
+# This script is intended to run with Windows Powershell so
+# the alternative is to call the windows API directly.
+try {
+  $std_out = New-TemporaryFile
+}
+catch {
+  $std_out = Get-Item ([System.IO.Path]::GetTempFilename())
+}
 
 # Use Start-Process to execute the command
 $proc = Start-Process -FilePath "$gitenv" -ArgumentList @(
