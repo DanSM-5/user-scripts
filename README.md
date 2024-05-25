@@ -33,7 +33,7 @@ Also feel free to ask questions if you wonder about something you see in any of 
 
 # Pages of interes
 
-Some resources to keep learning
+More resources and interesting projects
 
 - [cli-apps](https://github.com/toolleeo/cli-apps)
 - [Art of the command line](https://github.com/jlevy/the-art-of-command-line)
@@ -41,4 +41,6 @@ Some resources to keep learning
 - [Shaky's dotfiles](https://github.com/awesome-lists/andrew8088/dotfiles)
 - [Awesome bash](https://github.com/awesome-lists/awesome-bash)
 - [Awesome WSL](https://github.com/sirredbeard/Awesome-WSL)
+- [modern-unix](https://github.com/ibraheemdev/modern-unix?tab=readme-ov-file)
+- [uutils coreutils](https://github.com/uutils/coreutils)
 
