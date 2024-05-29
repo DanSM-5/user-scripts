@@ -171,7 +171,7 @@ def determine_command_options(command_line_args):
             sys.exit(1)
         options = parse_options(help_output.splitlines())
         save_location = os.environ.get('user_conf_path')
-        save_location = f"{save_location}/zsh" if save_location else f"{os.environ.get('HOME')}/.usr_conf/zsh"
+        save_location = f"{save_location}/completions/zsh" if save_location else f"{os.environ.get('HOME')}/.usr_conf/completions"
         with open(f"{save_location}/_{primary_command}", "w") as zsh_completion:
             zsh_completion.write(generate_completion_function(options, primary_command))
         # print(generate_completion_function(options, primary_command))
