@@ -1,0 +1,66 @@
+# File location
+# windows:       $env:LocalAppData/mov-cli/config.toml
+# > ln-s $user_scripts_path/mov-cli $HOME/.config/mov-cli
+# > ln-s $user_scripts_path/mov-cli $HOME/AppData/Local/mov-cli
+# linux/android: ~/.config/mov-cli/config.toml
+
+# Flags
+# -s search
+# -d download
+
+# Installation:
+# pipx install mov-cli
+# pipx inject  mov-cli beautifulsoup4
+# pipx inject  mov-cli yt-dlp
+# pipx inject  mov-cli mov-cli-youtube
+# pipx inject  mov-cli otaku-watcher
+# pipx inject  mov-cli film-central
+# pipx inject  mov-cli mov-cli-files
+
+[mov-cli]
+version = 1
+player = "mpv"
+debug = false
+parser = "lxml"
+# editor = "nvim"
+skip_update_checker = false
+
+[mov-cli.ui]
+fzf = true
+
+[mov-cli.plugins] # E.g: namespace = "package-name"
+test = "mov-cli-test"
+
+youtube = "mov-cli-youtube"
+# Usage:
+# mov-cli -s youtube nyan cat
+# mov-cli -s youtube nyan cat -- --audio # audio only
+
+anime = "otaku-watcher"
+# Usage:
+# mov-cli -s anime lycoris recoil
+
+films = "film-central"
+# Usage:
+# mov-cli -s films the rookie
+
+files = "mov-cli-files"
+# Usage:
+# mov-cli -s files {query}
+# mov-cli -s files osaka oh my gah -- --path ./Downloads # Search in specific path
+# mov-cli -s files "*" # search everywhere
+
+
+[mov-cli.scrapers]
+default = "youtube"
+
+# [mov-cli.http] # Don't mess with it if you don't know what you are doing!
+# headers = { User-Agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0" }
+
+# [mov-cli.downloads] # Do not use backslashes use forward slashes
+# save_path = "~/Downloads"
+# yt_dlp = true
+
+# [mov-cli.quality]
+# resolution = 720
+
