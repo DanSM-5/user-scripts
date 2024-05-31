@@ -35,10 +35,14 @@
     #   echo "Hello, ${config.home.username}!"
     # '')
 
+    _7zz
     # ani-cli
     bat
     btop
+    # bun
+    chafa
     delta
+    # dog
     dua
     erdtree
     eza
@@ -47,21 +51,30 @@
     # fdupes
     fd
     ffmpeg
-    fzf
+    # fzf
     # gallery-dl
+    ghostscript
     glow
+    gron
     highlight
+    hyperfine
     imagemagick
     jq
+    jc
+    jo
     lf
     # mpv
     # micro
     neovim
     oh-my-posh
+    # poppler
+    poppler_utils
+    # procs
     # python3
     # rclip
-    # rclone
+    rclone
     ripgrep
+    rustup
     # rtorrent
     sd
     sad
@@ -70,8 +83,9 @@
     tldr
     # transmission
     unrar
+    # xidel
     # yt-dlp
-    ytfzf
+    # ytfzf
   ];
 
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
