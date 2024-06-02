@@ -11,26 +11,30 @@ Array.from(
     /* Pixiv - Add likes (non liked) */
     document.querySelectorAll('.fYcrPo')
 )
-  .map((el, i) => setTimeout( () => el.parentElement.click(), i * 1000))
+  .map(el => el.parentElement)
+  .map((el, i) => setTimeout( () => el.click(), i * 1000))
 
 Array.from(
     /* Pixiv - Add likes (non liked) */
     document.querySelectorAll('.fYcrPo')
 )
-  .map((el, i) => setTimeout( () => el.parentElement.click(), i * 2 * 1000))
+  .map(el => el.parentElement)
+  .map((el, i) => setTimeout( () => el.click(), i * 2 * 1000))
 
 // Pixiv - Remove likes from items
 Array.from(
     /* Pixiv - Remove likes from items */
     document.querySelectorAll('.bXjFLc')
 )
-  .map((el, i) => setTimeout( () => el.parentElement.click(), i * 1000))
+  .map(el => el.parentElement)
+  .map((el, i) => setTimeout( () => el.click(), i * 1000))
 
 Array.from(
      /* Pixiv - Remove likes from items */
     document.querySelectorAll('.bXjFLc')
 )
-  .map((el, i) => setTimeout( () => el.parentElement.click(), i * 2 * 1000))
+  .map(el => el.parentElement)
+  .map((el, i) => setTimeout( () => el.click(), i * 2 * 1000))
 
 // Pixiv - Get all url from unliked items
 Array.from(
@@ -73,13 +77,80 @@ Array.from(
 Array.from(
     /* Pixiv - Unlike all from contest - NOT RECOMENDED PAGE RELOAD */
     document.querySelectorAll('.bookmark-container span:not(.on)')
-).map((span, i) => setTimeout(() => span.click(), i * 2 * 1000))
+)
+  .map((span, i) => setTimeout(() => span.click(), i * 2 * 1000))
 
 // Pixiv - Like all unliked from contest
 Array.from(
     /* Pixiv - Like all unliked from contest */
     document.querySelectorAll('.bookmark-container span:not(.on)')
-).map((span, i) => setTimeout(() => span.click(), i * 2 * 1000))
+)
+  .map((span, i) => setTimeout(() => span.click(), i * 2 * 1000))
+
+const paginatedClickProcess = (
+  getElements = () => [],
+) => {
+  const pending = Promise.withResolvers()
+  const clickElement = (element, index) => {
+    return new Promise(resolve => {
+      setTimeout(() => {
+        element.click();
+        resolve();
+      }, index * 2 * 1000);
+    });
+  };
+
+  const onAllElements = () => Promise.all(
+    getElements()
+      .map(clickElement),
+  );
+
+  const moveNextPage = (callPageProcess) => {
+    return callPageProcess().then(() => {
+      const nextPageBtn = document.querySelectorAll('.sc-xhhh7v-1.hqFKax:not(.iiDpnk) + a:not([hidden])')?.[0];
+      if (!nextPageBtn) {
+        pending.resolve();
+        return;
+      }
+      setTimeout(() => {
+        nextPageBtn.click();
+        setTimeout(() => {
+          moveNextPage(callPageProcess);
+        }, 2000);
+      }, 2000);
+    })
+    .catch(e => {
+      console.log('Ended cycle');
+      promise.reject(new Error('Failure to complete paginated process:' ,{ cause: e }))
+    });
+  };
+
+  moveNextPage(onAllElements);
+  return pending.promise
+};
+
+paginatedClickProcess(
+  () => Array.from(
+    /* Pixiv - Add likes (non liked) */
+    document.querySelectorAll('.fYcrPo')
+  )
+  .map(el => el.parentElement),
+);
+
+// const onAllElements = () => Promise.all(
+//   Array.from(
+//     /* Pixiv - Add likes (non liked) */
+//     document.querySelectorAll('.fYcrPo')
+//   )
+//   .map(el => e.parentElement)
+//   .map(
+//     (el, i) => new Promise((resolve) => setTimeout(() => {
+//       el.click();
+//       resolve();
+//     }, i * 2 * 1000))
+//   ),
+// );
+
 
 //: }}} :---------------------------------------------------------------------------
 
