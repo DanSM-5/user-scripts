@@ -56,6 +56,10 @@
     "key": "ctrl+alt+h",
   },
   {
+    "key": "ctrl+b",
+    "command": "workbench.action.toggleSidebarVisibility",
+  },
+  {
     "key": "ctrl+shift+j",
     "command": "workbench.action.togglePanel",
     "when": "!(inSearchEditor || searchViewletFocus)"
