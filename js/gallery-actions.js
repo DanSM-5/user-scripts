@@ -89,11 +89,18 @@ Array.from(
 
 const paginatedClickProcess = (
   getElements = () => [],
+  signal = { aborted: false },
 ) => {
   const pending = Promise.withResolvers()
   const clickElement = (element, index) => {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       setTimeout(() => {
+        if (signal.aborted) {
+          pending.reject(new Error('Process aborted', { cause: signal.reason }));
+          reject();
+          return;
+        }
+
         element.click();
         resolve();
       }, index * 2 * 1000);
@@ -120,8 +127,8 @@ const paginatedClickProcess = (
       }, 2000);
     })
     .catch(e => {
-      console.log('Ended cycle');
-      promise.reject(new Error('Failure to complete paginated process:' ,{ cause: e }))
+      console.warn('Ended cycle');
+      promise.reject(new Error('Cannot continue paginated process:' ,{ cause: e }))
     });
   };
 
