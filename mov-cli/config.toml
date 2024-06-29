@@ -1,10 +1,11 @@
-# File location
+# File location:
 # windows:       $env:LocalAppData/mov-cli/config.toml
-# > ln-s $user_scripts_path/mov-cli $HOME/.config/mov-cli
-# > ln-s $user_scripts_path/mov-cli $HOME/AppData/Local/mov-cli
+# > ln-s "$user_scripts_path/mov-cli" "$HOME/.config/mov-cli"
+# > ln-s "$user_scripts_path/mov-cli" "$env:LocalAppData/mov-cli"
 # linux/android: ~/.config/mov-cli/config.toml
+# > ln -s "$user_scripts_path/mov-cli" "$HOME/.config/mov-cli"
 
-# Flags
+# Flags:
 # -s search
 # -d download
 
@@ -21,7 +22,7 @@
 version = 1
 player = "mpv"
 debug = false
-parser = "lxml"
+# parser = "lxml"
 # editor = "nvim"
 skip_update_checker = false
 
