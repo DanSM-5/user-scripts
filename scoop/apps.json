@@ -23,6 +23,18 @@
             "Source": "https://github.com/ScoopInstaller/Versions",
             "Updated": "2024-03-03T15:27:35-05:00",
             "Manifests": 444
+        },
+        {
+          "Name": "sysinternals",
+          "Source": "https://github.com/niheaven/scoop-sysinternals",
+          "Updated": "2024-06-20T21:38:17-04:00",
+          "Manifests": 75
+        },
+        {
+          "Name": "nonportable",
+          "Source": "https://github.com/ScoopInstaller/Nonportable",
+          "Updated": "2024-06-29T16:28:21-04:00",
+          "Manifests": 127
         }
     ],
     "apps": [
@@ -39,13 +51,6 @@
             "Source": "main",
             "Name": "adb",
             "Updated": "2024-01-18T23:15:23.9154227-05:00"
-        },
-        {
-            "Version": "0.18.11",
-            "Source": "main",
-            "Name": "eza",
-            "Info": "",
-            "Updated": "2024-04-22T19:20:06.2145151-04:00"
         },
         {
             "Version": "4333796",
@@ -83,6 +88,13 @@
             "Updated": "2024-01-18T23:15:27.9954742-05:00"
         },
         {
+            "Updated": "2024-05-25T00:52:21.7717877-04:00",
+            "Info": "",
+            "Version": "1.0.4",
+            "Name": "btop",
+            "Source": "main"
+        },
+        {
             "Version": "1.0.30-canary.60+49ccad936",
             "Info": "",
             "Source": "versions",
@@ -102,6 +114,13 @@
             "Source": "extras",
             "Name": "carnac",
             "Updated": "2023-01-24T18:29:36.2808342-05:00"
+        },
+        {
+            "Updated": "2024-04-27T13:56:38.6927477-04:00",
+            "Info": "",
+            "Version": "1.14.0",
+            "Name": "chafa",
+            "Source": "main"
         },
         {
             "Version": "1.6.5",
@@ -139,11 +158,32 @@
             "Updated": "2023-06-08T21:33:17.3418647-04:00"
         },
         {
+            "Updated": "2024-06-14T22:47:44.6481579-04:00",
+            "Info": "",
+            "Version": "1.0.13.0",
+            "Name": "devtoys-np",
+            "Source": "nonportable"
+        },
+        {
             "Version": "2.28.0",
             "Info": "",
             "Source": "main",
             "Name": "dua",
             "Updated": "2024-01-27T19:12:25.5731241-05:00"
+        },
+        {
+            "Updated": "2024-05-25T00:58:03.5851339-04:00",
+            "Info": "",
+            "Version": "0.1.0",
+            "Name": "dog",
+            "Source": "main"
+        },
+        {
+            "Version": "0.18.11",
+            "Source": "main",
+            "Name": "eza",
+            "Info": "",
+            "Updated": "2024-04-22T19:20:06.2145151-04:00"
         },
         {
             "Version": "3.1.2",
@@ -202,11 +242,25 @@
             "Updated": "2023-12-01T21:49:49.4016142-05:00"
         },
         {
+            "Updated": "2024-06-29T19:14:17.1978511-04:00",
+            "Info": "",
+            "Version": "1.5.1",
+            "Name": "glow",
+            "Source": "main"
+        },
+        {
             "Version": "1.22.0",
             "Info": "",
             "Source": "main",
             "Name": "go",
             "Updated": "2024-02-22T20:02:12.9480667-05:00"
+        },
+        {
+            "Updated": "2024-05-10T19:06:09.7727091-04:00",
+            "Info": "",
+            "Version": "0.7.1",
+            "Name": "gron",
+            "Source": "main"
         },
         {
             "Version": "2.57.0",
@@ -237,6 +291,13 @@
             "Updated": "2022-09-11T17:00:10.6789845-04:00"
         },
         {
+            "Updated": "2024-05-25T00:55:03.847872-04:00",
+            "Info": "",
+            "Version": "1.18.0",
+            "Name": "hyperfine",
+            "Source": "main"
+        },
+        {
             "Version": "7.1.1-29",
             "Info": "",
             "Source": "main",
@@ -249,6 +310,20 @@
             "Source": "main",
             "Name": "innounp",
             "Updated": "2023-09-01T10:14:56.593955-04:00"
+        },
+        {
+            "Updated": "2024-05-10T19:06:19.8715129-04:00",
+            "Info": "",
+            "Version": "1.25.2",
+            "Name": "jc",
+            "Source": "main"
+        },
+        {
+            "Updated": "2024-05-10T19:06:24.4098494-04:00",
+            "Info": "",
+            "Version": "1.9",
+            "Name": "jo",
+            "Source": "main"
         },
         {
             "Version": "1.7.1",
@@ -363,6 +438,13 @@
             "Updated": "2022-09-11T15:28:39.9462384-04:00"
         },
         {
+            "Updated": "2024-05-25T00:56:29.0160289-04:00",
+            "Info": "",
+            "Version": "0.14.5",
+            "Name": "procs",
+            "Source": "main"
+        },
+        {
             "Version": "2.5.22",
             "Info": "",
             "Source": "extras",
@@ -377,11 +459,18 @@
             "Updated": "2024-01-27T19:13:08.5469564-05:00"
         },
         {
-            "Version": "1.76.0",
+            "Updated": "2024-03-29T16:40:21.1334946-04:00",
             "Info": "",
-            "Source": "main",
-            "Name": "rust",
-            "Updated": "2024-02-24T22:15:56.5104458-05:00"
+            "Version": "1.27.0",
+            "Name": "rustup",
+            "Source": "main"
+        },
+        {
+            "Updated": "2024-05-25T00:46:25.5502916-04:00",
+            "Info": "",
+            "Version": "1.0.0",
+            "Name": "sd",
+            "Source": "main"
         },
         {
             "Version": "4.9",
@@ -417,6 +506,13 @@
             "Source": "main",
             "Name": "touch",
             "Updated": "2022-07-02T17:52:01.8644301-04:00"
+        },
+        {
+            "Updated": "2024-04-27T14:48:35.6224534-04:00",
+            "Info": "",
+            "Version": "7.00",
+            "Name": "unrar",
+            "Source": "main"
         },
         {
             "Version": "9.0",
