@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 
+# **Dependencies**
+#
+# Internal:
+# > clip-paste
+#
+# External:
+# > gallery-dl (optional)
+# > vim (optional)
+# > perl
+
 [[ -v debug ]] && set -x
 
 # Defaults
@@ -13,8 +23,10 @@ verify_urls=false
 args_string=""
 args_for_command=()
 use_stdin=false
+# Temp file used for opening editor
 tempFile=""
 use_parallel=false
+# List of temporal files used internally
 temp_files="$(mktemp)"
 # POSITIONAL_ARGS=()
 
@@ -40,19 +52,21 @@ if ! command -v "$download_command" &>/dev/null && command -v "${download_comman
 fi
 
 on_exit () {
-  : TempFile "$tempFile"
   if [ -f "$tempFile" ]; then
+    : :: "Temporal File (links): $tempFile"
     printf "\n%s" "Disposing temporal file"
     rm -f -- "$tempFile"
   fi
 
   while IFS="" read -r temp_file_name || [ -n "$temp_file_name" ]; do
     if [ -f "$temp_file_name" ]; then
+      : :: "Temporal File (internal): $temp_file_name"
       rm -f -- "$temp_file_name"
     fi
   done < "$temp_files"
 
   if [ -f "$temp_files" ]; then
+    : :: "Temporal File (list files): $temp_files"
     rm -f -- "$temp_files"
   fi
 
@@ -181,7 +195,6 @@ done
 
 # shopt +s extglob
 
-
 # display an error message to stderr (in red)
 err () {
 	printf "\33[2K\r\033[1;31m%s\033[0m\n" "$*" >&2
@@ -195,9 +208,15 @@ die () {
 
 gather_urls () {
   if [ "$use_stdin" = true ]; then
-    # Implement from stdin
-    # TODO: To be implemented
-    :
+    # NOTE: The loop do not work when stdin
+    # do not include a break line
+    # while read -r line; do
+    #   printf "%s\n" "$line"
+    # done
+
+    # Read from stdin
+    # TODO: Verify correctness of approach
+    printf "%s" "$(</dev/stdin)"
   fi
 
   if [ -f "$file" ]; then
@@ -301,6 +320,7 @@ main () {
   if [ "$use_parallel" = true ]; then
     # TODO: To be implemented
     # downloadParallel lines
+    : :: Paralell download not implemented yet
     downloadNormal lines
   else
     downloadNormal lines
@@ -311,15 +331,16 @@ main () {
 
 # set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-# echo "Logging Vars:"
-# echo "Editor:    $editor"
-# echo "Command:   $download_command"
-# echo "Urls:      ${args_urls[@]}"
-# echo "File:      $file"
-# echo "Clipboard: $clipboard"
-# echo "verify:    $verify_urls"
-# echo "args:      $args_string"
-# echo "args-i:    ${args_for_command[@]}"
+: :: "** Logging Vars **"
+: :: "Editor:    $editor"
+: :: "Command:   $download_command"
+: :: "Urls:      ${args_urls[@]}"
+: :: "File:      $file"
+: :: "Stdin:     $use_stdin"
+: :: "Clipboard: $clipboard"
+: :: "verify:    $verify_urls"
+: :: "Args str:  $args_string"
+: :: "Args arr:  ${args_for_command[@]}"
 
 trap on_exit EXIT
 
