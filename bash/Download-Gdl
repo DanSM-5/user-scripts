@@ -36,7 +36,7 @@ transform_temp_file () {
 
 if ! command -v "$download_command" &>/dev/null && command -v "${download_command}.exe" &>/dev/null; then
   # In WSL and gallery-dl exist as an exe file
-  download_command="gallery-dl.exe"
+  download_command="${download_command}.exe"
 
   transform_temp_file () {
     local temp="$1"
