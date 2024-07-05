@@ -1,0 +1,327 @@
+#!/usr/bin/env bash
+
+[[ -v debug ]] && set -x
+
+# Defaults
+editor="${EDITOR:-vim}"
+download_command="gallery-dl"
+args_urls=()
+remaining_urls=()
+file=""
+from_clipboard=false
+verify_urls=false
+args_string=""
+args_for_command=()
+use_stdin=false
+tempFile=""
+use_parallel=false
+temp_files="$(mktemp)"
+# POSITIONAL_ARGS=()
+
+transform_temp_file () {
+  printf "%s" "$1"
+}
+
+if ! command -v "$download_command" &>/dev/null && command -v "${download_command}.exe" &>/dev/null; then
+  # In WSL and gallery-dl exist as an exe file
+  download_command="gallery-dl.exe"
+
+  transform_temp_file () {
+    local temp="$1"
+    local filename="${temp##*/}"
+    local wintemp="$(printf "%q" "$(cmd.exe /c "echo %TEMP%" | sed 's/\\ / /g' | sed -e 's/[[:space:]]*$//')")"
+    local wslwintemp="$(wslpath -au "$wintemp")"
+
+    mv "$temp" "$wslwintemp/$filename"
+    printf "%s\n" "$wslwintemp/$filename" >> "$temp_files"
+
+    printf "%s" "$wintemp\\\\$filename"
+  }
+fi
+
+on_exit () {
+  : TempFile "$tempFile"
+  if [ -f "$tempFile" ]; then
+    printf "\n%s" "Disposing temporal file"
+    rm -f -- "$tempFile"
+  fi
+
+  while IFS="" read -r temp_file_name || [ -n "$temp_file_name" ]; do
+    if [ -f "$temp_file_name" ]; then
+      rm -f -- "$temp_file_name"
+    fi
+  done < "$temp_files"
+
+  if [ -f "$temp_files" ]; then
+    rm -f -- "$temp_files"
+  fi
+
+  printf "\n%s\n" "Done..."
+}
+
+showHelp () {
+  printf "%s\n" "
+    Wrapper scritp for gallery-dl
+
+    Open a temporary buffer to list all the urls. Once closed,
+    the script will feed the urls to gallery-dl to download them.
+
+    Flags:
+
+      -h|--help                  > Print this message.
+
+      -p|--parallel              > Allow parallel downloads per domain (TBD).
+
+      -f|--file                  > Path to input file.
+
+      -e|--editor                > Name of the editor to open the temporal buffer.
+
+      -c|--clipboard             > Use the content of the clipboard to get the urls.
+
+      -u|--url                   > Print this message.
+
+      -a|--args                  > Arguments passed to gallery-dl (single string).
+
+      -i|--include-arg           > Argument passed to gallery-dl (single argument).
+
+      -d|--download-command      > Command name or path for gallery-dl. Default is gallery-dl
+                                   and gallery-dl.exe in WSL if non-native command is available.
+
+      -U|--verify-urls           > Make a HEAD request to test the urls before handing
+                                   them over to gallery-dl and remove the failing ones.
+
+      -                          > Read links from stdin (TBD).
+
+    Subcommands:
+
+      help                       > Print this message.
+  "
+}
+
+shopt -s extglob
+
+# Args parsing
+# Ref: https://stackoverflow.com/a/14203146
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -p|-?(-)[Pp]arallel|-?(-)[Pp]arallel?(-)[Dd]Download)
+      use_parallel=true
+      shift # past argument
+      ;;
+    +p|+?(+)[Pp]arallel|+?(+)[Pp]arallel?(-)[Dd]Download)
+      # Inverse for -p
+      use_parallel=false
+      shift # past argument
+      ;;
+    -e|-?(-)[Ee]ditor|-?(-)[Ee]ditor?(-)[Nn]ame)
+      editor="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -f|-?(-)[Ff]ile|-?(-)[Ff]ile?(-)[Pp]ath)
+      file="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -U|-?(-)[Vv]erify|-?(-)[Vv]erify?(-)[Uu]rls)
+      verify_urls=true
+      shift # past argument
+      ;;
+    +U|+?(+)[Vv]erify|+?(+)[Vv]erify?(-)[Uu]rls)
+      verify_urls=false
+      shift # past argument
+      ;;
+    -c|-?(-)[Cc]lip|-?(-)[Cc]lip?(-)[Bb]oard)
+      clipboard=true
+      shift # past argument
+      ;;
+    +c|+?(+)[Cc]lip|+?(+)[Cc]lip?(-)[Bb]oard)
+      clipboard=false
+      shift # past argument
+      ;;
+    -a|-?(-)[Aa]rgs)
+      args_string="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -i|-?(-)[Ii]nclude|-?(-)[Ii]nclude?(-)[Aa]rg)
+      args_for_command+=("$2")
+      shift # past argument
+      shift # past value
+      ;;
+    -d|-?(-)[Dd]ownload?(-)[Cc]ommand)
+      download_command="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -u|-?(-)[Uu]rl)
+      args_urls+=("$2")
+      shift # past argument
+      shift # past value
+      ;;
+    -h|-?(-)help|help)
+      showHelp
+      exit 0
+      ;;
+    -)
+      use_stdin=true
+      shift # past value
+      ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      # POSITIONAL_ARGS+=("$1") # save positional arg
+      remaining_urls+=("$1") # Positional args are considered urls to download
+      shift # past argument
+      ;;
+  esac
+done
+
+# shopt +s extglob
+
+
+# display an error message to stderr (in red)
+err () {
+	printf "\33[2K\r\033[1;31m%s\033[0m\n" "$*" >&2
+}
+
+#display error message and exit
+die () {
+	err "$*"
+	exit 1
+}
+
+gather_urls () {
+  if [ "$use_stdin" = true ]; then
+    # Implement from stdin
+    # TODO: To be implemented
+    :
+  fi
+
+  if [ -f "$file" ]; then
+    cat "$file"
+  fi
+
+  printf "%s\n" "${args_urls[@]}"
+
+  if [ "$clipboard" = true ]; then
+    clip-paste
+  fi
+
+  printf "%s\n" "${remaining_urls[@]}"
+}
+
+filter_urls () {
+  local -n urls=$1
+
+  for url in "${urls[@]}"; do
+    # Comment lines '#', '//', ';', ']'
+    if [ -z "$url" ] ||
+      [[ "$url" =~ ^#.*|^\/\/.*|^\;.*|^\].* ]]; then
+      continue
+    fi
+
+    # Trim and decode
+    url="$(sed -E 's/^[[:space:]]*//' <<< "$url" |
+      sed -E 's/[[:space:]]*$//' |
+      perl -MHTML::Entities -pe 'decode_entities($_)')"
+
+    if [ "$verify_urls" = false ]; then
+      printf "%s\n" "$url"
+      continue
+    fi
+
+    if curl -I "$url" &>/dev/null; then
+      printf "%s\n" "$url"
+    else
+      err "$url is not a valid url"
+    fi
+  done
+}
+
+# downloadParallel () {}
+
+downloadNormal () {
+  local -n urls=$1
+  local downloadFile="$(mktemp)"
+
+  printf "%s\n" "${urls[@]}" > "$downloadFile"
+  downloadFile="$(transform_temp_file "$downloadFile")"
+
+  eval "$download_command $args_string ${args_for_command[@]} -i $downloadFile"
+}
+
+main () {
+  if ! command -v "$download_command" &> /dev/null; then
+    die "Download command '$download_command' not found. Please install it and add it to your path to continue."
+  fi
+
+  if [ "$verify_urls" = true ]; then
+    printf "%s" "
+  WARNING: Verify the urls may be useful to filter out text that is not a valid url
+  however valid urls could be filter out if the backend service blocks the HEAD method.
+"
+  fi
+
+  local linesRaw=($(gather_urls))
+
+  # If no urls where provided, open a buffer
+  if [ -z "$linesRaw" ]; then
+    # Open buffer to get strings
+    printf "%s\n" "Opening temporary file... Waiting for file to be closed!"
+    tempFile="$(mktemp)"
+    mv "$tempFile" "$tempFile.bash"
+    tempFile="${tempFile}.bash"
+    local editorArgs=()
+    local instructions="# Paste your urls in this file, save it and close it.
+# Empty lines or lines starting with '#' will be ignored.
+# Only valid urls will be processed.
+
+"
+
+    printf "%s" "${instructions}" >> "$tempFile"
+
+    if [[ "$editor" =~ .*vim? ]]; then
+      editorArgs+=('+')
+    fi
+
+    # TODO: Support "code --wait"
+
+    eval "$editor ${editorArgs[@]} $tempFile"
+
+    mapfile -t linesRaw < "$tempFile"
+  fi
+
+  printf "%s\n" "Start processing with $download_command..."
+
+  local lines=($(filter_urls linesRaw))
+
+  if [ "$use_parallel" = true ]; then
+    # TODO: To be implemented
+    # downloadParallel lines
+    downloadNormal lines
+  else
+    downloadNormal lines
+  fi
+
+  printf "\n%s\n" "Download process has finished!"
+}
+
+# set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
+# echo "Logging Vars:"
+# echo "Editor:    $editor"
+# echo "Command:   $download_command"
+# echo "Urls:      ${args_urls[@]}"
+# echo "File:      $file"
+# echo "Clipboard: $clipboard"
+# echo "verify:    $verify_urls"
+# echo "args:      $args_string"
+# echo "args-i:    ${args_for_command[@]}"
+
+trap on_exit EXIT
+
+main
+
