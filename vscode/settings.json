@@ -28,6 +28,7 @@
   "scm.alwaysShowActions": true,
   "vsicons.dontShowNewVersionMessage": true,
   "git.mergeEditor": false,
+  "terminal.integrated.enableImages": true,
   "terminal.integrated.shellIntegration.enabled": true,
   "terminal.integrated.shellIntegration.suggestEnabled": true,
   "editor.stickyScroll.enabled": true,
