@@ -11,7 +11,7 @@
   All urls will remove empty lines or lines starting with "#".
   It accepts encoded urls.
 
-.PARAMETER DownloadParallel
+.PARAMETER ParallelDownload
   Allow splitting the download per domain to download simultaneously.
 
 .PARAMETER FilePath
@@ -39,7 +39,7 @@
   Note: On multy thread downlaods the arguments will be passed to each invokation of yt-dlp.
   Note: The argument '-a' or '--batch-file' is always used internally and if included, both will be passed to yt-dlp.
 
-.PARAMETER InternalDlCmd
+.PARAMETER DownloadCommand
   Command used internally for the download action. By default this script assumes 'yt-dlp' command
   but this can be overriden for system specific needs
 
@@ -60,7 +60,7 @@
   Download-Yld -EditorName vim
 
 .EXAMPLE
-  Download-Yld -DownloadParallel -FilePath $HOME/links-to-download.txt
+  Download-Yld -ParallelDownload -FilePath $HOME/links-to-download.txt
 
 .EXAMPLE
   @("$url1", "$url2", "$url3") | Download-Ydl
@@ -69,7 +69,7 @@
   Download-Yld -ArgsForCmd @('-q', '--sleep', '20') -ClipBoard
 
 .EXAMPLE
-  Download-Yld -UrlsToDownload @("$url1", "$url2") -DownloadParallel
+  Download-Yld -UrlsToDownload @("$url1", "$url2") -ParallelDownload
 
 .NOTES
   Script respects the EDITOR environment variable. If not present if defaults to notepad.exe.
@@ -77,23 +77,25 @@
 
 #>
 
+[CmdletBinding()]
 Param (
   # Allow parallel download per domain
-  [Switch] $DownloadParallel,
+  [Switch] $ParallelDownload,
 
   # Display help message
   [Switch] $Help,
-
-  # Editor to use when opening temporal buffer
-  [String] $EditorName,
 
   # String url from pipe
   [Parameter(ValueFromPipeline = $true)]
   [System.Object] $StringUrl,
 
+  # Editor to use when opening temporal buffer
+  [AllowNull()]
+  [String] $EditorName = $null,
+
   # Array of strings to download
   [AllowNull()]
-  [String[]] $UrlsToDownload,
+  [String[]] $UrlsToDownload = $null,
 
   # Path to file to download
   [AllowNull()]
@@ -107,10 +109,15 @@ Param (
   [String[]] $ArgsForCmd = @(),
 
   # Name of command to use
-  [String] $InternalDlCmd = 'yt-dlp',
+  [String] $DownloadCommand = 'yt-dlp',
 
   # Verify each url by doing a HEAD request
-  [Switch] $VerifyUrls
+  [Switch] $VerifyUrls,
+
+  # Remaining args will be consider independent urls
+  [Parameter(ValueFromRemainingArguments = $true)]
+  [String[]]
+  $RemainingArgs = @()
 )
 
 Begin {
@@ -125,7 +132,7 @@ Begin {
 
         -Help [switch]               > Print this message.
 
-        -DownloadParallel [switch]   > Allow parallel downloads per domain.
+        -ParallelDownload [switch]   > Allow parallel downloads per domain.
 
         -FilePath [string]           > Path to input file.
 
@@ -137,9 +144,9 @@ Begin {
 
         -StringUrl [string]          > Url string from pipeline (pipe only).
 
-        -ArgsForCmd [string[]]        > Arguments passed to yt-dlp.
+        -ArgsForCmd [string[]]       > Arguments passed to yt-dlp.
 
-        -InternalDlCmd               > Command name or path for yt-dlp. Default is yt-dlp.
+        -DownloadCommand             > Command name or path for yt-dlp. Default is yt-dlp.
 
         -VerifyUrls [switch]         > Make a HEAD request to test the urls before handing
                                        them over to yt-dlp and remove the failing ones.
@@ -156,8 +163,8 @@ Begin {
     exit 1
   }
 
-  if (-not (Get-Command "$InternalDlCmd" -errorAction SilentlyContinue)) {
-    Write-Host -ForegroundColor Red "yt-dlp not found. Please install it and add it to your path to continue."
+  if (-not (Get-Command "$DownloadCommand" -errorAction SilentlyContinue)) {
+    Write-Host -ForegroundColor Red "Download command '$DownloadCommand' not found. Please install it and add it to your path to continue."
     exit 1
   }
 
@@ -168,7 +175,7 @@ Begin {
     "
   }
 
-  # Important declarations 
+  # Important declarations
   $instructions = @'
 # Paste your urls in this file, save it and close it.
 # Empty lines or lines starting with '#' will be ignored.
@@ -213,7 +220,7 @@ End {
         try {
           $input | Out-File "$downloadFileName" -Encoding ascii
           # --batch-file or -a
-          & $InternalDlCmd $ArgsForCmd --batch-file "$downloadFileName"
+          & $DownloadCommand $ArgsForCmd --batch-file "$downloadFileName"
         } catch {
           Write-Host "An error occurred with a parallel download $hostName"
           Write-Host -ForegroundColor Red $Error[0]
@@ -233,7 +240,7 @@ End {
     try {
       $links | Out-File $downloadFileName -Encoding ascii
 
-      & $InternalDlCmd $ArgsForCmd --batch-file "$downloadFileName"
+      & $DownloadCommand $ArgsForCmd --batch-file "$downloadFileName"
     } catch {
       Write-Host "An error occurred with the regular download"
       Write-Host -ForegroundColor Red $Error[0]
@@ -247,29 +254,35 @@ End {
 
   try {
 
-    $linesRaw = @()
+    $linesRaw = [System.Collections.Generic.List[string]]::new()
 
     if ($stringsFromPipe) {
       foreach ($line in $stringsFromPipe) {
-        $linesRaw += $line
+        $linesRaw.Add($line)
       }
-    } 
+    }
 
     if ($fileToDownload) {
       foreach ($line in Get-Content $fileToDownload) {
-        $linesRaw += $line
+        $linesRaw.Add($line)
       }
     }
 
     if ($stringsFromArgs) {
       foreach ($line in $stringsFromArgs) {
-        $linesRaw += $line
+        $linesRaw.Add($line)
       }
     }
 
     if ($ClipBoard) {
       foreach ($line in Get-ClipBoard) {
-        $linesRaw += $line
+        $linesRaw.Add($line)
+      }
+    }
+
+    if ($RemainingArgs) {
+      foreach ($line in $RemainingArgs) {
+        $linesRaw.Add($line)
       }
     }
 
@@ -282,7 +295,7 @@ End {
       $instructions >> $tempFile
       $editorArgs += $tempFile.FullName
 
-      if ( $editor -Like '*vim' ) {
+      if ($editor -match '[gn]?vi[m]?') {
         $editorArgs += '+'
       }
 
@@ -294,7 +307,7 @@ End {
       $linesRaw = Get-Content $tempFile.FullName
     }
 
-    Write-Output "Start processing with $InternalDlCmd..."
+    Write-Output "Start processing with $DownloadCommand..."
 
     $lines = $linesRaw | Where {
       # Get rid of spaces
@@ -334,7 +347,7 @@ End {
       }
     }
 
-    if ($DownloadParallel) {
+    if ($ParallelDownload) {
       downloadParallel $lines
     } else {
       downloadNormal $lines
