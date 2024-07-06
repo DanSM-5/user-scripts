@@ -226,7 +226,11 @@ gather_urls () {
   printf "%s\n" "${args_urls[@]}"
 
   if [ "$clipboard" = true ]; then
-    clip-paste
+    # NOTE: Pipe into awk is important to break a single string
+    # with line break characters into multiple lines
+    # Otherwise pasting from clipboard do nothing
+    # resulting in a empty assignment to linesRaw
+    clip-paste | awk '{print}'
   fi
 
   printf "%s\n" "${remaining_urls[@]}"
