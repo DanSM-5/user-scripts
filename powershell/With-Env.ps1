@@ -2,7 +2,6 @@
 $ori = @{}
 Try {
   $i = 0
-
   # Loading .env files
   if(Test-Path $args[0]) {
     foreach($line in (Get-Content $args[0])) {
@@ -29,16 +28,22 @@ Try {
       break
     }
 
-    $key, $val = $args[$i].Split("=")
-    # $val = if ($val) { $val } else { "" }
+    $index = $args[$i].IndexOf('=')
+    $key = $args[$i].Substring(0, $index)
+    $val = $args[$i].Substring($index + 1)
     $ori[$key] = if(Test-Path Env:\$key) { (Get-Item Env:\$key).Value } else { "" }
     New-Item -Name $key -Value $val -ItemType Variable -Path Env: -Force > $null
 
     $i++
   }
 
+  $command = $args[$i..$args.length] | % {
+    if ($_.Contains(' ')) {
+      "'$_'"
+    } else { $_ }
+  }
 
-  Invoke-Expression ($args[$i..$args.length] -Join " ")
+  Invoke-Expression "$command"
 } Finally {
   foreach($key in $ori.Keys) {
     New-Item -Name $key -Value $ori.Item($key) -ItemType Variable -Path Env: -Force > $null
