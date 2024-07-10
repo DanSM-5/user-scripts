@@ -32,17 +32,16 @@ Try {
     $key = $args[$i].Substring(0, $index)
     $val = $args[$i].Substring($index + 1)
     $ori[$key] = if(Test-Path Env:\$key) { (Get-Item Env:\$key).Value } else { "" }
+    $val = if ($val.Contains(' ')) { "'$val'" } else { $val }
     New-Item -Name $key -Value $val -ItemType Variable -Path Env: -Force > $null
 
     $i++
   }
 
-  $command = $args[$i..$args.length] | % {
-    if ($_.Contains(' ')) {
-      "'$_'"
-    } else { $_ }
-  }
+  # Skip key=value pairs until real command for invokation
+  $command = $args[$i..$args.length]
 
+  # Write-Host "$command"
   Invoke-Expression "$command"
 } Finally {
   foreach($key in $ori.Keys) {
