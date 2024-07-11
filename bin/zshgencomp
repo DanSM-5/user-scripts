@@ -16,7 +16,7 @@ import subprocess
 from string import Template
 
 
-URL = 'http://github.com/RobSis/zsh-completion-generator'
+URL = 'https://raw.githubusercontent.com/DanSM-5/user-scripts/master/bin/zshgencomp'
 STRIP_CHARS = " \t\n,="
 HELP_MSG = """
 Parse getopt-style help texts for options
@@ -55,6 +55,7 @@ _arguments -s $arguments
 
 ARGUMENT_TEMPLATE = """    {$opts}'[$description]$style'"""
 SINGLE_ARGUMENT_TEMPLATE = """    '$opt[$description]$style'"""
+SAVE_LOCATION = 'ZSHGENCOMP_SAVE_LOCATION'
 
 
 def cut_option(line):
@@ -170,11 +171,12 @@ def determine_command_options(command_line_args):
             print("Unknown command.")
             sys.exit(1)
         options = parse_options(help_output.splitlines())
-        save_location = os.environ.get('user_conf_path')
-        save_location = f"{save_location}/completions/zsh" if save_location else f"{os.environ.get('HOME')}/.usr_conf/completions"
-        with open(f"{save_location}/_{primary_command}", "w") as zsh_completion:
-            zsh_completion.write(generate_completion_function(options, primary_command))
-        # print(generate_completion_function(options, primary_command))
+        save_location = os.environ.get(SAVE_LOCATION)
+        if save_location:
+            with open(f"{save_location}/_{primary_command}", "w") as zsh_completion:
+                zsh_completion.write(generate_completion_function(options, primary_command))
+        else:
+            print(generate_completion_function(options, primary_command))
 
 def parse_custom_help(remaining_options):
     """
