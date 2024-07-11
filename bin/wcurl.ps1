@@ -1,0 +1,1 @@
+../pwsh/wcurl.ps1
