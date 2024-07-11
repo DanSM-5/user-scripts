@@ -1,7 +1,7 @@
 $modulesList = @(
-  PsFzf,
-  DirColors,
-  PowerShellRun
+  'PsFzf',
+  'DirColors',
+  'PowerShellRun'
 )
 
 foreach ($module in $modulesList) {
