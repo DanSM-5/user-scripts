@@ -3,8 +3,56 @@
 filename="$1"
 start_time="$2"
 end_time="$3"
-include_subtitles="${4:-false}"
-url="$1"
+include_subtitles="$4"
+keep_video="$5"
+# POSITIONAL_ARGS=()
+
+# This may require an updated bash version
+shopt -s extglob
+
+# Args parsing
+# Ref: https://stackoverflow.com/a/14203146
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -f|-?(-)[Ff]ilename)
+      filename="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -s|-?(-)[Ss]tart?(-)[Tt]ime)
+      start_time="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -e|-?(-)[Ee]nd?(-)[Tt]ime)
+      end_time="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -i|-?(-)[Ii]nclude?(-)[Ss]usbtitles)
+      include_subtitles=true
+      shift # past argument
+      ;;
+    -k|-?(-)[Kk]eep?(-)[Vv]video)
+      keep_video=true
+      shift # past argument
+      ;;
+    -*|--*)
+      printf "%s" "Unknown argument"
+      exit 1
+      ;;
+  esac
+done
+
+# restore positional parameters
+# set -- "${POSITIONAL_ARGS[@]}"
+
+filename="$filename"
+start_time="$start_time"
+end_time="$end_time"
+include_subtitles="${include_subtitles:-false}"
+keep_video="${keep_video:-false}"
+url="$filename"
 IS_FILE=false
 IS_ONLINE=false
 position=""
@@ -15,7 +63,17 @@ if [ -f "$filename" ]; then
 elif [[ "$filename" =~ ^https?:// ]]; then
   IS_ONLINE=true
 else
-  echo "Invalid input: $filename"
+  printf "%s" "Invalid input: $filename" >&2
+  exit 1
+fi
+
+if [ -z "$start_time" ]; then
+  printf "%s" "No start time provided" >&2
+  exit 1
+fi
+
+if [ -z "$end_time" ]; then
+  printf "%s" "No end time provided" >&2
   exit 1
 fi
 
@@ -112,6 +170,11 @@ if [ "$include_subtitles" = true ] && has_subtitles "$filename"; then
   SUB_FILTER=",subtitles='$(sed -re "s/:/\\\\:/" <<< "${filename}")':si=0"
 fi
 
+if ! [ -f "$Filename" ]; then
+  printf "%s" "Online file was not downloaded: $Filename" >&2
+  exit 1
+fi
+
 : Make palette
 "$FFMPEG" -v warning \
   -ss "$position" -t "$duration" \
@@ -128,3 +191,7 @@ fi
   -lavfi "[0:v:0] fps=${FPS},scale='trunc(ih*dar/2)*2:trunc(ih/2)*2',setsar=1/1,scale=${WIDTH}:${HEIGHT}:flags=${FLAGS}${SUB_FILTER} [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
   -y "$OUT_DIR/${out_name}_${id}.${EXTENSION}"
 
+if [ "$IS_ONLINE" = true ] && [ "$keep_video" = true ]; then
+  video_ext="${filename##*.}"
+  mv "$filename" "$OUT_DIR/${out_name}_${id}.${video_ext}"
+fi

@@ -9,7 +9,9 @@ Param (
   # End time from video source
   [decimal] $EndTime,
   # Burn subtitles if available
-  [boolean] $IncludeSubtitles = $false
+  [Switch] $IncludeSubtitles = $false,
+  # Save video
+  [Switch] $KeepVideo
 )
 
 $IS_ONLINE = $false
@@ -23,7 +25,18 @@ if (Test-Path -Path "$Filename" -ErrorAction SilentlyContinue) {
 } elseif ("$Filename" -match "^https?://") {
   $IS_ONLINE = $true
 } else {
-  Write-Host "Invalid input: $Filename"
+  Write-Error "Invalid input: $Filename"
+  exit 1
+}
+
+if (!$StartTime) {
+  Write-Error "No start time provided"
+  exit 1
+}
+
+if (!$EndTime) {
+  Write-Error "No end time provided"
+  exit 1
 }
 
 # Default values
@@ -122,6 +135,10 @@ function main() {
     $SUB_FILTER = ",subtitles='$("$Filename" -replace ":","\:")':si=0"
   }
 
+  if (!(Test-Path -Path $Filename -PathType Leaf -ErrorAction SilentlyContinue)) {
+    Write-Error "Online file was not downloaded: $Filename"
+    exit 1
+  }
 
   # Make palette
   & "$FFMPEG" -v warning `
@@ -138,6 +155,11 @@ function main() {
     -an -ss "$position" `
     -lavfi "[0:v:0] fps=${FPS},scale='trunc(ih*dar/2)*2:trunc(ih/2)*2',setsar=1/1,scale=${WIDTH}:${HEIGHT}:flags=${FLAGS}${SUB_FILTER} [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" `
     -y "$OUT_DIR/${out_name}_${id}.${EXTENSION}"
+
+  if ($IS_ONLINE -and $KeepVideo) {
+    $video_ext = [System.IO.Path]::GetExtension("$Filename")
+    Move-Item "$Filename" "$OUT_DIR/${out_name}_${id}.${video_ext}"
+  }
 }
 
 try {
