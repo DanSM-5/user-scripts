@@ -27,6 +27,9 @@ ritwickdey.liveserver
 # streetsidesoftware.code-spell-checker
 # sumneko.lua
 # syler.sass-indented
+tomrijndorp.find-it-faster
+# mylesmurphy.prettify-ts
+# yoavbls.pretty-ts-errors
 thejustinwalsh.textproto-grammer
 # vs-publisher-1448185.keyoti-changeallendoflinesequence
 vscode-icons-team.vscode-icons
