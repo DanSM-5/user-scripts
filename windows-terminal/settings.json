@@ -1,54 +1,10 @@
 {
     "$help": "https://aka.ms/terminal-documentation",
     "$schema": "https://aka.ms/terminal-profiles-schema",
+    // "$schema": "https://aka.ms/terminal-profiles-schema-preview",
     "actions":
     [
-        {
-            "command":
-            {
-                "action": "copy",
-                "singleLine": false
-            },
-            "keys": "ctrl+shift+c"
-        },
-        {
-            "command": "paste",
-            "keys": "ctrl+shift+v"
-        },
-        {
-            "command":
-            {
-                "action": "scrollDown"
-            },
-            "keys": "ctrl+shift+j"
-        },
-        {
-            "command": "find",
-            "keys": "ctrl+shift+f"
-        },
-        {
-            "command":
-            {
-                "action": "splitPane",
-                "split": "auto",
-                "splitMode": "duplicate"
-            },
-            "keys": "alt+shift+d"
-        },
-        {
-            "command":
-            {
-                "action": "newWindow"
-            },
-            "keys": "ctrl+alt+shift+m"
-        },
-        {
-            "command":
-            {
-                "action": "scrollUp"
-            },
-            "keys": "ctrl+shift+k"
-        },
+        // Unset default keybindings
         {
             "command": "unbound",
             "keys": "ctrl+shift+n"
@@ -59,20 +15,73 @@
         },
         {
             "command": "unbound",
+            "keys": "ctrl+shift+up"
+        },
+        {
+            "command": "unbound",
+            "keys": "ctrl+shift+down"
+        },
+        {
+            "command": "unbound",
             "keys": "ctrl+c"
         },
         {
             "command": "unbound",
             "keys": "ctrl+v"
         },
+        // Added keybindings
         {
-            "command": "unbound",
-            "keys": "ctrl+shift+up"
+            "command":
+            {
+                "action": "copy",
+                "singleLine": false
+            },
+            "id": "User.copy.644BA8F2",
+            "keys": "ctrl+shift+c"
         },
         {
-            "command": "unbound",
-            "keys": "ctrl+shift+down"
-        }
+            "command": "paste",
+            "id": "User.paste",
+            "keys": "ctrl+shift+v"
+        },
+        {
+            "command":
+            {
+                "action": "scrollUp"
+            },
+            "id": "User.scrollUp.0",
+            "keys": "ctrl+shift+k"
+        },
+        {
+            "command":
+            {
+                "action": "scrollDown"
+            },
+            "id": "User.scrollDown.0",
+            "keys": "ctrl+shift+j"
+        },
+        {
+            "command": "find",
+            "id": "User.find",
+            "keys": "ctrl+shift+f"
+        },
+        {
+            "command":
+            {
+                "action": "splitPane",
+                "split": "auto",
+                "splitMode": "duplicate"
+            },
+            "id": "User.splitPane.A6751878",
+            "keys": "alt+shift+d"
+        },
+        {
+            "command":
+            {
+                "action": "newWindow"
+            },
+            "keys": "ctrl+alt+shift+m"
+        },
     ],
     "copyFormatting": "none",
     "copyOnSelect": false,
@@ -149,24 +158,30 @@
                 "hidden": false,
                 "name": "Windows PowerShell"
             },
-            {
-                "guid": "{b453ae62-4e3d-5e58-b989-0a998ec441b8}",
-                "hidden": false,
-                "name": "Azure Cloud Shell",
-                "source": "Windows.Terminal.Azure"
-            },
-            {
-                "guid": "{044cf603-f167-5104-8faf-e59cb69f4a92}",
-                "hidden": false,
-                "name": "Developer Command Prompt for VS 2022",
-                "source": "Windows.Terminal.VisualStudio"
-            },
-            {
-                "guid": "{0222acee-5bf5-5a53-adf0-05f60b793a6f}",
-                "hidden": false,
-                "name": "Developer PowerShell for VS 2022",
-                "source": "Windows.Terminal.VisualStudio"
-            }
+            // {
+            //     "guid": "{b453ae62-4e3d-5e58-b989-0a998ec441b8}",
+            //     "hidden": false,
+            //     "name": "Azure Cloud Shell",
+            //     "source": "Windows.Terminal.Azure"
+            // },
+            // {
+            //     "guid": "{044cf603-f167-5104-8faf-e59cb69f4a92}",
+            //     "hidden": false,
+            //     "name": "Developer Command Prompt for VS 2022",
+            //     "source": "Windows.Terminal.VisualStudio"
+            // },
+            // {
+            //     "guid": "{0222acee-5bf5-5a53-adf0-05f60b793a6f}",
+            //     "hidden": false,
+            //     "name": "Developer PowerShell for VS 2022",
+            //     "source": "Windows.Terminal.VisualStudio"
+            // }
+            // {
+            //     "guid": "{8ab8e6f6-35c6-5b46-8419-3e1568105476}",
+            //     "hidden": false,
+            //     "name": "podman-machine-default",
+            //     "source": "Windows.Terminal.Wsl"
+            // }
         ]
     },
     "schemes":
