@@ -128,6 +128,12 @@
                 "startingDirectory": "%USERPROFILE%"
             },
             {
+                "guid": "{2ece5bfe-50ed-5f3a-ab87-5cd4baafed2b}",
+                "hidden": false,
+                "name": "Git Bash",
+                "source": "Git"
+            },
+            {
                 "guid": "{d7b20cea-47a9-518c-95a4-c8bd91e2e1c6}",
                 "hidden": false,
                 "name": "Ubuntu 22.04.2 LTS",
@@ -139,12 +145,6 @@
                 "hidden": false,
                 "icon": "\ud83d\udd11",
                 "name": "Elevate"
-            },
-            {
-                "guid": "{2ece5bfe-50ed-5f3a-ab87-5cd4baafed2b}",
-                "hidden": false,
-                "name": "Git Bash",
-                "source": "Git"
             },
             {
                 "commandline": "%SystemRoot%\\System32\\cmd.exe",
