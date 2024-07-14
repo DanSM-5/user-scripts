@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# fs-clipboard
+# Utility to paste content from a cache file
+# It is useful to store information when working on a environment
+# without a $DISPLAY variable (no xclip, xsel, wl-paste)
+
+CACHE_DIR="${FS_CLIPBOARD_CACHE_DIR:-"$HOME/.cache/fs-clipboard"}"
+CACHE_FILE="clipboard"
+mkdir -p "$CACHE_DIR"
+
+# Empty clipboard (no file currently exists)
+if ! [ -f "$CACHE_DIR/$CACHE_FILE" ]; then
+  printf "%s" ""
+  exit 0
+fi
+
+# Get content from cache file
+cat "$CACHE_DIR/$CACHE_FILE"
+
