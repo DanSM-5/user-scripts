@@ -56,3 +56,24 @@ See example below:
 MSYS_NO_PATHCONV=1 rsync -v -a ./target/ /cygdrive/d/files/tmp/destination/
 ```
 
+## Variable expansions for extracting paths information
+
+Get file extension
+
+```bash
+# Careful as this will just get ".gz" from "archive.tar.gz"
+file_ext="${file_path##*.}"
+```
+
+Get file name
+
+```bash
+file_name="${file_path##*/}"
+```
+
+Get file path
+
+```bash
+file_path="${fullpath%/*}
+```
+
