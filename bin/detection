@@ -14,12 +14,22 @@ IS_WSL2=false
 IS_TERMUX=false
 IS_LINUX=false
 IS_MAC=false
-IS_GITBASH=false
 IS_WINDOWS=false # Like IS_WINSHELL but includes WSL
-IS_POWERSHELL=false # Should never be true
-IS_CMD=false # Should never be true
+IS_GITBASH=false
 IS_WINSHELL=false # PWSH, GITBASH or CMD
+IS_CMD=false # Should never be true
+IS_ZSH=false
+IS_BASH=false
+IS_POWERSHELL=false # Should never be true
 IS_NIXONDROID="${IS_NIXONDROID:-false}" # Can only be true if set from home-manager
+IS_FROM_CONTAINER="${IS_FROM_CONTAINER:-false}" # Can only be true if running inside a container
+
+
+if [ -n "$ZSH_VERSION" ]; then
+  IS_ZSH=true
+elif [ -n "$BASH_VERSION" ]; then
+  IS_BASH=true
+fi
 
 # Detect platform
 case "$(uname -a)" in
@@ -62,10 +72,13 @@ export IS_WSL2
 export IS_TERMUX
 export IS_LINUX
 export IS_MAC
-export IS_GITBASH
 export IS_WINDOWS
-export IS_POWERSHELL
-export IS_CMD
+export IS_GITBASH
 export IS_WINSHELL
+export IS_CMD
+export IS_ZSH
+export IS_BASH
+export IS_POWERSHELL
 export IS_NIXONDROID
+export IS_FROM_CONTAINER
 
