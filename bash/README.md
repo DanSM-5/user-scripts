@@ -12,6 +12,14 @@ Bash and zsh share some functionality due to being POSIX compliant. However ther
 
 For more information see [Main differences for scripting](https://apple.stackexchange.com/a/361957) in stackexchange.
 
+## Recover from corrupted prompt
+
+If the prompt corrupted caused of some misbehavior of some cli or by printing special characters into the prompt, a way to fix that is running `stty` command.
+
+```bash
+stty sane
+```
+
 ## Invoke bash an run it within git bash environment (MINGW)
 
 In windows it is complicated to run something under the full MINGW environment from an external process without calling `bash.exe` with the flags for login `-l` and interactive `-i`. However this is not desirable because it makes running things slower as bash will read the .bashrc and other setups for an interactive shell.
