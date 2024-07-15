@@ -24,3 +24,7 @@ lf/history
 lf/files
 lf/tags
 
+# mov-cli
+mov-cli/.env
+mov-cli/osaka_cache
+
