@@ -1,0 +1,126 @@
+Git notes
+===========
+
+## Change last commit
+
+Remove last commit, keep changes:
+
+```bash
+git reset --soft HEAD~1
+```
+
+Remove last commit, discard changes:
+
+```bash
+git reset --hard HEAD~1
+```
+
+## Duplicate branch
+
+Set a branch to be identical to other branch (or commits):
+
+```bash
+git reset --hard [branch | hash | tag | tree like]
+```
+
+## See changes in the repository
+
+Use `reflog` to list the changes in the repository including reference to commits that no longer exists.
+Good when a `rebase` goes wrong...
+
+```bash
+git reflog
+```
+
+## See commit patch
+
+Print the commit patch from a commit or tree like object:
+
+```bash
+git show [hash | branch | tag | tree like]
+```
+
+## Grep in commit messages
+
+Search for `<TERM>` in the commit messages:
+
+```bash
+git log --grep "<TERM>"
+```
+
+## Grep in patches
+
+Search a `<TERM>` in the commit history and display the commits that contain patches that matches the `<TERM>`
+
+- `--all`: Search in all branches
+- `--patch`: Show patch included in the commit
+- `-G`: Use regex for `<TERM>`
+- `-S`: Use a literal string for `<TERM>`
+- `--`: Start listing paths to reduce search
+
+```bash
+git log -G "<TERM>" --branches [--all] [--patch] [-- path/to/file]
+```
+
+## Show paths tracked by git (pathspec)
+
+List files that git is tracking. Use a `'*'` to glob pathspecs such as `'*.sh'`.
+
+```bash
+git ls-files
+```
+
+## Use absolute paths
+
+Use `:/` to prefix a pathspec to indicate use the repository as the path.
+
+## Negate pathspec matches
+
+Use `:!` to negate the pathspec match if using globs.
+
+## Find the bug 🐞
+
+The command `git bisect` performs a binary search using two commits as reference, a good commit (starting point) and a bad commit (ending point).
+
+Start a bisect session:
+
+```bash
+git bisect start
+```
+
+Set the reference commits. Hashes are optional if you checkout to that commit:
+
+```bash
+# Set good commit
+git bisect good [hash]
+
+# Set bad commit
+git bisect bad [hash]
+```
+
+Git will change between commits in the given range. Tell git about the current commit to narrow search:
+
+```bash
+git bisect [good | bad]
+```
+
+Keep going until finding the buggy commit. Then end the bisect session with:
+
+```bash
+git bisect reset
+```
+
+## Automate git bisect
+
+Use `run` option with a command that returns `0` for a good commit, `125` for a commit to be ignored and anything between `1-127` inclusive (except of course 125) for a bad commit to automatically find the commit.
+
+```bash
+git bisect start
+git bisect good [hash]
+git bisect bad [hash]
+
+git bisect run [command]
+```
+
+NOTE: The `command` can contain flags, options and multiple arguments.
+
