@@ -79,9 +79,28 @@ Get file name
 file_name="${file_path##*/}"
 ```
 
+Remove extension
+
+```bash
+file_without_ext="${file_name%.*}"
+```
+
 Get file path
 
 ```bash
 file_path="${fullpath%/*}
+```
+
+## Insert elements into pipe
+
+Use `cat <(TO_INCLUDE_IN_PIPE) -` to insert items into a pipe.
+
+See example below that inserts a period `.` in the pipe started by fd.
+
+```bash
+fd -tl -td -tf -L "$pattern" "$location" |
+  cat <(echo '.') - |
+  fzf --query "$query" \
+    --preview "$fzf_preview_normal"
 ```
 
