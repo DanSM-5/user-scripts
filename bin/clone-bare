@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+# clone the repo
+git clone --bare "$@"
+
+# return if repo was not created
+if ! $?; then
+  exit $?
+fi
+
+# extract directory name if not given as second argument
+if [ -n "$2" ]; then
+  dirrepo="$2"
+else
+  dirrepo="${1##*/}"
+  dirrepo="${dirrepo%.*}"
+fi
+
+# Setup the bare repository
+pushd "$dirrepo"
+# Add git remote config
+# Ref: https://morgan.cugerone.com/blog/workarounds-to-git-worktree-using-bare-repository-and-cannot-fetch-remote-branches
+git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+git fetch origin
+popd
+
