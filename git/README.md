@@ -1,6 +1,40 @@
 Git notes
 ===========
 
+## List revisions
+
+List all the revisions in the git repo (all hashes)
+
+```bash
+git rev-list --all
+```
+
+## Count number of revisions
+
+Get the number of revisions that git is tracking on a specific revision
+
+```bash
+git rev-list --count [branch | hash | tag | tree like]
+```
+
+## Detect bare repository
+
+Worktree will return the path to it when calling
+
+```bash
+git rev-parse --show-toplevel
+```
+
+and it will return an error if in a bare repository.
+
+Alternatively using
+
+```bash
+git rev-parse --is-bare-repository
+```
+
+will return `true` or `false` if in a working tree or a bare repository.
+
 ## Change last commit
 
 Remove last commit, keep changes:
