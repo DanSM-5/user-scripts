@@ -4,7 +4,7 @@
 git clone --bare "$@"
 
 # return if repo was not created
-if ! $?; then
+if [ "$?" -ne 0 ]; then
   exit $?
 fi
 
