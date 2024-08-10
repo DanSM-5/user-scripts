@@ -209,10 +209,10 @@ End {
   # in thread https://github.com/mikf/gallery-dl/issues/31
 
   function downloadParallel ([String[]] $links) {
-    $links | % {
+    $links | ForEach-Object {
       $link = New-Object System.Uri $_
       $link.Host
-    } | Select-Object -Unique | % {
+    } | Select-Object -Unique | ForEach-Object {
       $hostName = $_
       $links -match $_ | Start-ThreadJob {
         $perDomainInput = New-TemporaryFile
@@ -287,7 +287,7 @@ End {
     }
 
     # If no urls where provided, open a buffer
-    if (-not $linesRaw) {
+    if ($linesRaw.Count -eq 0) {
       # Open buffer to get strings
       Write-Output "Opening temporary file... Waiting for file to be closed!"
 
@@ -309,7 +309,7 @@ End {
 
     Write-Output "Start processing with $DownloadCommand..."
 
-    $lines = $linesRaw | Where {
+    $lines = $linesRaw | Where-Object {
       # Get rid of spaces
       $url = $_.Trim()
 
@@ -337,6 +337,10 @@ End {
         $urlIsValid = ($httpStatus -eq 'OK')
         # $tryError = $null
         $response.Close()
+
+        if (!$urlIsValid) {
+          return
+        }
 
         return "$url"
       }	catch [System.Exception] {
