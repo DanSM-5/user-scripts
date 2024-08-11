@@ -158,3 +158,15 @@ git bisect run [command]
 
 NOTE: The `command` can contain flags, options and multiple arguments.
 
+## Use git to compare files side by side
+
+Use the syntax `git diff [branch:]tracked/file another/file`. Other variations can be used.
+
+Example:
+
+```bash
+git diff \
+  master:app/assets/javascripts/audience/dashboard_bulk.js \
+  tmp/dashboard_bulk.js
+```
+
