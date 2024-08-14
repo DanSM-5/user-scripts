@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+
+# Fuzzy find help pages using cheat.sh
+
+set -u
+
+key_dir='cheat'
+cache_dir="${user_config_cache:-$HOME/.cache/.user_config_cache}/$key_dir"
+list_file="$cache_dir/cheat_sh_list"
+help_file="$cache_dir/cheat_sh_help"
+single=true
+
+# If passing clean, remove cache dir and redownlod fresh files
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -c|-[Cc]lean|--clean)
+      shift # past argument
+      rm -rf "$cache_dir" &>/dev/null
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
+mkdir -p "$cache_dir"
+
+# Download and cache list of commands
+if ! [ -f "$list_file" ]; then
+  curl -sL cheat.sh/:list > "$list_file"
+fi
+
+# Download and cache help
+if ! [ -f "$help_file" ]; then
+  curl -sL cheat.sh/:help > "$help_file"
+fi
+
+print_separator () {
+  # Ref: https://en.wikipedia.org/wiki/Box-drawing_characters
+  printf "\n\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\U2501\n\n"
+}
+
+RELOAD="reload:cat $list_file"
+PREVIEW="
+  cmd_name={}
+  cmd_file=\"$cache_dir/\$cmd_name\"
+
+  # Download and cache program cheat page
+  if ! [ -f \"\$cmd_file\" ]; then
+    curl -sL cheat.sh/\"\$cmd_name\" > \"\$cmd_file\" || touch \"\$cmd_file\"
+  fi
+
+  # cheat.sh help
+  cat \"\$cmd_file\" 2>/dev/null;
+
+  # Separator
+  printf \"\\n\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\n\\n\"
+
+  # There is a chance that 'col' is not installed, in that case use just man
+  man \"\$cmd_name\" | col -bx | bat --color=always --language man -p 2> /dev/null ||
+    man \"\$cmd_name\" 2> /dev/null"
+
+
+selected=($(fzf \
+  --preview="$PREVIEW" \
+  --preview-window '70%' \
+  --bind=ctrl-h:preview:"cat $help_file" \
+  --tiebreak=begin,chunk,length \
+  --reverse \
+  --cycle \
+  --multi \
+  --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+  --bind 'alt-up:preview-page-up' \
+  --bind 'alt-down:preview-page-down' \
+  --bind 'ctrl-s:toggle-sort' \
+  --bind 'alt-f:first' \
+  --bind 'alt-l:last' \
+  --bind 'alt-c:clear-query' \
+  --bind 'alt-a:select-all' \
+  --bind 'alt-d:deselect-all' \
+  --bind 'ctrl-l:toggle-preview' \
+  --bind "start:$RELOAD" \
+  --bind "change:$RELOAD"
+))
+
+if [ -z "$selected" ]; then
+  exit
+fi
+
+for cmd in "${selected[@]}"; do
+  [ "$single" = false ] && print_separator
+  printf "\U2022 %s\n" "$cmd:"
+  cat "$cache_dir/$cmd"
+  single=false
+done
+
