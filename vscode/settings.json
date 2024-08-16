@@ -40,9 +40,9 @@
     "statusBar.debuggingBackground": "#ee14f2b3"
   },
   "editor.accessibilitySupport": "off",
-  "vscode-neovim.neovimInitVimPaths.linux": "~/.config/vscode-nvim/init.vim",
-  "vscode-neovim.neovimInitVimPaths.win32": "~/.config/vscode-nvim/init.vim",
-  "vscode-neovim.neovimInitVimPaths.darwin": "~/.config/vscode-nvim/init.vim",
+  "vscode-neovim.neovimInitVimPaths.linux": "~/.config/vscode-nvim/init.lua",
+  "vscode-neovim.neovimInitVimPaths.win32": "~/.config/vscode-nvim/init.lua",
+  "vscode-neovim.neovimInitVimPaths.darwin": "~/.config/vscode-nvim/init.lua",
   // "vscode-neovim.useWSL": true,
   // "vscode-neovim.neovimExecutablePaths.linux": "~/.config/vscode-nvim/nvimw",
   "editor.lineNumbers": "relative",
