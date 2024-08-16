@@ -43,4 +43,5 @@ More resources and interesting projects
 - [Awesome WSL](https://github.com/sirredbeard/Awesome-WSL)
 - [modern-unix](https://github.com/ibraheemdev/modern-unix?tab=readme-ov-file)
 - [uutils coreutils](https://github.com/uutils/coreutils)
+- [HopeSeekr's Bash Scripts Collection](https://github.com/hopeseekr/BashScripts)
 
