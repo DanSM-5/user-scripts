@@ -104,3 +104,17 @@ fd -tl -td -tf -L "$pattern" "$location" |
     --preview "$fzf_preview_normal"
 ```
 
+## See key code
+
+See single keycode. Press `<ctrl-v>` followed by the key to show:
+
+```bash
+<ctrl-v><KEY>
+```
+
+For multiple key codes use `read -r` and exit by pressing enter:
+
+```bash
+read -r
+```
+
