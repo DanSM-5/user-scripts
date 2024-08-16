@@ -109,4 +109,41 @@
     "key": "ctrl+shift+alt+u",
     "command": "find-it-faster.findWithinFilesWithType"
   },
+  // vscode-nvim passthrough
+  {
+    "command": "vscode-neovim.send",
+    // the key sequence to activate the binding
+    "key": "alt+.",
+    // don't activate during insert mode
+    "when": "editorTextFocus && neovim.mode != insert",
+    // the input to send to Neovim
+    "args": "<A-.>",
+  },
+  {
+    "command": "vscode-neovim.send",
+    // the key sequence to activate the binding
+    "key": "alt+,",
+    // don't activate during insert mode
+    "when": "editorTextFocus && neovim.mode != insert",
+    // the input to send to Neovim
+    "args": "<A-,>",
+  },
+  {
+    "command": "vscode-neovim.send",
+    // the key sequence to activate the binding
+    "key": "alt+s",
+    // don't activate during insert mode
+    "when": "editorTextFocus && neovim.mode != insert",
+    // the input to send to Neovim
+    "args": "<A-s>",
+  },
+  {
+    "command": "vscode-neovim.send",
+    // the key sequence to activate the binding
+    "key": "alt+t",
+    // don't activate during insert mode
+    "when": "editorTextFocus && neovim.mode != insert",
+    // the input to send to Neovim
+    "args": "<A-t>",
+  },
 ]
