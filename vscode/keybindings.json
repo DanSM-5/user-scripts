@@ -93,20 +93,21 @@
     "command": "workbench.action.quickOpenSelectNext",
     "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
   },
+  // Find it faster
+  {
+    "key": "shift+alt+j",
+    "command": "find-it-faster.findFiles"
+  },
+  {
+    "key": "ctrl+shift+alt+j",
+    "command": "find-it-faster.findFilesWithType"
+  },
   {
     "key": "shift+alt+u",
     "command": "find-it-faster.findWithinFilesWithType"
   },
   {
-    "key": "ctrl+alt+shift+j",
-    "command": "find-it-faster.findFiles"
-  },
-  // {
-  //   "key": "shift+alt+u",
-  //   "command": "find-it-faster.findWithinFilesWithType"
-  // },
-  {
-    "key": "ctrl+shift+alt+u",
+    "key": "shift+alt+u",
     "command": "find-it-faster.findWithinFilesWithType"
   },
   // vscode-nvim passthrough
