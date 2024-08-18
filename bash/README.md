@@ -64,6 +64,27 @@ See example below:
 MSYS_NO_PATHCONV=1 rsync -v -a ./target/ /cygdrive/d/files/tmp/destination/
 ```
 
+## Rsync command with options
+
+rsync is a powerfull tool but requires knowledge of its multiple options
+to copy data effectively
+
+```bash
+#
+rsync --verbose --progress --recursive --perms --group --times ./source/ ./destination/ # --delete
+
+```
+
+- Use `--info=progress2` for more concise progress logging.
+- Use `--delete` to remove files/directories in destination not present in source directory.
+- Use `--links | -l` to copy symlink files as symlinks.
+- Use `--itemize-changes | -i` log summary of changes.
+- Use `--protect-args | --secluded-args | -s` prevent remote shell from interpreting arguments with special characters.
+- Use `--update | -u` skip updates if modified time in destination is newer than the source. If same modified time it will be mofify if sizes are different.
+
+> [!WARNING]
+> Do not forget the trailing '/' on the paths to sync with rsync
+
 ## Variable expansions for extracting paths information
 
 Get file extension
