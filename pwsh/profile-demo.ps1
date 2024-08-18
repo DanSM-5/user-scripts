@@ -733,7 +733,7 @@ if ( Test-IsInteractive ) {
   \d     Digit = [0-9]
   \D     Non-digit = [^0-9]
 
-  '@
+'@
 
   $rx 
   }
