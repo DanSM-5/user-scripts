@@ -1,3 +1,5 @@
+#!/usr/bin/env pwsh
+
 # Ref: https://superuser.com/questions/1397941/how-to-turn-off-screen-with-powershell
 if ($env:IS_WINDOWS -eq 'true' -or $IsWindows) {
   # NOTE: PC is also locked
