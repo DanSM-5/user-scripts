@@ -2,6 +2,8 @@
 
 // vim:fileencoding=utf-8:foldmethod=marker
 
+// @ts-check
+
 //: PIXIV {{{ :---------------------------------------------------------------------
 
 // NOTICE: version with 1 or 2 seconds is to avoid spamming too much pixiv's servers
@@ -12,14 +14,14 @@ Array.from(
     document.querySelectorAll('.fYcrPo')
 )
   .map(el => el.parentElement)
-  .map((el, i) => setTimeout( () => el.click(), i * 1000))
+  .map((el, i) => setTimeout( () => el?.click(), i * 1000))
 
 Array.from(
     /* Pixiv - Add likes (non liked) */
     document.querySelectorAll('.fYcrPo')
 )
   .map(el => el.parentElement)
-  .map((el, i) => setTimeout( () => el.click(), i * 2 * 1000))
+  .map((el, i) => setTimeout( () => el?.click(), i * 2 * 1000))
 
 // Pixiv - Remove likes from items
 Array.from(
@@ -27,50 +29,56 @@ Array.from(
     document.querySelectorAll('.bXjFLc')
 )
   .map(el => el.parentElement)
-  .map((el, i) => setTimeout( () => el.click(), i * 1000))
+  .map((el, i) => setTimeout( () => el?.click(), i * 1000))
 
 Array.from(
      /* Pixiv - Remove likes from items */
     document.querySelectorAll('.bXjFLc')
 )
   .map(el => el.parentElement)
-  .map((el, i) => setTimeout( () => el.click(), i * 2 * 1000))
+  .map((el, i) => setTimeout( () => el?.click(), i * 2 * 1000))
 
 // Pixiv - Get all url from unliked items
 Array.from(
     /* Pixiv - Get all url from unliked items */
     document.querySelectorAll('li a.iUsZyY:has(+ div .fYcrPo)')
-).reduce((links, a) => `${links}\n${a.href}`, '')
+// @ts-ignore
+).reduce((links, /** @type {HTMLAnchorElement} */ a) => `${links}\n${a.href}`, '')
 
 // Pixiv copy link search
 Array.from(
    /* Pixiv copy link search */
    document.querySelectorAll('.khjDVZ')
 )
-  .reduce((acc, curr) => `${acc}\n${curr.href}`, '')
+  // @ts-ignore
+  .reduce((acc, /** @type {HTMLAnchorElement} */ curr) => `${acc}\n${curr.href}`, '')
 
 // Pixiv - Get all url from liked items
 Array.from(
     /* Pixiv - Get all url from liked items */
     document.querySelectorAll('li a.iUsZyY:has(+ div .bXjFLc)')
+// @ts-ignore
 ).reduce((links, a) => `${links}\n${a.href}`, '')
 
 // Pixiv - Get all links from contest
 Array.from(
     /* Pixiv - Get all links from contest */
     document.querySelectorAll('.thumbnail-container a')
+// @ts-ignore
 ).reduce((links, a) => `${links}\n${a.href}`, '')
 
 // Pixiv - Get all links from liked items contest
 Array.from(
     /* Pixiv - Get all links from liked items contest */
     document.querySelectorAll('.thumbnail-container a:has(+ .bookmark-container span.on)')
+// @ts-ignore
 ).reduce((links, a) => `${links}\n${a.href}`, '')
 
 // Pixiv - Get all links from unliked items contest
 Array.from(
     /* Pixiv - Get all links from unliked items contest */
     document.querySelectorAll('.thumbnail-container a:has(+ .bookmark-container span:not(.on))')
+// @ts-ignore
 ).reduce((links, a) => `${links}\n${a.href}`, '')
 
 // Pixiv - Unlike all from contest - NOT RECOMENDED PAGE RELOAD
@@ -78,6 +86,7 @@ Array.from(
     /* Pixiv - Unlike all from contest - NOT RECOMENDED PAGE RELOAD */
     document.querySelectorAll('.bookmark-container span:not(.on)')
 )
+  // @ts-ignore
   .map((span, i) => setTimeout(() => span.click(), i * 2 * 1000))
 
 // Pixiv - Like all unliked from contest
@@ -85,25 +94,43 @@ Array.from(
     /* Pixiv - Like all unliked from contest */
     document.querySelectorAll('.bookmark-container span:not(.on)')
 )
+  // @ts-ignore
   .map((span, i) => setTimeout(() => span.click(), i * 2 * 1000))
 
-const paginatedClickProcess = (
+/**
+ * @typedef {{ getElements: () => HTMLElement[]; signal: { aborted: boolean }; delay: number }} PaginatedClickProps
+ */
+
+/**
+ * Function to apply likes per page in pixiv
+ *
+ * @param {PaginatedClickProps} props  Props for paginated click process
+ * @returns {Promise<void>}
+ */
+const paginatedClickProcess = ({
   getElements = () => [],
   signal = { aborted: false },
-) => {
+  delay = 2000,
+}) => {
+  /**
+   * @type {{ promise: Promise<void>; reject: typeof Promise.reject<void>; resolve: typeof Promise.resolve<void> }}
+   */
+  // @ts-ignore
   const pending = Promise.withResolvers()
-  const clickElement = (element, index) => {
+  const clickElement = (/** @type {{ click: () => void; }} */ element, /** @type {number} */ index) => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         if (signal.aborted) {
+          // @ts-ignore
           pending.reject(new Error('Process aborted', { cause: signal.reason }));
           reject();
           return;
         }
 
         element.click();
+        // @ts-ignore
         resolve();
-      }, index * 2 * 1000);
+      }, index * delay);
     });
   };
 
@@ -114,6 +141,10 @@ const paginatedClickProcess = (
 
   const moveNextPage = (callPageProcess) => {
     return callPageProcess().then(() => {
+      /**
+       * @type {HTMLButtonElement}
+       */
+      // @ts-ignore
       const nextPageBtn = document.querySelectorAll('.sc-xhhh7v-1.hqFKax:not(.iiDpnk) + a:not([hidden])')?.[0];
       if (!nextPageBtn) {
         pending.resolve();
@@ -123,12 +154,13 @@ const paginatedClickProcess = (
         nextPageBtn.click();
         setTimeout(() => {
           moveNextPage(callPageProcess);
-        }, 2000);
-      }, 2000);
+        }, delay);
+      }, delay);
     })
     .catch(e => {
       console.warn('Ended cycle');
-      promise.reject(new Error('Cannot continue paginated process:' ,{ cause: e }))
+      // @ts-ignore
+      pending.reject(new Error('Cannot continue paginated process:' , { cause: e }))
     });
   };
 
@@ -136,13 +168,15 @@ const paginatedClickProcess = (
   return pending.promise
 };
 
-paginatedClickProcess(
-  () => Array.from(
+paginatedClickProcess({
+  // @ts-ignore
+  getElements: () => Array.from(
     /* Pixiv - Add likes (non liked) */
     document.querySelectorAll('.fYcrPo')
   )
-  .map(el => el.parentElement),
-);
+  // @ts-ignore
+  .map((/** @type {HTMLElement} */ el) => el.parentElement),
+});
 
 // const onAllElements = () => Promise.all(
 //   Array.from(
@@ -168,6 +202,7 @@ Array.from(
     /* Fanbox - like all */
     document.querySelectorAll('.cYueYD')
 )
+  // @ts-ignore
   .map((el, i) => setTimeout( () => el.click(), i * 1000))
 
 // Fanbox - unlike all
@@ -175,6 +210,7 @@ Array.from(
     /* Fanbox - unlike all */
     document.querySelectorAll('.fxIlKe')
 )
+  // @ts-ignore
   .map((el, i) => setTimeout( () => el.click(), i * 1000))
 
 //: }}} :---------------------------------------------------------------------------
@@ -186,6 +222,7 @@ Array.from(
   /* Kemono - Select all urls in page */
   document.querySelectorAll('#main > section > div.card-list.card-list--legacy a')
 )
+  // @ts-ignore
   .reduce((links, curr) => `${links}\n${curr.href}`, '')
 
 //: }}} :---------------------------------------------------------------------------
@@ -197,6 +234,7 @@ Array.from(
 Array.from(
     /* Danbooru - Select all urls in a page */
     document.querySelectorAll('a.post-preview-link'),
+// @ts-ignore
 ).reduce((links, a) => `${links}\n${a.href}`, '')
 
 //: }}} :---------------------------------------------------------------------------
@@ -207,18 +245,21 @@ Array.from(
 Array.from(
     /* Arca.live - Get all links from post */
     document.querySelectorAll('.article-content a')
+// @ts-ignore
 ).reduce((linkString, link) => `${link.href}\n${linkString}`, '');
 
 // Arca.live - Get emoticons
 Array.from(
     /* Arca.live - Get emoticons */
     document.querySelectorAll('.emoticons-wrapper img')
+// @ts-ignore
 ).reduce((linkString, link) => `${link.src}\n${linkString}`, '');
 
 // Arca.live - Get animated emoticons
 Array.from(
     /* Arca.live - Get animated emoticons */
     document.querySelectorAll('video.emoticon')
+// @ts-ignore
 ).reduce((linkString, link) => `${link.src}\n${linkString}`, '');
 
 //: }}} :---------------------------------------------------------------------------
