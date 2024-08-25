@@ -1,3 +1,11 @@
+#!/usr/bin/env pwsh
+
+# With-UTF8.ps1
+# Usage
+# ```powershell
+# With-UTF8 { command }
+# ```
+
 [CmdletBinding()]
 Param (
   [scriptblock] $block
@@ -9,13 +17,15 @@ Param (
 try {
   # Ref: https://stackoverflow.com/questions/49476326/displaying-unicode-in-powershell
   # Save the current settings and temporarily switch to UTF-8.
-  $oldOutputEncoding = $OutputEncoding; $oldConsoleEncoding = [Console]::OutputEncoding
+  $oldOutputEncoding = $OutputEncoding;
+  $oldConsoleEncoding = [Console]::OutputEncoding
   $OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.Utf8Encoding
 
   # Execute block with utf-8 encoding
   return & $block
 } finally {
   # Restore the previous settings.
-  $OutputEncoding = $oldOutputEncoding; [Console]::OutputEncoding = $oldConsoleEncoding
+  $OutputEncoding = $oldOutputEncoding;
+  [Console]::OutputEncoding = $oldConsoleEncoding
 }
 
