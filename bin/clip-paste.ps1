@@ -14,18 +14,27 @@
 
 # About variables: See detection script
 
-# UTF-8 for windows
-$OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.Utf8Encoding
+# Original encoding backup
+$InitialOutputEncoding = $OutputEncoding
+$InitialConsoleEncoding = [Console]::OutputEncoding
 
-if ($IsWindows) {
-  With-UTF8 {
+try {
+  # Ensure UTF-8 for windows
+  [Console]::OutputEncoding = New-Object System.Text.Utf8Encoding
+
+  if ($IsWindows) {
+    With-UTF8 {
+      pbpaste $args
+    }
+  } elseif ("${env:IS_TERMUX}" -eq 'true' ) {
+    termux-clipboard-set $args
+  } elseif ($IsMacos) {
     pbpaste $args
+  } elseif ($IsLinux) {
+    xsel -ob $args
   }
-} elseif ("${env:IS_TERMUX}" -eq 'true' ) {
-  termux-clipboard-set $args
-} elseif ($IsMacos) {
-  pbpaste $args
-} elseif ($IsLinux) {
-  xsel -ob $args
+} finally {
+  $OutputEncoding = $InitialOutputEncoding
+  [Console]::OutputEncoding = $InitialConsoleEncoding
 }
 
