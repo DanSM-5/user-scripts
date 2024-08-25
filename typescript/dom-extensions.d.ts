@@ -13,4 +13,23 @@ interface Document {
   getElementById<T extends HTMLElement = HTMLElement>(elementId: string): T | undefined;
 }
 
-type a = typeof document.getElementById<HTMLAnchorElement>
+/**
+ * Type polyfill for Promise.withResolvers function
+ * Ref: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/withResolvers
+ */
+interface PromiseConstructor {
+  withResolvers: <T>() => {
+    promise: Promise<T>;
+    reject:  typeof Promise.reject<T>;
+    resolve: typeof Promise.resolve<T>;
+  }
+}
+
+/**
+ * Type polyfill for {ErrorConstructor} to accept an object with an optional cause property
+ * Ref: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/Error#options
+ */
+interface ErrorConstructor {
+  new (message?: string, options?: { cause?: unknown })
+}
+
