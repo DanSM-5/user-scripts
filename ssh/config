@@ -2,6 +2,7 @@
 Host github-personal
   Hostname github.com
   IdentityFile ~/.ssh/id_ed25519
+  IdentitiesOnly yes
   User git
 
 # Fallback all non-specific
