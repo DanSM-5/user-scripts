@@ -32,6 +32,6 @@ done
 if [ "$dryrun" = true ]; then
   echo cp --force "$temp"/* "$destination"
 else
-  cp --force "$temp"/* "$destination"
+  cp --verbose --force "$temp"/* "$destination"
 fi
 
