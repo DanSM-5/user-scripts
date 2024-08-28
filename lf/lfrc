@@ -64,7 +64,8 @@ map <s-space> :toggle; up
 set icons
 
 # Set preview cursor
-set cursorpreviewfmt "\033[7;90m"
+# set cursorpreviewfmt "\033[7;90m"
+set cursorpreviewfmt  "\033[7;2m"
 
 # Show hidden files/dirs
 set hidden
