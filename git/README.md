@@ -170,3 +170,9 @@ git diff \
   tmp/dashboard_bulk.js
 ```
 
+To view diff of files outside a repository use `--no-index` flag
+
+```bash
+git diff --no-index file1 file2
+```
+
