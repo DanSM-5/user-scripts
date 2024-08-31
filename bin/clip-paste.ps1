@@ -20,7 +20,7 @@ $InitialConsoleEncoding = [Console]::OutputEncoding
 
 try {
   # Ensure UTF-8 for windows
-  [Console]::OutputEncoding = New-Object System.Text.Utf8Encoding
+  $OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.Utf8Encoding
 
   if ($IsWindows) {
     With-UTF8 {
