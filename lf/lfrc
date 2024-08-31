@@ -63,6 +63,7 @@ map <s-space> :toggle; up
 # Add icons when starting lf
 set icons
 
+# NOTE: old value does not work well in wezterm with OneHalfDark
 # Set preview cursor
 # set cursorpreviewfmt "\033[7;90m"
 set cursorpreviewfmt  "\033[7;2m"
@@ -134,6 +135,9 @@ map \\fnr npm-run-fzf
 
 # lf_preview on linux and lf_preview.bat in windows
 set previewer lf_preview
+# NOTE: cleaner script no needed at the moment
+# set cleaner lf_cleaner
+set sixel true
 
 # Detect nested lf instances
 &[ $LF_LEVEL -eq 1 ] || lf -remote "send $id echoerr \"Warning: You're in a nested lf instance!\""

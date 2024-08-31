@@ -1,4 +1,12 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
-"$HOME/.usr_conf/utils/fzf-preview.sh" "$1"
+file="$1"
+w="$2"
+h="$3"
+# x="$4"
+# y="$5"
+
+# Set lf image size
+export PREVIEW_IMAGE_SIZE="${w}x${h}"
+"$HOME/.usr_conf/utils/fzf-preview.sh" "$file"
 

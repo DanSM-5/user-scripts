@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# NOOP
+
+# if [ -n "$KITTY_WINDOW_ID" ]; then
+#   exec kitty +kitten icat --clear --stdin no --silent --transfer-mode file </dev/null >/dev/tty
+# elif [ "$TERM_PROGRAM" = 'WezTerm' ]; then
+#   exec kitty +kitten icat --clear --stdin no --silent --transfer-mode file </dev/null >/dev/tty
+# fi
+
