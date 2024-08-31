@@ -7,13 +7,22 @@
 #
 # This is the price for getting a nicer preview...
 
-# Set UTF8 encoding to handle names with weird characters
-$OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.Utf8Encoding
+# Original encoding backup
+$InitialOutputEncoding = $OutputEncoding
+$InitialConsoleEncoding = [Console]::OutputEncoding
 
-# Expand '~' and normalize paths to use forward slash
-$path_arg = "$args".Replace('~', $HOME).Replace('\', '/').Trim()
-$location = $PWD.ProviderPath.Replace('\', '/')
+try {
+  # Set UTF8 encoding to handle names with weird characters
+  $OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.Utf8Encoding
 
-# Feed it to the fzf-preview script
-& "$env:user_conf_path/utils/fzf-preview.ps1" $location $path_arg
+  # Expand '~' and normalize paths to use forward slash
+  $path_arg = "$args".Replace('~', $HOME).Replace('\', '/').Trim()
+  $location = $PWD.ProviderPath.Replace('\', '/')
+
+  # Feed it to the fzf-preview script
+  & "$env:user_conf_path/utils/fzf-preview.ps1" $location $path_arg
+} finally {
+  $OutputEncoding = $InitialOutputEncoding
+  [Console]::OutputEncoding = $InitialConsoleEncoding
+}
 

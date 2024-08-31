@@ -3,10 +3,16 @@
 file="$1"
 w="$2"
 h="$3"
-# x="$4"
-# y="$5"
+x="$4"
+y="$5"
 
-# Set lf image size
+
+# Set exported data variables
+export PREVIEW_WIDTH="${w}"
+export PREVIEW_HEIGHT="${h}"
+export PREVIEW_CORDX="${x}"
+export PREVIEW_CORDY="${y}"
 export PREVIEW_IMAGE_SIZE="${w}x${h}"
+
 "$HOME/.usr_conf/utils/fzf-preview.sh" "$file"
 
