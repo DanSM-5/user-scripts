@@ -2,9 +2,13 @@
 setlocal
 
 REM Store console codepage
+REM Ref: https://superuser.com/a/1523968/1918286
 for /f "usebackq tokens=4" %%i in (`chcp`) do (
   set _codepage=%%i
 )
+
+REM Alternative version
+REM for /F "tokens=2 delims=:" %%G in ('chcp') do set "_chcp=%%G" && IF "%_chcp:~-1%"=="." set "_chcp=%_chcp:~0,-1%"
 
 REM Set UTF8 encoding to handle names with weird characters
 chcp 65001 > NUL 2>&1
