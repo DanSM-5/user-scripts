@@ -16,7 +16,8 @@ cmd open &lf_open
 map e $nvim "$fx"
 
 # Use bat as pager
-map i $bat -p --paging=always "$f"
+# map i $bat -p --paging=always "$f"
+map i $lf_pager "$f"
 
 # Open new shell
 map w $$SHELL
@@ -138,6 +139,8 @@ set previewer lf_preview
 # NOTE: cleaner script no needed at the moment
 # set cleaner lf_cleaner
 set sixel true
+
+set mouse true
 
 # Detect nested lf instances
 &[ $LF_LEVEL -eq 1 ] || lf -remote "send $id echoerr \"Warning: You're in a nested lf instance!\""
