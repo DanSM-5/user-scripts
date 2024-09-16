@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+token="$*"
+
+# Get second segment padded with 4 = signs
+awk -F '.' '{ print $2"====" }' <<< "$token" |
+  # split and remove last line. Will preserve required padding
+  fold -w 4 | sed '$ d' | tr -d '\n' |
+  base64 --decode
+
