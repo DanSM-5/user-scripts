@@ -38,6 +38,13 @@ Array.from(
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 2 * 1000))
 
+// Pixiv - Get all urls in page
+Array.from(
+    /* Pixiv - Get all urls in apge */
+    document.querySelectorAll('li a.iUsZyY')
+// @ts-ignore
+).reduce((links, /** @type {HTMLAnchorElement} */ a) => `${links}\n${a.href}`, '')
+
 // Pixiv - Get all url from unliked items
 Array.from(
     /* Pixiv - Get all url from unliked items */
