@@ -185,4 +185,11 @@
     // the input to send to Neovim
     "args": "<A-l>",
   },
+
+  // Change to the previous edited buffer
+  {
+    "key": "ctrl+6",
+    "command": "workbench.action.quickOpenPreviousRecentlyUsedEditorInGroup",
+    "when": "!activeEditorGroupEmpty"
+  },
 ]
