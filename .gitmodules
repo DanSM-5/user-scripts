@@ -2,3 +2,6 @@
 	path = fzf
 	url = https://github.com/junegunn/fzf
 
+[submodule "ff2mpv"]
+	path = ff2mpv
+	url = git@github-personal:DanSM-5/ff2mpv
