@@ -51,6 +51,12 @@ case "$(uname -a)" in
 
     pwsh.exe -NoLogo -NonInteractive -NoProfile -Command "Start-Process $item"
     ;;
+  *Android)
+    # Termux
+    # It also starts with Linux
+    # so make sure this is before the Linux case
+    termux-open-url "$@"
+    ;;
   Linux*)
     # xdg-open "$@" &
     xdg-open "$@" < /dev/null > /dev/null 2>&1 &
