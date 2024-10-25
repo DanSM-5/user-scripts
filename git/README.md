@@ -176,3 +176,43 @@ To view diff of files outside a repository use `--no-index` flag
 git diff --no-index file1 file2
 ```
 
+## Using submodules
+
+Guide how to use [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules)
+
+CLI [documentation](https://git-scm.com/docs/git-submodule)
+
+### Add submodule
+
+```bash
+git submodule add [url] [[path]]
+```
+
+```bash
+git submodule add git@github.com:DanSM-5/user-scripts ~/user-scripts
+```
+
+### Clone with submodules
+
+```bash
+git clone --recurse-submodules [url]
+```
+
+or
+
+````bash
+git clone [url]
+cd path/to/repo
+git submodule init
+git submodule update
+````
+
+or
+
+````bash
+git clone [url]
+cd path/to/repo
+# Foolproof
+git submodule update --init [--recursive] # use recursive to handle nested submodules
+````
+
