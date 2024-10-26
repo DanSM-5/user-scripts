@@ -19,6 +19,12 @@
 .PARAMETER SevenZipCmd
   Command to be used for archiving and unarchiving. It must be 7z compatible (e.g. p7zip).
 
+.PARAMETER ArchiveTypeIn
+  Type of archive to uncompress. Default 7z.
+
+.PARAMETER ArchiveTypeOut
+  Type of archive to compress. Default 7z.
+
 .INPUTS
   No inputs from pipeline
 
@@ -46,7 +52,9 @@ Param (
   [String] $Location,
   # Command to be used. It has to be 7z compatible
   # This is for linux where there is 7z and 7zz
-  [String] $SevenZipCmd = '7z'
+  [String] $SevenZipCmd = '7z',
+  [String] $ArchiveTypeIn = '7z',
+  [String] $ArchiveTypeOut = '7z'
 )
 
 $ErrorActionPreference = "Stop"
@@ -69,6 +77,7 @@ try {
       # [Extract]
       $sevenZipExtractArgs = @(
         "x"
+        "-t$ArchiveTypeIn"
         "-p$Password"
         "-o$dirname"
         "--"
@@ -78,6 +87,7 @@ try {
       # [Compress]
       $sevenZipCompressArgs = @(
         "a"
+        "-t$ArchiveTypeOut"
         "$newCompressed"
         # Important: This is added because the next argument
         # will be the files which are matched with a glob
