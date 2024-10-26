@@ -86,7 +86,7 @@ selected=($(fzf \
   --bind "change:$RELOAD"
 ))
 
-if [ -z "$selected" ]; then
+if [ -z "${selected[*]}" ]; then
   exit
 fi
 
