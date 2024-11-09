@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+# Opens a man page in (n)vim
+# If no argument is passed, it lists all man pages in fzf
+
+# WARN: nix adds a man page in ~/.nix-profile/bin/man
+# that man binary does not return the available man pages
+# The below checks for the known places to find man.
+
+MAN='/bin/man'
+# Preferred editor is custom variable from config
+editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
+
+if ! command -v "$MAN" &>/dev/null; then
+  MAN='/usr/bin/man'
+fi
+
+if ! command -v "$MAN" &>/dev/null; then
+  printf '%s\n' 'Man command not found' 1>&2
+  exit 1
+fi
+
+if [ -n "$1" ]; then
+  program="$1"
+else
+  program="$("$MAN" -k . |
+    fzf --prompt='Man> ' --no-multi \
+      --ansi --cycle \
+      --info=inline \
+      --history="$FZF_HIST_DIR/man-vim" \
+      --header 'Select man page' \
+      --bind 'ctrl-s:toggle-sort' \
+      --bind 'alt-a:select-all' \
+      --bind 'alt-d:deselect-all' \
+      --bind 'alt-f:first' \
+      --bind 'alt-l:last' \
+      --bind 'alt-c:clear-query' |
+    awk '{ print $1 }')"
+fi
+
+if [ -z "$program" ]; then
+  exit 0
+fi
+
+"$editor" +"Man $program | only"
+
