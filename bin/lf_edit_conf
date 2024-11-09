@@ -3,7 +3,7 @@
 # Open config in editor and source on close
 
 # Prefered editor is custom variable from config
-editor="${PREFERED_EDITOR:-${EDITOR:-vim}}"
+editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
 
 if [ "$IS_POWERSHELL" = true ] || [ "$IS_GITBASH" = true ] || [ "$IS_CMD" = true ]; then
   "$editor" "$HOME/AppData/Local/lf/lfrc"
