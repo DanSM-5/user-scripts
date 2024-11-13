@@ -16,6 +16,7 @@ $cache_dir = if ($env:user_config_cache) {
 
 $cache_dir = "$cache_dir/emojis"
 $emoji_file = "$cache_dir/emoji"
+$history_file = if ($env:FZF_HIST_DIR) { "$env:FZF_HIST_DIR/emoji" } else { "$HOME/.cache/fzf-history/emoji" }
 
 if ($Clean) {
   Remove-Item -Path $emoji_file -Force -ErrorAction SilentlyContinue *> $null
@@ -31,6 +32,7 @@ if (!(Test-Path -Path $emoji_file -PathType Leaf -ErrorAction SilentlyContinue))
 $selected_emoji = @( Get-Content $emoji_file |
   fzf --multi --ansi `
     --height 80% --min-height 20 --border `
+    --history "$history_file" `
     --info=inline `
     --bind 'ctrl-/:change-preview-window(down|hidden|)' `
     --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
@@ -42,7 +44,7 @@ $selected_emoji = @( Get-Content $emoji_file |
     --bind "ctrl-y:execute-silent(Get-Content {+f} | % { (`$_ -Split ' ')[0] } | Set-Clipboard)" `
     --bind "ctrl-u:execute-silent(Get-Content {+f} | % { (`$_ -Split ' ')[1] } | Set-Clipboard)" `
     --bind "ctrl-t:execute-silent(Get-Content {+f} | Set-Clipboard)" `
-    --header 'Copy emoji: ctrl-y | Copy desc: ctrl-u | Copy all: ctrl-t' | % {
+    --header 'Copy emoji: ctrl-y | Copy desc: ctrl-u | Copy all: ctrl-t' | ForEach-Object {
       $line = $_ -Split ' '
       $line[0]
     }
