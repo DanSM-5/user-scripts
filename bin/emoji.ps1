@@ -24,7 +24,8 @@ if ($Clean) {
 # Fetch if no emoji file
 if (!(Test-Path -Path $emoji_file -PathType Leaf -ErrorAction SilentlyContinue)) {
   New-Item $cache_dir -ItemType Directory -ErrorAction SilentlyContinue
-  Invoke-WebRequest -Uri 'https://git.io/JXXO7' -UseBasicParsing -Method Get -OutFile $emoji_file *> $null
+  $emoji_src = 'https://gist.githubusercontent.com/DanSM-5/4a54709c02fa96ddf6abf39fdc2475f6/raw/36f242671cf92f798a3785777545ee4456ad2884/emoji.txt'
+  Invoke-WebRequest -Uri $emoji_src -UseBasicParsing -Method Get -OutFile $emoji_file *> $null
 }
 
 $selected_emoji = @( Get-Content $emoji_file |
