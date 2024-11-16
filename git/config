@@ -42,6 +42,8 @@
   ; cmd = nvim --clean -d $LOCAL $REMOTE
   ; cmd = nvim -u ~/vim-config/init.vim.old -d $LOCAL $REMOTE
   cmd = nvim -d $LOCAL $REMOTE
+  ; cmd = nvim -d $BASE $LOCAL $REMOTE $MERGED -c '$wincmd w' -c 'wincmd J'
 
 [gpg]
 	format = ssh
+
