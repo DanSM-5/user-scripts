@@ -27,6 +27,21 @@
 
 [diff]
   colorMoved = default
+  tool = nvimdiff
+
+; $BASE is provided for compatibility with custom merge tool commands and has the same value as $MERGED
+; $LOCAL is set to the name of the temporary file containing the contents of the diff pre-image
+; $REMOTE is set to the name of the temporary file containing the contents of the diff post-image
+; $MERGED is the name of the file which is being compared.
+[difftool "vimdiff"]
+  cmd = ~/scoop/shims/vim.exe -d $LOCAL $REMOTE
+
+; If no manually set, it hangs in windows 🤔
+; All below options work
+[difftool "nvimdiff"]
+  ; cmd = nvim --clean -d $LOCAL $REMOTE
+  ; cmd = nvim -u ~/vim-config/init.vim.old -d $LOCAL $REMOTE
+  cmd = nvim -d $LOCAL $REMOTE
 
 [gpg]
 	format = ssh
