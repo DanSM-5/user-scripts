@@ -2,7 +2,7 @@
 
 # Common packages installed with pipx
 
-pipx install ani
+pipx install ani-cli
 pipx install animdl
 pipx install yt-dlp
 pipx install gallery-dl &&
