@@ -5,6 +5,14 @@ local act = wezterm.action
 -- This will hold the configuration.
 local config = wezterm.config_builder()
 
+local opener = 'xdg-open'
+
+if os.getenv('IS_WINDOWS') == 'true' then
+  opener = 'start'
+elseif os.getenv('IS_MAC') == 'true' then
+  opener = 'open'
+end
+
 -- Font
 config.font = wezterm.font('CaskaydiaCove Nerd Font')
 config.font_size = 16
@@ -34,6 +42,9 @@ config.font_size = 16
 --   --   }
 --   -- }
 -- }
+
+-- Set fps higher for smoother animations
+config.max_fps = 75
 
 config.color_scheme = 'OneHalfDark'
 config.window_background_opacity = 0.85
@@ -81,7 +92,21 @@ if wezterm.gui then
     { key = 'L', mods = 'ALT|SHIFT', action = act.ClearScrollback('ScrollbackOnly') },
     { key = 'K', mods = 'CTRL|SHIFT', action = act.ScrollByPage(-1) },
     { key = 'J', mods = 'CTRL|SHIFT', action = act.ScrollByPage(1) },
+    {
+      key = ',',
+      mods = 'WIN',
+      action = wezterm.action.SpawnCommandInNewTab({
+        cwd = wezterm.home_dir,
+        args = { 'nvim', wezterm.config_file },
+      }),
+    },
+    {
+      key = 'r',
+      mods = 'WIN|SHIFT',
+      action = act.ReloadConfiguration,
+    },
   }
+
 end
 
 if os.getenv('IS_STEAMDECK') == 'true' then
