@@ -1,17 +1,6 @@
-asvetliakov.vscode-neovim
-# carbonid1.emmet-jss
-colder.source-map-visualization
-cssho.vscode-svgviewer
-dbaeumer.vscode-eslint
-donjayamanne.githistory
+# bradlc.vscode-tailwindcss
 # dotjoshjohnson.xml
-# dsznajder.es7-react-js-snippets
-esbenp.prettier-vscode
-firefox-devtools.vscode-firefox-debug
 # github.vscode-github-actions
-# hex-ci.stylelint-plus
-jasonnutter.search-node-modules
-# mads-hartmann.bash-ide-vscode
 # mathiasfrohlich.kotlin
 # monasticpanic.vscode-astroturf
 # ms-dotnettools.csharp
@@ -21,15 +10,32 @@ jasonnutter.search-node-modules
 # ms-python.python
 # ms-python.vscode-pylance
 # ms-vscode-remote.remote-wsl
-peakchen90.open-html-in-browser
-ritwickdey.liveserver
 # shd101wyy.markdown-preview-enhanced
 # streetsidesoftware.code-spell-checker
-# sumneko.lua
+# stylelint.vscode-stylelint
 # syler.sass-indented
-tomrijndorp.find-it-faster
-# mylesmurphy.prettify-ts
-# yoavbls.pretty-ts-errors
-thejustinwalsh.textproto-grammer
+# unifiedjs.vscode-mdx
 # vs-publisher-1448185.keyoti-changeallendoflinesequence
+asvetliakov.vscode-neovim
+carbonid1.emmet-jss
+colder.source-map-visualization
+cssho.vscode-svgviewer
+dbaeumer.vscode-eslint
+donjayamanne.githistory
+dsznajder.es7-react-js-snippets
+esbenp.prettier-vscode
+firefox-devtools.vscode-firefox-debug
+formulahendry.code-runner
+hex-ci.stylelint-plus
+jasonnutter.search-node-modules
+mads-hartmann.bash-ide-vscode
+mishkinf.goto-next-previous-member
+ms-azuretools.vscode-docker
+mylesmurphy.prettify-ts
+peakchen90.open-html-in-browser
+ritwickdey.liveserver
+sumneko.lua
+thejustinwalsh.textproto-grammer
+tomrijndorp.find-it-faster
 vscode-icons-team.vscode-icons
+yoavbls.pretty-ts-errors
