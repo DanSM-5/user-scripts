@@ -104,13 +104,14 @@ if [ -z "${commits[*]}" ]; then
   exit
 fi
 
-# Open in editor
-if [ "$open" = true ]; then
-  tmpfile="$(mktemp)"
-  git show "${commits[@]}" > "$tmpfile"
-  exec "$editor" -c ":filetype detect" "$tmpfile"
+# Show selected commits
+if [ "$open" = false ]; then
+  git show "${commits[@]}"
+  exit
 fi
 
-# Show selected commits
-git show "${commits[@]}"
+# Open in editor
+tmpfile="$(mktemp)"
+git show "${commits[@]}" > "$tmpfile"
+exec "$editor" -c ":filetype detect" "$tmpfile"
 
