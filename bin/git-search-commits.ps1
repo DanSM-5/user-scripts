@@ -14,7 +14,7 @@ Param(
   # Edit
   [Switch] $Edit = $false,
   [Switch] $Help = $false,
-  [Parameter(ValueFromRemainingArguments = $true)]
+  [Parameter(ValueFromRemainingArguments = $true, position = 0 )]
   [String] $Query = ''
 )
 
