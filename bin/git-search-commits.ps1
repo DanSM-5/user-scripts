@@ -66,7 +66,7 @@ if (Get-Command -Name delta -All -ErrorAction SilentlyContinue) {
 # Call fzf
 $commits = [System.Collections.Generic.List[string]]::new()
 
-eval "$source_command" |
+& "$source_command" |
   fzf `
   --height 80% --min-height 20 --border `
   --info=inline `
