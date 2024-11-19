@@ -13,7 +13,9 @@ Param(
   [String] $Mode = '',
   # Edit
   [Switch] $Edit = $false,
+  # Show help
   [Switch] $Help = $false,
+  # Query to search
   [Parameter(ValueFromRemainingArguments = $true, position = 0 )]
   [String] $Query = ''
 )
@@ -38,13 +40,13 @@ $base_command = ''
 # Git command to perform
 switch ($cmd_mode) {
   'regex' {
-    $base_command = 'git log --oneline --branches --all -G {0}'
+    $base_command = 'git log --color=always --oneline --branches --all -G {0}'
   }
   'string' {
-    $base_command = 'git log --oneline --branches --all -S {0}'
+    $base_command = 'git log --color=always --oneline --branches --all -S {0}'
   }
   Default {
-    $base_command = 'git log --oneline --grep {0}'
+    $base_command = 'git log --color=always --oneline --grep {0}'
   }
 }
 
@@ -66,7 +68,7 @@ if (Get-Command -Name delta -All -ErrorAction SilentlyContinue) {
 # Call fzf
 $commits = [System.Collections.Generic.List[string]]::new()
 
-& "$source_command" |
+$source_command | Invoke-Expression |
   fzf `
   --height 80% --min-height 20 --border `
   --info=inline `
@@ -88,7 +90,7 @@ $commits = [System.Collections.Generic.List[string]]::new()
   --preview "$fzf_preview" | ForEach-Object {
     $line = $_ -split "\s+"
     if ($line[0]) {
-      $commits.Add($line)
+      $commits.Add($line[0])
     }
   }
 

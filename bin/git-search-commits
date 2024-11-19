@@ -55,11 +55,11 @@ set -- "${POSITIONAL_ARGS[@]}"
 # Git command to perform
 base_command=''
 if [ "$mode" = 'regex' ]; then
-  base_command='git log --oneline --branches --all -G %s'
+  base_command='git log --color=always --oneline --branches --all -G %s'
 elif [ "$mode" = 'string' ]; then
-  base_command='git log --oneline --branches --all -S %s'
+  base_command='git log --color=always --oneline --branches --all -S %s'
 else
-  base_command='git log --oneline --grep %s'
+  base_command='git log --color=always --oneline --grep %s'
 fi
 
 source_command="$(printf "$base_command" "'$*'")"
