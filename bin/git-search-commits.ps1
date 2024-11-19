@@ -20,6 +20,14 @@ Param(
   [String] $Query = ''
 )
 
+$editor = if ($env:PREFERRED_EDITOR) {
+  $env:PREFERRED_EDITOR
+} elseif ($env:EDITOR) {
+  $env:EDITOR
+} else {
+  'vim'
+}
+
 $cmd_mode = $Mode
 
 # Set mode
