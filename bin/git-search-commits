@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+
+# Default mode
+mode='log'
+open=false
+editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
+
+# Allow complex regex globs
+shopt -s extglob
+
+# Args parsing
+# Ref: https://stackoverflow.com/a/14203146
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -[lL]|-?(-)[lL]og)
+      mode='log'
+      shift # past argument
+      ;;
+    -[rR]|-?(-)[rR]egex)
+      mode='regex'
+      shift # past argument
+      ;;
+    -[sS]|-?(-)[sS]tring)
+      mode='string'
+      shift # past argument
+      ;;
+    -[mM]|-?(-)[mM]ode)
+      mode="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -[eE]|-?(-)[eE]edit)
+      open=true
+      shift # past argument
+      ;;
+    -[hH]|-?(-)[hH]elp|[hH]elp)
+      showHelp
+      exit 0
+      ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      # POSITIONAL_ARGS+=("$1") # save positional arg
+      POSITIONAL_ARGS+=("$1") # Positional args are considered urls to download
+      shift # past argument
+      ;;
+  esac
+done
+
+# Restore positional arguments
+set -- "${POSITIONAL_ARGS[@]}"
+
+# Git command to perform
+base_command=''
+if [ "$mode" = 'regex' ]; then
+  base_command='git log --oneline --branches --all -G %s'
+elif [ "$mode" = 'string' ]; then
+  base_command='git log --oneline --branches --all -S %s'
+else
+  base_command='git log --oneline --grep %s'
+fi
+
+source_command="$(printf "$base_command" "'$*'")"
+reload_command="$(printf "$base_command" '{q}') || true"
+
+# Setup preview
+fzf_preview='git show --color=always {1} '
+if command -v delta &>/dev/null; then
+  fzf_preview="$fzf_preview | delta || true"
+else
+  fzf_preview="$fzf_preview || true"
+fi
+
+# fzf_args=(
+#   '--prompt' 'GitSearch> '
+#   '--header' 'ctrl-r: interactive search | ctrl-f: Fzf filtering of results'
+#   '--multi' '--ansi'
+#   '--layout=reverse'
+#   '--disabled'
+#   '--query' "$*"
+#   # '--bind' "start:reload:$source_command"
+#   '--bind' "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)"
+#   '--bind' "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)"
+#   '--bind' "change:reload:$reload_command"
+#   '--preview' "$fzf_preview"
+# )
+#
+# echo "${fzf_args[@]}"
+
+# printf 'query: %s\n' "$*"
+printf 'source: %s\n' "$source_command"
+printf 'reload: %s\n' "change:reload:$reload_command"
+
+# It may be useful but prefer the initil pipe for now
+# --bind "start:reload:$source_command"
+
+# Call fzf
+commits=($(eval "$source_command" |
+  fzf \
+  --height 80% --min-height 20 --border \
+  --info=inline \
+  --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+  --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+  --bind 'ctrl-s:toggle-sort' \
+  --bind 'alt-f:first' \
+  --bind 'alt-l:last' \
+  --bind 'alt-c:clear-query' \
+  --prompt 'GitSearch> ' \
+  --header 'ctrl-r: interactive search | ctrl-f: Fzf filtering of results' \
+  --multi --ansi \
+  --layout=reverse \
+  --disabled \
+  --query "$*" \
+  --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)" \
+  --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)" \
+  --bind "change:reload:$reload_command" \
+  --preview "$fzf_preview" |
+  awk '{ print $1 }'))
+
+# If no commits, exit
+if [ -z "${commits[*]}" ]; then
+  exit
+fi
+
+# Open in editor
+if [ "$open" = true ]; then
+  tmpfile="$(mktemp)"
+  git show "${commits[@]}" > "$tmpfile"
+  exec "$editor" -c ":filetype detect" "$tmpfile"
+fi
+
+# Show selected commits
+git show "${commits[@]}"
+
