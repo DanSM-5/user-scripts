@@ -54,9 +54,10 @@ $reload_command = $base_command -f '{q} || true'
 # Setup preview
 $fzf_preview = 'git show --color=always {1} '
 if (Get-Command -Name delta -All -ErrorAction SilentlyContinue) {
-  $fzf_preview="$fzf_preview | delta || true"
+  $trueCmd = if ($IsWindows) { 'cd .' } else { 'true' }
+  $fzf_preview="$fzf_preview | delta || $trueCmd"
 } else {
-  $fzf_preview="$fzf_preview || true"
+  $fzf_preview="$fzf_preview || $trueCmd"
 }
 
 # It may be useful but prefer the initil pipe for now
