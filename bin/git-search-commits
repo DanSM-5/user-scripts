@@ -73,26 +73,6 @@ else
   fzf_preview="$fzf_preview || true"
 fi
 
-# fzf_args=(
-#   '--prompt' 'GitSearch> '
-#   '--header' 'ctrl-r: interactive search | ctrl-f: Fzf filtering of results'
-#   '--multi' '--ansi'
-#   '--layout=reverse'
-#   '--disabled'
-#   '--query' "$*"
-#   # '--bind' "start:reload:$source_command"
-#   '--bind' "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)"
-#   '--bind' "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)"
-#   '--bind' "change:reload:$reload_command"
-#   '--preview' "$fzf_preview"
-# )
-#
-# echo "${fzf_args[@]}"
-
-# printf 'query: %s\n' "$*"
-printf 'source: %s\n' "$source_command"
-printf 'reload: %s\n' "change:reload:$reload_command"
-
 # It may be useful but prefer the initil pipe for now
 # --bind "start:reload:$source_command"
 
@@ -108,7 +88,7 @@ commits=($(eval "$source_command" |
   --bind 'alt-l:last' \
   --bind 'alt-c:clear-query' \
   --prompt 'GitSearch> ' \
-  --header 'ctrl-r: interactive search | ctrl-f: Fzf filtering of results' \
+  --header "($mode) | ctrl-r: interactive search | ctrl-f: Fzf filtering of results" \
   --multi --ansi \
   --layout=reverse \
   --disabled \
