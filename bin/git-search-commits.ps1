@@ -10,7 +10,7 @@ Param(
   [Switch] $String = $false,
   # Manual mode
   [ValidateSet('log', 'regex', 'string')]
-  [Switch] $Mode = '',
+  [String] $Mode = '',
   # Edit
   [Switch] $Edit = $false,
   [Switch] $Help = $false,
