@@ -5,6 +5,35 @@ mode='log'
 open=false
 editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
 
+showHelp () {
+  printf "%s\n" "
+    Git search in commits or patches
+
+    Select a mode for search and interactively search in the logs or the patches
+    of the commits. Fzf have two modes, git search (initial) and fuzzy filter to
+    narrow on the remaining items available.
+
+    Flags:
+
+      -h, --help                   > Print this message.
+
+      -l, --log                    > Search in the log of the commits.
+
+      -s, --string                 > Search in the patches of commits by exact match.
+
+      -r, --regex                  > Search in the patches of commits by regex.
+
+      -m, --mode                   > Set the mode with a string instead of a boolean flag.
+
+      -e, --edit                   > Open the selected commits in your editor (\$EDITOR).
+
+    Arguments:
+
+      Remaining arguments are treated as the initial query for search.
+  "
+}
+
+
 # Allow complex regex globs
 shopt -s extglob
 
@@ -33,7 +62,7 @@ while [[ $# -gt 0 ]]; do
       open=true
       shift # past argument
       ;;
-    -[hH]|-?(-)[hH]elp|[hH]elp)
+    -[hH]|-?(-)[hH]elp)
       showHelp
       exit 0
       ;;

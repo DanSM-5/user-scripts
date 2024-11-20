@@ -1,5 +1,62 @@
 #!/usr/bin/env pwsh
 
+<#
+.SYNOPSIS
+  Git search script
+
+.DESCRIPTION
+  Search a string in the logs or search string by exact match or regex in the patches.
+  Use fzf to select the commit hashes and open them with `git show`. If delta is installed,
+  it will be used as the pager.
+
+.PARAMETER Log
+  Search a string in the log of the commits
+
+.PARAMETER Regex
+  Search a string using regex in the patches of the commits
+
+.PARAMETER String
+  Search a string by direct match in the patches of the commits
+
+.PARAMETER Mode
+  Set the search mode by providing a string
+
+.PARAMETER Edit
+  Open the selected commits in your editor ($EDITOR)
+
+.PARAMETER Query
+  Extra arguments or using the `-Query` parameter will be used to build the initial query for search.
+
+.PARAMETER Help
+  Show help message
+
+.INPUTS
+  No input from pipeline
+
+.OUTPUTS
+  Same of `git show [hash]` or none if `-Edit` was passed as output is consumed by temporary file.
+
+.EXAMPLE
+  git-search-commits 'search'
+
+.EXAMPLE
+  git-search-commits -r 'search'
+
+.EXAMPLE
+  git-search-commits -s 'search'
+
+.EXAMPLE
+  git-search-commits -m 'log' 'search'
+
+.EXAMPLE
+  git-search-commits -q 'search'
+
+.NOTES
+  Script respects the EDITOR environment variable. If not present if defaults to vim.
+  If the -Help flag is present, it will be prioritized over the other arguments and script with exit.
+
+#>
+
 [CmdletBinding()]
 Param(
   # Mode log
@@ -19,6 +76,41 @@ Param(
   [Parameter(ValueFromRemainingArguments = $true, position = 0 )]
   [String] $Query = ''
 )
+
+function showHelp {
+  Write-Host "
+    Git search in commits or patches
+
+    Select a mode for search and interactively search in the logs or the patches
+    of the commits. Fzf have two modes, git search (initial) and fuzzy filter to
+    narrow on the remaining items available.
+
+    Flags:
+
+      -Help [switch]               > Print this message.
+
+      -Log [switch]                > Search in the log of the commits.
+
+      -String [switch]             > Search in the patches of commits by exact match.
+
+      -Regex [switch]              > Search in the patches of commits by regex.
+
+      -Mode [string]               > Set the mode with a string instead of a boolean flag.
+
+      -Edit [switch]               > Open the selected commits in your editor (`$EDITOR).
+
+      -Query [string]              > String to search. The flag `-Query` can be omited.
+
+    Arguments:
+
+      Remaining arguments are treated as the initial query for search.
+  "
+}
+
+if ($Help) {
+  showHelp
+  exit
+}
 
 $editor = if ($env:PREFERRED_EDITOR) {
   $env:PREFERRED_EDITOR
