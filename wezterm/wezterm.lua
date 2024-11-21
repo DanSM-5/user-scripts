@@ -105,6 +105,27 @@ if wezterm.gui then
       mods = 'WIN|SHIFT',
       action = act.ReloadConfiguration,
     },
+    -- -- paste from the clipboard
+    -- { key = 'V', mods = 'CTRL', action = act.PasteFrom('Clipboard') },
+    --
+    -- -- paste from the primary selection
+    -- { key = 'V', mods = 'CTRL', action = act.PasteFrom('PrimarySelection') },
+  }
+
+  config.mouse_bindings = {
+    -- right click paste as god intended
+    {
+      event = { Down = { streak = 1, button = 'Right' } },
+      mods = 'NONE',
+      action = act.PasteFrom('Clipboard')
+    },
+    -- Ctrl-click will open the link under the mouse cursor
+    -- NOTE: Why not the default???
+    {
+      event = { Up = { streak = 1, button = 'Left' } },
+      mods = 'CTRL',
+      action = wezterm.action.OpenLinkAtMouseCursor,
+    },
   }
 
 end
