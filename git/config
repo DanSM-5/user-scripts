@@ -11,6 +11,7 @@
 	autocrlf = input
   longPaths = true
   pager = delta
+  ; excludesfile = ~/.gitignore # global .gitignore
 
 [interactive]
   diffFilter = delta --color-only
@@ -46,4 +47,10 @@
 
 [gpg]
 	format = ssh
+
+; [commit]
+;   gpgsign = true # Always sign commit (implicit -S)
+
+; [alias]
+;   amend = commit --amend
 
