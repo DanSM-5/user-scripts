@@ -3,7 +3,7 @@
 if ($IsWindows) {
   # Check if there is a single argument is use
   # Otherwise, forward arguments to real nvm
-  $nvmrc_present = Test-Path "$PSD/.nvmrc" -ea 0
+  $nvmrc_present = Test-Path "$PWD/.nvmrc" -ea 0
   $second_argument_null = $null -eq $args[1]
 
   if ($nvmrc_present -and $second_argument_null) {
