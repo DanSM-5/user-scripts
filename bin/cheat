@@ -60,7 +60,7 @@ PREVIEW="
   printf \"\\n\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\U2501\\n\\n\"
 
   # There is a chance that 'col' is not installed, in that case use just man
-  man \"\$cmd_name\" | col -bx | bat --color=always --language man -p 2> /dev/null ||
+  man \"\$cmd_name\" 2> /dev/null | col -bx 2> /dev/null | bat --color=always --language man -p 2> /dev/null ||
     man \"\$cmd_name\" 2> /dev/null"
 
 
@@ -72,6 +72,7 @@ selected=($(fzf \
   --reverse \
   --cycle \
   --multi \
+  --query "$*" \
   --bind 'ctrl-/:change-preview-window(down|hidden|)' \
   --bind 'alt-up:preview-page-up' \
   --bind 'alt-down:preview-page-down' \
