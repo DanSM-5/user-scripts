@@ -273,7 +273,7 @@ downloadNormal () {
   printf "%s\n" "${urls[@]}" > "$downloadFile"
   downloadFile="$(transform_temp_file "$downloadFile")"
 
-  eval "$download_command $args_string ${args_for_command[@]} --batch-file $downloadFile"
+  eval "$download_command $args_string ${args_for_command[*]} --batch-file $downloadFile"
 }
 
 main () {
@@ -291,7 +291,7 @@ main () {
   local linesRaw=($(gather_urls))
 
   # If no urls where provided, open a buffer
-  if [ -z "$linesRaw" ]; then
+  if [ -z "${linesRaw[*]}" ]; then
     # Open buffer to get strings
     printf "%s\n" "Opening temporary file... Waiting for file to be closed!"
     tempFile="$(mktemp)"
@@ -312,7 +312,7 @@ main () {
 
     # TODO: Support "code --wait"
 
-    eval "$editor ${editorArgs[@]} $tempFile"
+    eval "$editor ${editorArgs[*]} $tempFile"
 
     mapfile -t linesRaw < "$tempFile"
   fi
@@ -338,13 +338,13 @@ main () {
 : :: "** Logging Vars **"
 : :: "Editor:    $editor"
 : :: "Command:   $download_command"
-: :: "Urls:      ${args_urls[@]}"
+: :: "Urls:      ${args_urls[*]}"
 : :: "File:      $file"
 : :: "Stdin:     $use_stdin"
 : :: "Clipboard: $clipboard"
 : :: "verify:    $verify_urls"
 : :: "Args str:  $args_string"
-: :: "Args arr:  ${args_for_command[@]}"
+: :: "Args arr:  ${args_for_command[*]}"
 
 trap on_exit EXIT
 
