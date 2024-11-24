@@ -56,6 +56,7 @@ $PREVIEW = "
 $selected = fzf `
   --preview="$PREVIEW" `
   --preview-window '70%' `
+  --header 'ctrl-h: Show help' `
   --bind=ctrl-h:preview:"Get-Content $help_file" `
   --tiebreak=begin,chunk,length `
   --reverse `
