@@ -50,7 +50,7 @@ PREVIEW="
 
   # Download and cache program cheat page
   if ! [ -f \"\$cmd_file\" ]; then
-    curl -sL cheat.sh/\"\$cmd_name\" > \"\$cmd_file\" || touch \"\$cmd_file\"
+    curl -sL cheat.sh/\"\$cmd_name\" > \"\$cmd_file\" || touch \"\$cmd_file\" 2>/dev/null
   fi
 
   # cheat.sh help

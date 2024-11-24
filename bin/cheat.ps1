@@ -41,7 +41,9 @@ $PREVIEW = "
 
   # Download and cache program cheat page
   if (!(Test-Path -Path `"`$cmd_file`" -PathType Leaf -ErrorAction SilentlyContinue)) {
-    curl -sL `"cheat.sh/`$cmd_name`" > `"`$cmd_file`" || Write-Output ' ' > `"`$cmd_file`"
+    try {
+      curl -sL `"cheat.sh/`$cmd_name`" > `"`$cmd_file`" || Write-Output ' ' > `"`$cmd_file`"
+    } catch { }
   }
 
   # cheat.sh help
