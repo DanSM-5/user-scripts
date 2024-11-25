@@ -146,7 +146,7 @@ switch ($cmd_mode) {
     $base_command = 'git log --color=always --oneline --branches --all -S {0}'
   }
   Default {
-    $base_command = 'git log --color=always --oneline --grep {0}'
+    $base_command = 'git log --color=always --oneline --branches --all --grep {0}'
   }
 }
 
