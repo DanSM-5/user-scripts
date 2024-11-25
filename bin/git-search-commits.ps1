@@ -137,6 +137,8 @@ if (!$cmd_mode) {
 
 $base_command = ''
 
+$trueCmd = if ($IsWindows) { 'cd .' } else { 'true' }
+
 # Git command to perform
 switch ($cmd_mode) {
   'regex' {
@@ -151,12 +153,11 @@ switch ($cmd_mode) {
 }
 
 $source_command = $base_command -f "'$Query'"
-$reload_command = $base_command -f '{q} || true'
+$reload_command = $base_command -f "{q} || $trueCmd"
 
 # Setup preview
 $fzf_preview = 'git show --color=always {1} '
 if (Get-Command -Name delta -All -ErrorAction SilentlyContinue) {
-  $trueCmd = if ($IsWindows) { 'cd .' } else { 'true' }
   $fzf_preview="$fzf_preview | delta || $trueCmd"
 } else {
   $fzf_preview="$fzf_preview || $trueCmd"
