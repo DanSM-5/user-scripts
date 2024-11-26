@@ -54,3 +54,8 @@
 ; [alias]
 ;   amend = commit --amend
 
+; Override <insteadOf> with url
+; [url "https://github.com/"]
+; 	insteadOf = git@github.com:
+; 	insteadOf = git@github-personal:
+
