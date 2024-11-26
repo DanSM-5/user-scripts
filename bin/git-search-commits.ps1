@@ -174,8 +174,12 @@ $source_command | Invoke-Expression |
   --height 80% --min-height 20 --border `
   --info=inline `
   --bind 'ctrl-/:change-preview-window(down|hidden|)' `
+  --bind 'ctrl-^:toggle-preview' `
   --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
+  --bind 'shift-up:preview-up,shift-down:preview-down' `
   --bind 'ctrl-s:toggle-sort' `
+  --bind 'alt-a:select-all' `
+  --bind 'alt-d:deselect-all' `
   --bind 'alt-f:first' `
   --bind 'alt-l:last' `
   --bind 'alt-c:clear-query' `
