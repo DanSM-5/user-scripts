@@ -4,6 +4,8 @@
 mode='log'
 open=false
 editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
+history_location="${FZF_HIST_DIR:-$HOME/.cache/fzf-history}"
+history_file="$history_location/git-search-commits"
 
 showHelp () {
   printf "%s\n" "
@@ -84,11 +86,12 @@ set -- "${POSITIONAL_ARGS[@]}"
 # Git command to perform
 base_command=''
 if [ "$mode" = 'regex' ]; then
-  base_command='git log --color=always --oneline --branches --all -G %s'
+  base_command='git log --color=always --oneline --branches --all -G %s 2>/dev/null'
 elif [ "$mode" = 'string' ]; then
-  base_command='git log --color=always --oneline --branches --all -S %s'
+  base_command='git log --color=always --oneline --branches --all -S %s 2>/dev/null'
 else
-  base_command='git log --color=always --oneline --branches --all --grep %s'
+  mode='log'
+  base_command='git log --color=always --oneline --branches --all --grep %s 2>/dev/null'
 fi
 
 source_command="$(printf "$base_command" "'$*'")"
@@ -102,12 +105,32 @@ else
   fzf_preview="$fzf_preview || true"
 fi
 
+# Ensure history location exists
+mkdir -p "$history_location"
+
+# Find clipboard utility
+copy='true'
+if [[ "$(uname)" =~ MINGW.*|MSYS.*|CYGWIN.*|.*NT.* ]]; then
+  # Gitbash
+  copy="cat '{+f}' | awk '{ print \$1 }' | clip.exe"
+elif [ "$OSTYPE" = 'darwin' ]; then
+  copy="cat {+f} | awk '{ print \$1 }'| pbcopy"
+# Assume linux if above didn't match
+elif [ -n "$WAYLAND_DISPLAY" ] && command -v 'wl-copy' &>/dev/null; then
+  copy="cat {+f} | awk '{ print \$1 }'| wl-copy --foreground --type text/plain"
+elif [ -n "$DISPLAY" ] && command -v 'xsel' &>/dev/null; then
+  copy="cat {+f} | awk '{ print \$1 }' | xsel -i -b"
+elif [ -n "$DISPLAY" ] && command -v 'xclip' &>/dev/null; then
+  copy="cat {+f} | awk '{ print \$1 }'| xclip -i -selection clipboard"
+fi
+
 # It may be useful but prefer the initil pipe for now
 # --bind "start:reload:$source_command"
 
 # Call fzf
 commits=($(eval "$source_command" |
   fzf \
+  --history="$history_file" \
   --height 80% --min-height 20 --border \
   --info=inline \
   --bind 'ctrl-/:change-preview-window(down|hidden|)' \
@@ -121,11 +144,12 @@ commits=($(eval "$source_command" |
   --bind 'alt-l:last' \
   --bind 'alt-c:clear-query' \
   --prompt 'GitSearch> ' \
-  --header "($mode) | ctrl-r: interactive search | ctrl-f: Fzf filtering of results" \
+  --header "Mode: $mode | ctrl-r: Interactive search | ctrl-f: Filtering results | ctrl-y: Copy hashes" \
   --multi --ansi \
   --layout=reverse \
   --disabled \
   --query "$*" \
+  --bind "ctrl-y:execute-silent:$copy" \
   --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)" \
   --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)" \
   --bind "change:reload:$reload_command" \

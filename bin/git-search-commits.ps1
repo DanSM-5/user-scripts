@@ -120,6 +120,15 @@ $editor = if ($env:PREFERRED_EDITOR) {
   'vim'
 }
 
+$history_location = if ($env:FZF_HIST_DIR) {
+  $env:FZF_HIST_DIR
+} else {
+  "$HOME/.cache/fzf-history"
+}
+
+# For fzf --history we need to use forward slashes even on windows
+$history_file = "$history_location/git-search-commits" -Replace '\\', '/'
+
 $cmd_mode = $Mode
 
 # Set mode
@@ -142,18 +151,18 @@ $trueCmd = if ($IsWindows) { 'cd .' } else { 'true' }
 # Git command to perform
 switch ($cmd_mode) {
   'regex' {
-    $base_command = 'git log --color=always --oneline --branches --all -G {0}'
+    $base_command = 'git log --color=always --oneline --branches --all -G {0} 2> $null'
   }
   'string' {
-    $base_command = 'git log --color=always --oneline --branches --all -S {0}'
+    $base_command = 'git log --color=always --oneline --branches --all -S {0} 2> $null'
   }
   Default {
-    $base_command = 'git log --color=always --oneline --branches --all --grep {0}'
+    $base_command = 'git log --color=always --oneline --branches --all --grep {0} 2> $null'
   }
 }
 
 $source_command = $base_command -f "'$Query'"
-$reload_command = $base_command -f "{q} || $trueCmd"
+$reload_command = "$($base_command -f "{q}") || $trueCmd"
 
 # Setup preview
 $fzf_preview = 'git show --color=always {1} '
@@ -163,6 +172,14 @@ if (Get-Command -Name delta -All -ErrorAction SilentlyContinue) {
   $fzf_preview="$fzf_preview || $trueCmd"
 }
 
+# Ensure history location exists
+New-Item -Path $history_location -ItemType Directory -ErrorAction SilentlyContinue
+
+$pwsh = if (Get-Command -Name 'pwsh' -All -ErrorAction SilentlyContinue) { 'pwsh' } else { 'powershell' }
+$copy = '
+  Get-Content {+f} | ForEach-Object { ($_ -Split "\s+")[0] } | Set-Clipboard
+'
+
 # It may be useful but prefer the initil pipe for now
 # --bind "start:reload:$source_command"
 
@@ -171,6 +188,7 @@ $commits = [System.Collections.Generic.List[string]]::new()
 
 $source_command | Invoke-Expression |
   fzf `
+  --history="$history_file" `
   --height 80% --min-height 20 --border `
   --info=inline `
   --bind 'ctrl-/:change-preview-window(down|hidden|)' `
@@ -184,11 +202,13 @@ $source_command | Invoke-Expression |
   --bind 'alt-l:last' `
   --bind 'alt-c:clear-query' `
   --prompt 'GitSearch> ' `
-  --header 'ctrl-r: interactive search | ctrl-f: Fzf filtering of results' `
+  --header "Mode: $cmd_mode | ctrl-r: Interactive search | ctrl-f: Filtering results | ctrl-y: Copy hashes" `
   --multi --ansi `
   --layout=reverse `
   --disabled `
   --query "$Query" `
+  --with-shell "$pwsh -NoLogo -NonInteractive -NoProfile -Command" `
+  --bind "ctrl-y:execute-silent:$copy" `
   --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)" `
   --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)" `
   --bind "change:reload:$reload_command" `
