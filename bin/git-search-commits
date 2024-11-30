@@ -71,6 +71,7 @@ shopt -s extglob
 
 # Args parsing
 # Ref: https://stackoverflow.com/a/14203146
+# shellcheck disable=SC2221 disable=SC2222
 while [[ $# -gt 0 ]]; do
   case $1 in
     -[lL]|-?(-)[lL]og)
@@ -99,11 +100,11 @@ while [[ $# -gt 0 ]]; do
       files+=("'$2'")
       shift # past argument
       shift # past value
-      ;;
+      ;; # das
     -[hH]|-?(-)[hH]elp)
       showHelp
       exit 0
-      ;;
+    ;;
     -*|--*)
       echo "Unknown option $1"
       exit 1
@@ -138,7 +139,10 @@ else
   base_command="$(printf 'git log --color=always --oneline --branches --all --grep %s 2>/dev/null' "$format_files")"
 fi
 
+# Intentional usage of variable in first position of printf
+# shellcheck disable=SC2059
 source_command="$(printf "$base_command" "'$*'")"
+# shellcheck disable=SC2059
 reload_command="$(printf "$base_command" '{q}') || true"
 
 # Setup preview
@@ -158,21 +162,21 @@ if [[ "$(uname)" =~ MINGW.*|MSYS.*|CYGWIN.*|.*NT.* ]]; then
   # Gitbash
   copy="cat '{+f}' | awk '{ print \$1 }' | clip.exe"
 elif [ "$OSTYPE" = 'darwin' ]; then
-  copy="cat {+f} | awk '{ print \$1 }'| pbcopy"
+  copy="cat {+f} | awk '{ print \$1 }' | pbcopy"
 # Assume linux if above didn't match
 elif [ -n "$WAYLAND_DISPLAY" ] && command -v 'wl-copy' &>/dev/null; then
-  copy="cat {+f} | awk '{ print \$1 }'| wl-copy --foreground --type text/plain"
+  copy="cat {+f} | awk '{ print \$1 }' | wl-copy --foreground --type text/plain"
 elif [ -n "$DISPLAY" ] && command -v 'xsel' &>/dev/null; then
   copy="cat {+f} | awk '{ print \$1 }' | xsel -i -b"
 elif [ -n "$DISPLAY" ] && command -v 'xclip' &>/dev/null; then
-  copy="cat {+f} | awk '{ print \$1 }'| xclip -i -selection clipboard"
+  copy="cat {+f} | awk '{ print \$1 }' | xclip -i -selection clipboard"
 fi
 
 # It may be useful but prefer the initil pipe for now
 # --bind "start:reload:$source_command"
 
 # Call fzf
-commits=($(eval "$source_command" |
+mapfile -t commits < <(eval "$source_command" |
   fzf \
   --history="$history_file" \
   --height 80% --min-height 20 --border \
@@ -198,7 +202,8 @@ commits=($(eval "$source_command" |
   --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)" \
   --bind "change:reload:$reload_command" \
   --preview "$fzf_preview" |
-  awk '{ print $1 }'))
+  awk '{ print $1 }'
+)
 
 # If no commits, exit
 if [ -z "${commits[*]}" ]; then

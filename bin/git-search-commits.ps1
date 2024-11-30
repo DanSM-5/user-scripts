@@ -54,6 +54,9 @@
 .EXAMPLE
   git-search-commits -q 'search'
 
+.EXAMPLE
+  git-search-commits -f ./path/to/file1, ./path/to/file2  -q 'search'
+
 .NOTES
   Script respects the EDITOR environment variable. If not present if defaults to vim.
   If the -Help flag is present, it will be prioritized over the other arguments and script with exit.
