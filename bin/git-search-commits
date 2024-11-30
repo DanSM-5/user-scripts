@@ -38,7 +38,7 @@ showHelp () {
       - fzf
       - delta (optional)
 
-      Optional for one of the below (linux only)
+      Linux only. One of the below for clipboard functionality.
       - wl-copy
       - xclip
       - xsel
