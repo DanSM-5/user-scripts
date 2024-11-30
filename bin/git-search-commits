@@ -29,9 +29,9 @@ showHelp () {
       Use ctrl-y to copy hashes to clipboard (require dependencies on linux).
 
     Modes:
-      - Log:       Searches through the messages of the commits (--message/-m).
-      - Regex:     Search through the patches of the commits using regex.
-      - String:    Search through the patches of the commits using exact match.
+      - log:       Searches through the messages of the commits (--message/-m).
+      - regex:     Search through the patches of the commits using regex.
+      - string:    Search through the patches of the commits using exact match.
 
     Dependencies:
       - git
