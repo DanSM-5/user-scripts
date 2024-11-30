@@ -110,7 +110,6 @@ while [[ $# -gt 0 ]]; do
       exit 1
       ;;
     *)
-      # POSITIONAL_ARGS+=("$1") # save positional arg
       POSITIONAL_ARGS+=("$1") # Positional args are considered urls to download
       shift # past argument
       ;;
