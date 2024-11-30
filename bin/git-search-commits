@@ -11,9 +11,23 @@ showHelp () {
   printf "%s\n" "
     Git search in commits or patches
 
-    Select a mode for search and interactively search in the logs or the patches
-    of the commits. Fzf have two modes, git search (initial) and fuzzy filter to
-    narrow on the remaining items available.
+    Description:
+      Select a mode for search and interactively search in the logs or the patches
+      of the commits. Fzf have two modes, git search (initial) and fuzzy filter to
+      narrow on the remaining items available.
+
+    Usage:
+      Call \`git-search-commits\` to start interactive search on fzf.
+
+    Dependencies:
+      - git
+      - fzf
+      - delta (optional)
+
+      Optional for one of the below (linux only)
+      - wl-copy
+      - xclip
+      - xsel
 
     Flags:
 
@@ -170,5 +184,11 @@ fi
 # Open in editor
 tmpfile="$(mktemp)"
 git show "${commits[@]}" > "$tmpfile"
-exec "$editor" -c ":filetype detect" "$tmpfile"
+
+# On (n)vim editor set filetype
+if [[ "$editor" =~ ^n?vim?$ ]]; then
+  exec "$editor" -c ":filetype detect" "$tmpfile"
+else
+  exec "$editor" "$tmpfile"
+fi
 

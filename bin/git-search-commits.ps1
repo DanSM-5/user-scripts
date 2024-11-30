@@ -233,5 +233,11 @@ if (!$Edit) {
 # Open in editor
 $tmpfile = New-TemporaryFile
 git show @commits > $tmpfile.FullName
-& "$editor" -c ":filetype detect" "$tmpfile"
+
+# On (n)vim editor set filetype
+if ($editor -Match '^n?vim?$') {
+  & "$editor" -c ":filetype detect" "$tmpfile"
+} else {
+  & "$editor" "$tmpfile"
+}
 
