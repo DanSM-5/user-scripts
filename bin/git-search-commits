@@ -6,10 +6,14 @@ open=false
 editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
 history_location="${FZF_HIST_DIR:-$HOME/.cache/fzf-history}"
 history_file="$history_location/git-search-commits"
+files=()
 
 showHelp () {
   printf "%s\n" "
     Git search in commits or patches
+
+    Synopsis:
+      \$ git-search-commits [flags] [search string]
 
     Description:
       Select a mode for search and interactively search in the logs or the patches
@@ -17,10 +21,17 @@ showHelp () {
       narrow on the remaining items available.
 
     Usage:
-      Call \`git-search-commits\` to start interactive search on fzf.
+      Call \`git-search-commits\` to start interactive search on fzf. Initial query
+      can be provided to start with a small result set.
+      Target the files you are interested in to narrow the search (see '--file').
       Use ctrl-r to search with git interactively (default mode).
       Use ctrl-f to filter result with fuzzy matches.
       Use ctrl-y to copy hashes to clipboard (require dependencies on linux).
+
+    Modes:
+      - Log:       Searches through the messages of the commits (--message/-m).
+      - Regex:     Search through the patches of the commits using regex.
+      - String:    Search through the patches of the commits using exact match.
 
     Dependencies:
       - git
@@ -45,6 +56,8 @@ showHelp () {
       -m, --mode [mode]            > Set the mode with a string instead of a boolean flag.
 
       -e, --edit                   > Open the selected commits in your editor (\$EDITOR).
+
+      -f, --file [filename]        > File to use to narrow the search. Can be included multiple times.
 
     Arguments:
 
@@ -81,6 +94,12 @@ while [[ $# -gt 0 ]]; do
       open=true
       shift # past argument
       ;;
+    -[fF]|-?(-)[fF]ile)
+      # Store quoted filename
+      files+=("'$2'")
+      shift # past argument
+      shift # past value
+      ;;
     -[hH]|-?(-)[hH]elp)
       showHelp
       exit 0
@@ -100,15 +119,23 @@ done
 # Restore positional arguments
 set -- "${POSITIONAL_ARGS[@]}"
 
-# Git command to perform
+# Command formatting
 base_command=''
+format_files='%s'
+
+if [[ -n "${files[*]}" ]]; then
+  # Process files
+  format_files="%s -- ${files[*]}"
+fi
+
+# Git command to perform
 if [ "$mode" = 'regex' ]; then
-  base_command='git log --color=always --oneline --branches --all -G %s 2>/dev/null'
+  base_command="$(printf 'git log --color=always --oneline --branches --all -G %s 2>/dev/null' "$format_files")"
 elif [ "$mode" = 'string' ]; then
-  base_command='git log --color=always --oneline --branches --all -S %s 2>/dev/null'
+  base_command="$(printf 'git log --color=always --oneline --branches --all -S %s 2>/dev/null' "$format_files")"
 else
   mode='log'
-  base_command='git log --color=always --oneline --branches --all --grep %s 2>/dev/null'
+  base_command="$(printf 'git log --color=always --oneline --branches --all --grep %s 2>/dev/null' "$format_files")"
 fi
 
 source_command="$(printf "$base_command" "'$*'")"

@@ -24,6 +24,9 @@
 .PARAMETER Edit
   Open the selected commits in your editor ($EDITOR)
 
+.PARAMETER File
+  Single file, coma separated list of files or array of files that will be used to narrow the search.
+
 .PARAMETER Query
   Extra arguments or using the `-Query` parameter will be used to build the initial query for search.
 
@@ -72,6 +75,8 @@ Param(
   [Switch] $Edit = $false,
   # Show help
   [Switch] $Help = $false,
+  # Files to narrow search to
+  [String[]] $File = @(),
   # Query to search
   [Parameter(ValueFromRemainingArguments = $true, position = 0 )]
   [String] $Query = ''
@@ -81,16 +86,26 @@ function showHelp {
   Write-Host "
     Git search in commits or patches
 
+    Synopsis:
+      > git-search-commits [flags] [search string]
+
     Description:
       Select a mode for search and interactively search in the logs or the patches
       of the commits. Fzf have two modes, git search (initial) and fuzzy filter to
       narrow on the remaining items available.
 
     Usage:
-      Call \`git-search-commits\` to start interactive search on fzf.
+      Call ``git-search-commits`` to start interactive search on fzf. Initial query
+      can be provided to start with a small result set.
+      Target the files you are interested in to narrow the search (see '-File').
       Use ctrl-r to search with git interactively (default mode).
       Use ctrl-f to filter result with fuzzy matches.
       Use ctrl-y to copy hashes to clipboard (require dependencies on linux).
+
+    Modes:
+      - Log:       Searches through the messages of the commits (--message/-m).
+      - Regex:     Search through the patches of the commits using regex.
+      - String:    Search through the patches of the commits using exact match.
 
     Dependencies:
       - git
@@ -112,6 +127,8 @@ function showHelp {
       -Edit [switch]               > Open the selected commits in your editor (`$EDITOR).
 
       -Query [string]              > String to search. The flag `-Query` can be omited.
+
+      -File [string[]]             > File or files to use to narrow the search.
 
     Arguments:
 
@@ -156,20 +173,29 @@ if (!$cmd_mode) {
   }
 }
 
+# Command formatting
 $base_command = ''
+$files = ''
+$format_files = '{0}'
 
 $trueCmd = if ($IsWindows) { 'cd .' } else { 'true' }
+
+if ($File.Length -gt 0) {
+  # Process files and ensure they are quoted
+  $files = ($File | ForEach-Object { "'$_'" }) -Join ' '
+  $format_files = "{0} -- $files"
+}
 
 # Git command to perform
 switch ($cmd_mode) {
   'regex' {
-    $base_command = 'git log --color=always --oneline --branches --all -G {0} 2> $null'
+    $base_command = 'git log --color=always --oneline --branches --all -G {0} 2> $null' -f $format_files
   }
   'string' {
-    $base_command = 'git log --color=always --oneline --branches --all -S {0} 2> $null'
+    $base_command = 'git log --color=always --oneline --branches --all -S {0} 2> $null' -f $format_files
   }
   Default {
-    $base_command = 'git log --color=always --oneline --branches --all --grep {0} 2> $null'
+    $base_command = 'git log --color=always --oneline --branches --all --grep {0} 2> $null' -f $format_files
   }
 }
 
