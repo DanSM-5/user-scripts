@@ -18,6 +18,9 @@ showHelp () {
 
     Usage:
       Call \`git-search-commits\` to start interactive search on fzf.
+      Use ctrl-r to search with git interactively (default mode).
+      Use ctrl-f to filter result with fuzzy matches.
+      Use ctrl-y to copy hashes to clipboard (require dependencies on linux).
 
     Dependencies:
       - git
@@ -39,7 +42,7 @@ showHelp () {
 
       -r, --regex                  > Search in the patches of commits by regex.
 
-      -m, --mode                   > Set the mode with a string instead of a boolean flag.
+      -m, --mode [mode]            > Set the mode with a string instead of a boolean flag.
 
       -e, --edit                   > Open the selected commits in your editor (\$EDITOR).
 

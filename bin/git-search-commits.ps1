@@ -81,9 +81,21 @@ function showHelp {
   Write-Host "
     Git search in commits or patches
 
-    Select a mode for search and interactively search in the logs or the patches
-    of the commits. Fzf have two modes, git search (initial) and fuzzy filter to
-    narrow on the remaining items available.
+    Description:
+      Select a mode for search and interactively search in the logs or the patches
+      of the commits. Fzf have two modes, git search (initial) and fuzzy filter to
+      narrow on the remaining items available.
+
+    Usage:
+      Call \`git-search-commits\` to start interactive search on fzf.
+      Use ctrl-r to search with git interactively (default mode).
+      Use ctrl-f to filter result with fuzzy matches.
+      Use ctrl-y to copy hashes to clipboard (require dependencies on linux).
+
+    Dependencies:
+      - git
+      - fzf
+      - delta (optional)
 
     Flags:
 
