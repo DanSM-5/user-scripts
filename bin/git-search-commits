@@ -158,7 +158,8 @@ mkdir -p "$history_location"
 
 # Find clipboard utility
 copy='true'
-if [[ "$(uname)" =~ MINGW.*|MSYS.*|CYGWIN.*|.*NT.* ]]; then
+# if [[ "$(uname)" =~ MINGW.*|MSYS.*|CYGWIN.*|.*NT.* ]]; then
+if [ "$OS" = 'Windows_NT' ]; then
   # Gitbash
   copy="cat '{+f}' | awk '{ print \$1 }' | clip.exe"
 elif [ "$OSTYPE" = 'darwin' ]; then
