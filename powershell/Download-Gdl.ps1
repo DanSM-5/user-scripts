@@ -177,12 +177,12 @@ Begin {
   }
 
   # Important declarations
-  $instructions = @'
-# Paste your urls in this file, save it and close it.
-# Empty lines or lines starting with '#' will be ignored.
-# Only valid urls will be processed.
-
-'@
+  $instructions = @(
+    "# Paste your urls in this file, save it and close it.",
+    "# Empty lines or lines starting with '#' will be ignored."
+    "# Only valid urls will be processed.",
+    ''
+  )
 
   $editor = if ($EditorName) { $EditorName } elseif ($env:EDITOR) { $env:EDITOR } else { notepad.exe }
   $tempFile = [PSCustomObject] @{ FullName = '' }
@@ -293,7 +293,7 @@ End {
       Write-Output "Opening temporary file... Waiting for file to be closed!"
 
       $tempFile = New-TemporaryFile
-      $instructions >> $tempFile
+      Out-File -FilePath $tempFile.FullName -InputObject $instructions -Encoding utf8NoBOM
       $editorArgs += $tempFile.FullName
 
       if ($editor -match '[gn]?vi[m]?') {
