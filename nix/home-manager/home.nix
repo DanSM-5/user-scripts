@@ -41,6 +41,7 @@
     btop
     # bun
     chafa
+    # carapace
     delta
     # dog
     dua
@@ -50,29 +51,53 @@
     # fclones
     # fdupes
     fd
+    # file
     ffmpeg
     # fzf
     # gallery-dl
     ghostscript
+    # gawk
+    # gnumake
     glow
+    go
     gron
+    gum
+    # gnused
     highlight
     hyperfine
     imagemagick
+    # iputils
     jq
+    # jx
     jc
     jo
     lf
+    # lua-language-server
+    # ncurses
+    # nodejs_20
     # mpv
     # micro
     neovim
     oh-my-posh
+    # perl
+    # pipx
+    # ps
     # poppler
     poppler_utils
     # procs
     # python3
+    # python3Full
+    # (python3Full.withPackages (ps: with ps; [
+    #   greenlet
+    #   msgpack
+    #   neovim
+    #   pip
+    #   pynvim
+    #   setuptools
+    # ]))
     # rclip
     rclone
+    # rsync
     ripgrep
     rustup
     # rtorrent
@@ -81,11 +106,17 @@
     sqlite
     starship
     tldr
+    # typescript-language-server
+    # unixtools.col
     # transmission
     unrar
+    # unzip
     # xidel
     # yt-dlp
     # ytfzf
+    zig
+    # zip
+    zsh
   ];
 
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
