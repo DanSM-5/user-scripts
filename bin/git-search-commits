@@ -100,7 +100,7 @@ while [[ $# -gt 0 ]]; do
       files+=("'$2'")
       shift # past argument
       shift # past value
-      ;; # das
+      ;;
     -[hH]|-?(-)[hH]elp)
       showHelp
       exit 0
