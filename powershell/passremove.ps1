@@ -102,7 +102,7 @@ try {
         }
 
         # Move original
-        Move-Item $file.Name ($file.Name + ".old")
+        Move-Item $file.Name $oldCompressed
 
         # Change location to tempfile
         Set-Location $dirname
