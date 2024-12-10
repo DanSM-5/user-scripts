@@ -96,6 +96,7 @@ try {
 
       try {
 
+        # [Extract content]
         & $SevenZipCmd @sevenZipExtractArgs
         if (-not $?) {
           throw '7z Uncompress error'
@@ -107,13 +108,16 @@ try {
         # Change location to tempfile
         Set-Location $dirname
 
+        # [Compress content]
         & $SevenZipCmd @sevenZipCompressArgs *
         if (-not $?) {
           throw '7z Compress error'
         }
 
+        # [Update]
         Move-Item $newCompressed $initial_path
         Set-Location $initial_path
+        # [Cleanup]
         Remove-Item -Path "$dirname" -Recurse -Force
 
         Write-Host "
