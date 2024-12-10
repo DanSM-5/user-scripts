@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+
+[[ -v debug ]] && set -x
+
+# Password for archive file
+password=''
+# Directory with archives
+location=''
+# Command to be used. It has to be 7z compatible
+# This is for linux where there is 7z and 7zz
+sevenZipCmd='7z'
+inTypeArchive='7z'
+outTypeArchive='7z'
+
+# Allow complex regex globs
+shopt -s extglob
+
+# Args parsing
+# Ref: https://stackoverflow.com/a/14203146
+# shellcheck disable=SC2221 disable=SC2222
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -[pP]|-?(-)[pP]assword)
+      password="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -[lL]|-?(-)[lL]ocation)
+      location="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -[sS]|-?(-)[sS]evenZipCmd)
+      sevenZipCmd="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -[iI]|-?(-)[iI]nTypeArchive)
+      inTypeArchive="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -[oO]|-?(-)[oO]utTypeArchive)
+      outTypeArchive="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -[hH]|-?(-)[hH]elp)
+      showHelp
+      exit 0
+    ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # Positional args are considered urls to download
+      shift # past argument
+      ;;
+  esac
+done
+
+# Restore positional arguments
+set -- "${POSITIONAL_ARGS[@]}"
+
+pushd "$location" || (echo "Cannot set $location" && exit)
+for file in "$location"/*; do
+  # Do not process directories
+  if [ -d "$file" ]; then
+    continue
+  fi
+
+  ext="${file##*.}"
+  dirname="${file%.*}"
+  newCompressed="${dirname}.${ext}"
+  oldCompressed="${file}.old"
+
+  # Modify args for command here
+
+  # [Extract]
+  sevenZipExtractArgs=(
+    "x"
+    "-t$inTypeArchive"
+    "-p$password"
+    "-o$dirname"
+    "--"
+    "$file"
+  )
+
+  # [Compress]
+  sevenZipCompressArgs=(
+    "a"
+    "-t$outTypeArchive"
+    "$newCompressed"
+    # Important: This is added because the next argument
+    # will be the files which are matched with a glob
+    "--"
+  )
+
+  # [Extract content]
+  if ! "$sevenZipCmd" "${sevenZipExtractArgs[@]}"; then
+    printf "Error with file %s 7z Uncompress error" "$file"
+    printf "
+    Process used args
+    Pass: %s
+    Compress args: %s
+    Uncompress args: %s
+    \n" "$file" "${sevenZipCompressArgs[*]}" "${sevenZipExtractArgs[*]}"
+    continue
+  fi
+
+  # Move original
+  mv "$file" "$oldCompressed"
+
+  # Change location to tempfile
+  pushd "$dirname" || (echo "Cannot set $dirname" && exit)
+
+  # [Compress content]
+  if ! "$sevenZipCmd" "${sevenZipCompressArgs[@]}" *; then
+    printf "Error with file %s 7z Compress error" "$file"
+    printf "
+    Process used args
+    Pass: %s
+    Compress args: %s
+    Uncompress args: %s
+    \n" "$file" "${sevenZipCompressArgs[*]}" "${sevenZipExtractArgs[*]}"
+    continue
+  fi
+
+  # [Update]
+  mv "$newCompressed" "$location"
+  popd || exit
+  # [Cleanup]
+  rm --recursive --force "$dirname"
+
+  printf "
+  File %s been processed
+  Old: %s
+  New: %s
+  \n" "$file" "$oldCompressed" "$newCompressed"
+done
+popd || exit
+
