@@ -119,6 +119,10 @@ if wezterm.gui then
       mods = 'NONE',
       action = act.PasteFrom('Clipboard')
     },
+    {
+      event = { Up = { streak = 1, button = 'Left' } },
+      action = act.Nop,
+    },
     -- Ctrl-click will open the link under the mouse cursor
     -- NOTE: Why not the default???
     {
