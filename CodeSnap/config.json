@@ -1,0 +1,43 @@
+{
+  "window": {
+    "mac_window_bar": false,
+    "shadow": 20,
+    "margin": {
+      "x": 10,
+      "y": 10
+    }
+  },
+  "code": {
+    "font_family": "CaskaydiaCove Nerd Font",
+    "theme": "candy"
+  },
+  "#Sample for watermark": "Remove #",
+  "#watermark": {
+    "#content": "CodeSnap",
+    "#font_family": "Pacifico",
+    "#color": "#ffffff"
+  },
+  "#background can be configured": "Below set with opacity 0 to remove it",
+  "background": "#ffffff00",
+  "#background": {
+    "start": {
+      "x": 0,
+      "y": 0
+    },
+    "end": {
+      "x": "max",
+      "y": 0
+    },
+    "stops": [
+      {
+        "position": 0,
+        "color": "#6bcba5"
+      },
+      {
+        "position": 1,
+        "color": "#caf4c2"
+      }
+    ]
+  }
+}
+
