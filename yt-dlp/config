@@ -1,0 +1,7 @@
+# yt-dlp config
+
+# Save filenames that are windows compatible
+--windows-filenames
+
+# Limit characters in filenames
+# --trim-filenames
