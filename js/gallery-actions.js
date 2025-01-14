@@ -105,7 +105,7 @@ Array.from(
   .map((span, i) => setTimeout(() => span.click(), i * 2 * 1000))
 
 /**
- * @typedef {{ getElements: () => HTMLElement[]; getNextPage: () => HTMLElement | null | undefined; signal: { aborted: boolean }; delay: number }} PaginatedClickProps
+ * @typedef {{ getElements: () => HTMLElement[]; getNextPage: () => HTMLElement | null | undefined; signal?: { aborted: boolean }; delay?: number }} PaginatedClickProps
  */
 
 /**
@@ -209,7 +209,7 @@ paginatedClickProcess({
 // Fanbox - like all
 Array.from(
     /* Fanbox - like all */
-    document.querySelectorAll('.cYueYD')
+    document.querySelectorAll('.fQaTqZ')
 )
   // @ts-ignore
   .map((el, i) => setTimeout( () => el.click(), i * 1000))
@@ -217,10 +217,21 @@ Array.from(
 // Fanbox - unlike all
 Array.from(
     /* Fanbox - unlike all */
-    document.querySelectorAll('.fxIlKe')
+    document.querySelectorAll('.fRvFGs')
 )
   // @ts-ignore
   .map((el, i) => setTimeout( () => el.click(), i * 1000))
+
+
+// Fanbox - paginated like
+paginatedClickProcess({
+  // @ts-ignore
+  getElements: () => Array.from(
+    /* Fanbox - like all */
+    document.querySelectorAll('.fQaTqZ')
+  ),
+  getNextPage: () => (/** @type {HTMLElement} */ (document.querySelector('.Pagination__SelectedItemWrapper-sc-1oq4naf-3 + a'))),
+});
 
 //: }}} :---------------------------------------------------------------------------
 
