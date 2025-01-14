@@ -105,7 +105,7 @@ Array.from(
   .map((span, i) => setTimeout(() => span.click(), i * 2 * 1000))
 
 /**
- * @typedef {{ getElements: () => HTMLElement[]; signal: { aborted: boolean }; delay: number }} PaginatedClickProps
+ * @typedef {{ getElements: () => HTMLElement[]; getNextPage: () => HTMLElement | null | undefined; signal: { aborted: boolean }; delay: number }} PaginatedClickProps
  */
 
 /**
@@ -116,6 +116,7 @@ Array.from(
  */
 const paginatedClickProcess = ({
   getElements = () => [],
+  getNextPage = () => null,
   signal = { aborted: false },
   delay = 2000,
 }) => {
@@ -146,13 +147,13 @@ const paginatedClickProcess = ({
       .map(clickElement),
   );
 
-  const moveNextPage = (callPageProcess) => {
+  const moveNextPage = (/** @type {{ (): Promise<any[]>; (): Promise<any>; }} */ callPageProcess) => {
     return callPageProcess().then(() => {
       /**
        * @type {HTMLButtonElement}
        */
       // @ts-ignore
-      const nextPageBtn = document.querySelectorAll('.sc-xhhh7v-1.hqFKax:not(.iiDpnk) + a:not([hidden])')?.[0];
+      const nextPageBtn = getNextPage()
       if (!nextPageBtn) {
         pending.resolve();
         return;
@@ -183,6 +184,7 @@ paginatedClickProcess({
   )
   // @ts-ignore
   .map((/** @type {HTMLElement} */ el) => el.parentElement),
+  getNextPage: () => (/** @type {HTMLElement} */ (document.querySelectorAll('.sc-xhhh7v-1.hqFKax:not(.iiDpnk) + a:not([hidden])')?.[0]))
 });
 
 // const onAllElements = () => Promise.all(
