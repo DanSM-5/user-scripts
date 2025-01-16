@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+
+# Directions:
+# - Use PREFERRED_EDITOR or EDITOR to set a your prefer editor program
+# - Use TXT_LOCATION to customize location of directory with text files
+
+# Defaults to vim
+editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
+# Defaults to $HOME/prj/txt
+txt="${TXT_LOCATION:-$HOME/prj/txt}"
+
+# Create directory if not already exists
+if ! [ -d "$txt" ]; then
+  printf '%s' "No $txt directory, creating..."
+  mkdir -p "$txt"
+fi
+
+# Checks if a command is available in the path
+command_exists () {
+  command -v "${*}" &> /dev/null
+}
+
+# Use fd if available or fallback to posix compliant `find` command
+if command_exists 'fd'; then
+  find_files () {
+    fd --color=always --type file .
+  }
+  find_files_cmd='fd --color=always --type file .'
+else
+  find_files () {
+    find . -type f
+  }
+  find_files_cmd='find . -type f'
+fi
+
+# Set grep command
+if command_exists 'rg'; then
+  grep_command='rg --with-filename --line-number --color=always {q}'
+else
+  # grep -h -n --color=always -R
+  grep_command='grep --with-filename --line-number --color=always --dereference-recursive {q}'
+fi
+
+# Preview window command
+preview_cmd="
+  LINE={}
+  FILE=\$(awk -F: '{ print \$1 }' <<< \"\$LINE\")
+  NUMBER=\$(awk -F: '{ print \$2 }' <<< \"\$LINE\")
+
+  if [ -z \"\$NUMBER\" ]; then
+    NUMBER=0
+  fi
+
+  # set preview command
+  if command -v bat &> /dev/null; then
+    bat --style='${BAT_STYLE:-numbers}' --color=always --pager=never \
+      --highlight-line=\$NUMBER -- \"\$FILE\"
+  else
+    cat -- \"\$FILE\"
+  fi
+"
+
+# Set opener files
+TEMP_FILE='{+f}'
+case "$(uname -a)" in
+  MINGW*|MSYS*|CYGWIN*|*NT*)
+    # NOTE: On windows the temporary file template needs quotations
+    TEMP_FILE='"{+f}"'
+    ;;
+esac
+if [[ "$editor" =~ .*vim? ]]; then
+  OPENER="if [[ \$FZF_SELECT_COUNT -eq 0 ]]; then
+            $editor {1} +{2}     # No selection. Open the current line in Vim.
+          else
+            # nvim {+f}  # Build quickfix list for the selected items.
+            $editor +cw -q $TEMP_FILE  # Build quickfix list for the selected items.
+          fi"
+else
+  # Handle non vim editors
+  OPENER="if [[ \$FZF_SELECT_COUNT -eq 0 ]]; then
+            $editor {1}
+          else
+            code \$(awk -F: '{print \$1}' $TEMP_FILE | tr '\\\\' '/')
+          fi"
+fi
+
+# Push into directory to avoid long file names
+pushd "$txt" &>/dev/null || return
+
+# Search files
+find_files |
+  fzf --height 80% --min-height 20 --border \
+    --ansi --cycle --multi \
+    --delimiter : \
+    --preview-window '+{2}-/2' \
+    --preview "$preview_cmd" \
+    --prompt 'Files> ' \
+    --info=inline \
+    --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+    --bind 'ctrl-^:toggle-preview' \
+    --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+    --bind 'shift-up:preview-up,shift-down:preview-down' \
+    --bind 'ctrl-s:toggle-sort' \
+    --bind 'alt-a:select-all' \
+    --bind 'alt-d:deselect-all' \
+    --bind 'alt-f:first' \
+    --bind 'alt-l:last' \
+    --bind 'alt-c:clear-query' \
+    --header 'ctrl-f: File selection (reload alt-r) | ctrl-r: Search mode' \
+    --bind "alt-r:reload($find_files_cmd)" \
+    --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Files> )+enable-search+clear-query+rebind(ctrl-r,alt-r)' \
+    --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" \
+    --bind "change:reload:$grep_command" \
+    --bind 'start:unbind(change)' \
+    --bind "enter:become:$OPENER" \
+    --bind "ctrl-o:execute:$OPENER"
+
+# Recover location
+popd &>/dev/null || return
+
