@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+# Directions:
+# - Use PREFERRED_EDITOR or EDITOR to set a your prefer editor program
+# - Use TXT_LOCATION to customize location of directory with text files
+
+# Defaults to vim
+editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
+# Defaults to $HOME/prj/txt
+dirlocation="${TXT_LOCATION:-$HOME/prj/txt}"
+# To use random name if not supplied
+filename=''
+
+filename="${*:-tmp-$(uuidgen 2>/dev/null || date +%d-%m-%Y_%H-%M-%S).md}"
+filename="$dirlocation/$filename"
+mkdir -p "$dirlocation"
+
+"$editor" "$filename"
+
