@@ -4,6 +4,8 @@
 # - Use PREFERRED_EDITOR or EDITOR to set a your prefer editor program
 # - Use TXT_LOCATION to customize location of directory with text files
 
+# Called with arguments 
+query="$*"
 # Defaults to vim
 editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
 # Defaults to $HOME/prj/txt
@@ -61,19 +63,31 @@ preview_cmd="
 "
 
 # Set opener files
-TEMP_FILE='{+f}'
-case "$(uname -a)" in
-  MINGW*|MSYS*|CYGWIN*|*NT*)
-    # NOTE: On windows the temporary file template needs quotations
-    TEMP_FILE='"{+f}"'
-    ;;
-esac
+if [ -n "$OS" ] && [ "$OS" = 'Windows_NT' ]; then
+  # NOTE: On windows the temporary file template needs quotations
+  TEMP_FILE='"{+f}"'
+else
+  TEMP_FILE='{+f}'
+fi
+
 if [[ "$editor" =~ .*vim? ]]; then
-  OPENER="if [[ \$FZF_SELECT_COUNT -eq 0 ]]; then
-            $editor {1} +{2}     # No selection. Open the current line in Vim.
+  OPENER="if [[ \$FZF_SELECT_COUNT -eq 0 ]]; then # No selection. Open the current line in Vim.
+            file={1}
+            line={2}
+            if [ -n \"\$line\" ]; then
+              # from search mode
+              $editor {1} +{2}
+            else
+              # from select mode
+              $editor {1}
+            fi
           else
+            # Ensure all entries match the errorfile format of vim
+            parsed_file=\"\$(mktemp)\"
+            awk -F: '{ if (\$2 == \"\") print \$1\":1:  -\"; else print \$0; }' $TEMP_FILE > \"\$parsed_file\"
             # nvim {+f}  # Build quickfix list for the selected items.
-            $editor +cw -q $TEMP_FILE  # Build quickfix list for the selected items.
+            $editor +cw -q \"\$parsed_file\" # Build quickfix list for the selected items.
+            rm \"\$parsed_file\"
           fi"
 else
   # Handle non vim editors
@@ -84,8 +98,8 @@ else
           fi"
 fi
 
-# Push into directory to avoid long file names
-pushd "$txt" &>/dev/null || return
+# Chang to text files directory to avoid long file names
+cd "$txt" &>/dev/null || return
 
 # Search files
 find_files |
@@ -96,6 +110,7 @@ find_files |
     --preview "$preview_cmd" \
     --prompt 'Files> ' \
     --info=inline \
+    --query "$query" \
     --bind 'ctrl-/:change-preview-window(down|hidden|)' \
     --bind 'ctrl-^:toggle-preview' \
     --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
@@ -114,7 +129,4 @@ find_files |
     --bind 'start:unbind(change)' \
     --bind "enter:become:$OPENER" \
     --bind "ctrl-o:execute:$OPENER"
-
-# Recover location
-popd &>/dev/null || return
 

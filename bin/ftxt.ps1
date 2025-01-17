@@ -2,14 +2,10 @@
 
 <#
 .SYNOPSIS
-  Create or open a text file in a standard location.
+  Open text files for read or edit.
 
 .DESCRIPTION
-  Creates text files in a standard location to store notes.
-  If the file already exists, it will open it.
-
-.PARAMETER Filename
-  Optional parameter to specify file name. If not provided, it will use a random name with a UUID.
+  List of files in the text directory for selection or search.
 
 .INPUTS
   None
@@ -18,21 +14,21 @@
   None
 
 .EXAMPLE
-  ntxt
+  ftxt
 
 .EXAMPLE
-  ntxt filename.md
+  ftxt filename.md
 
 .NOTES
-  Cross platform script.
+  Cross platform script (windows powershell and pwsh).
   Use `PREFERRED_EDITOR` or `EDITOR` environment variable to configure the text editor to use.
   Use `TXT_LOCATION` to configure the path to the txt directory that will store the text files.
-  Use it in conjunction with `ftxt` command to search for created files.
+  Use it in conjunction with `ntxt` command to create or open text files.
 
 #>
 
-# TODO: Implement
-
+# Called with arguments
+$Query = "$args"
 # Detect native path separator
 $dirsep = if ($IsWindows -or ($env:OS -eq 'Windows_NT')) { '\' } else { '/' }
 # Defaults to vim
@@ -83,9 +79,25 @@ function Get-LaunchCommand () {
   if ($editor -match '[gn]?vi[m]?') {
     return @"
       if (`$env:FZF_SELECT_COUNT -eq 0) {
-        $editor $editorOptions {1} +{2}     # No selection. Open the current line in Vim.
+        `$file = {1}
+        `$line = {2}
+        if (`$line) {
+          $editor $editorOptions `$file +`$line     # No selection. Open the current line in Vim.
+        } else {
+          $editor $editorOptions `$file
+        }
       } else {
-        $editor $editorOptions +cw -q $TEMP_FILE  # Build quickfix list for the selected items.
+        # Ensure all entries match the errorfile format of vim
+        `$parsed_file = New-TemporaryFile
+        Get-Content $TEMP_FILE | ForEach-Object {
+          `$items = `$_ -Split ':'
+          if (`$items[1]) {
+            `$_
+          } else {
+            "`$_" + ':1:  -'
+          }
+        } | Out-File -Encoding ASCII `$parsed_file.FullName
+        $editor $editorOptions +cw -q `$parsed_file.FullName  # Build quickfix list for the selected items.
       }
 "@
   } elseif ($editor -eq 'code' -or $editor -eq 'code-insiders' -or $editor -eq 'codium') {
@@ -164,6 +176,7 @@ try {
       --with-shell "$pwsh_cmd" `
       --prompt 'Files> ' `
       --info=inline `
+      --query "$Query" `
       --bind 'ctrl-/:change-preview-window(down|hidden|)' `
       --bind 'ctrl-^:toggle-preview' `
       --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
