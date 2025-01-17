@@ -52,7 +52,13 @@ function find_files () {
 # Find files command
 $find_files_cmd = 'fd --color=always --type file .'
 # Grep command
-$grep_command = 'rg --with-filename --line-number --color=always {q}'
+$grep_command = 'rg --no-heading --smart-case --with-filename --line-number --color=always {q}'
+
+if ($IsWindows -or ($env:OS -eq 'Windows_NT')) {
+  $sleepCmd = ''
+} else {
+  $sleepCmd = 'sleep 0.1;'
+}
 
 function Get-LaunchCommand () {
   # Windows temporary file requires additional quotes around template for '+f'
@@ -190,8 +196,8 @@ try {
       --header 'ctrl-f: File selection (reload alt-r) | ctrl-r: Search mode' `
       --bind "alt-r:reload($find_files_cmd)" `
       --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Files> )+enable-search+clear-query+rebind(ctrl-r,alt-r)' `
-      --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" `
-      --bind "change:reload:$grep_command" `
+      --bind ("ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)") `
+      --bind "change:reload:$sleepCmd $grep_command" `
       --bind 'start:unbind(change)' `
       --bind "enter:become:$OPENER" `
       --bind "ctrl-o:execute:$OPENER"
