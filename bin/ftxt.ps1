@@ -28,7 +28,7 @@
 #>
 
 # Called with arguments
-$Query = "$args"
+$Query = if ($args) { @('--query', "$args") } else { @() }
 # Detect native path separator
 $dirsep = if ($IsWindows -or ($env:OS -eq 'Windows_NT')) { '\' } else { '/' }
 # Defaults to vim
@@ -176,7 +176,7 @@ try {
       --with-shell "$pwsh_cmd" `
       --prompt 'Files> ' `
       --info=inline `
-      --query "$Query" `
+      @Query `
       --bind 'ctrl-/:change-preview-window(down|hidden|)' `
       --bind 'ctrl-^:toggle-preview' `
       --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
