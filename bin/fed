@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+
+# Enable debug logs
+[[ -v debug ]] && set -x
+
+# Path to search files in
+location="${1:-.}"
+# Query to pass to fzf
+query="${*:2}"
+pattern="."
+editor="${PREFERRED_EDITOR:-"${EDITOR:-vim}"}"
+# env variable for user config location
+user_conf_path="${user_conf_path:-"$HOME/.usr_conf"}"
+
+# If location is not a directory
+# set it as the pattern and search from the home directory
+if ! [ -d "$location" ]; then
+  pattern="$location"
+  location="$HOME"
+fi
+
+if [ -f "$user_conf_path/fzf/fd_show" ]; then
+  mapfile -t fd_show < "$user_conf_path/fzf/fd_show"
+else
+  fd_show=()
+fi
+
+if [ -f "$user_conf_path/fzf/fd_exclude" ]; then
+  mapfile -t fd_exclude < "$user_conf_path/fzf/fd_exclude"
+else
+  fd_exclude=()
+fi
+
+while IFS='' read -r new_line; do
+  selection+=("$new_line")
+done < <(fd --color=always \
+    "${fd_show[@]}" \
+    "${fd_exclude[@]}" \
+    -L -tf "$pattern" "$location" |
+  fzf --height 80% --min-height 20 --border \
+    --info=inline \
+    --bind 'alt-f:first' \
+    --bind 'alt-l:last' \
+    --bind 'alt-c:clear-query' \
+    --bind 'ctrl-a:select-all' \
+    --bind 'ctrl-d:deselect-all' \
+    --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+    --bind 'ctrl-^:toggle-preview' \
+    --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+    --bind 'ctrl-s:toggle-sort' \
+    --ansi \
+    --cycle \
+    --multi \
+    --preview-window '60%' \
+    --preview "$user_conf_path/utils/fzf-preview.sh {}" \
+    --header "(ctrl-/) Search in: $location" \
+    --query "$query")
+
+# shellcheck disable=SC2128
+if [ -z "$selection" ]; then
+  exit
+fi
+
+"$editor" "${selection[@]}"
+
