@@ -11,7 +11,7 @@ dirlocation="${TXT_LOCATION:-$HOME/prj/txt}"
 # To use random name if not supplied
 filename=''
 
-filename="${*:-tmp-$(uuidgen 2>/dev/null || date +%d-%m-%Y_%H-%M-%S).md}"
+filename="${*:-note_$(date +%d-%m-%Y_%H-%M-%S).md}"
 filename="$dirlocation/$filename"
 mkdir -p "$dirlocation"
 

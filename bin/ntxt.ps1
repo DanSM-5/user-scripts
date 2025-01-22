@@ -48,10 +48,10 @@ $editor = if ($env:PREFERRED_EDITOR) { $env:PREFERRED_EDITOR } elseif ($env:EDIT
 # Defaults to $HOME/prj/txt
 $dirlocation = if ($env:TXT_LOCATION) { $env:TXT_LOCATION } else { "${HOME}${dirsep}prj${dirsep}txt" }
 
-$filename = if ($filename) { $filename } else { "tmp-$(New-Guid).md" }
+$filename = if ($filename) { $filename } else { "note_$(Get-Date -Format 'dd-MM-yyyy_HH:mm:ss').md" }
 $filename = "${dirlocation}${dirsep}${filename}"
 
-New-Item -Path $dirlocation -ItemType Directory -ea 0
+New-Item -Path $dirlocation -ItemType Directory -ErrorAction SilentlyContinue
 
 & $editor "$filename"
 
