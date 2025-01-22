@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# Create a scratch buffer to take raw notes
+# File is meant to be discarded
+# If you want to preserve the file use
+# :save /path/to/save
+
+editor="${PREFERRED_EDITOR:-"${EDITOR:-vim}"}"
+
+# Open temp file on [n]vim
+"${editor}" "/tmp/scratch/tmp-$(uuidgen 2>/dev/null || date +%d-%m-%Y_%H-%M-%S).md"
+
