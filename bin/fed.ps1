@@ -31,7 +31,7 @@ $fzf_options = @(
   '--height', '80%',
   '--min-height', '20',
   '--border'
-  '--info=inline',
+  '--input-border',
   '--bind', 'alt-f:first',
   '--bind', 'alt-l:last',
   '--bind', 'alt-c:clear-query',

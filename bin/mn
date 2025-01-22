@@ -26,10 +26,14 @@ else
   program="$("$MAN" -k . |
     fzf --prompt='Man> ' --no-multi \
       --ansi --cycle \
-      --info=inline \
+      --input-border \
       --history="$FZF_HIST_DIR/man-vim" \
       --header 'Select man page' \
       --bind 'ctrl-s:toggle-sort' \
+      --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+      --bind 'ctrl-^:toggle-preview' \
+      --bind 'alt-up:preview-page-up' \
+      --bind 'alt-down:preview-page-down' \
       --bind 'alt-a:select-all' \
       --bind 'alt-d:deselect-all' \
       --bind 'alt-f:first' \

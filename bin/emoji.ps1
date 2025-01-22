@@ -34,6 +34,7 @@ $selected_emoji = @( Get-Content $emoji_file |
     --height 80% --min-height 20 --border `
     --history "$history_file" `
     --info=inline `
+    --input-border `
     --bind 'ctrl-/:change-preview-window(down|hidden|)' `
     --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
     --bind 'ctrl-s:toggle-sort' `

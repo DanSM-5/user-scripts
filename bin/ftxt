@@ -109,7 +109,7 @@ find_files |
     --preview-window '+{2}-/2' \
     --preview "$preview_cmd" \
     --prompt 'Files> ' \
-    --info=inline \
+    --input-border \
     --query "$query" \
     --bind 'ctrl-/:change-preview-window(down|hidden|)' \
     --bind 'ctrl-^:toggle-preview' \

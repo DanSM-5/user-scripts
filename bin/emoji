@@ -30,11 +30,12 @@ if [[ "$(uname)" =~ MSYS.*|MINGW.*|CYGWIN.* ]]; then
   chcp.com 65001 &> /dev/null
 fi
 
-selected_emoji=($(cat "$emoji_file" |
+mapfile -t selected_emoji < <(
   fzf --multi --ansi \
     --height 80% --min-height 20 --border \
     --history "$history_file" \
     --info=inline \
+    --input-border \
     --bind 'ctrl-/:change-preview-window(down|hidden|)' \
     --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
     --bind 'ctrl-s:toggle-sort' \
@@ -45,9 +46,9 @@ selected_emoji=($(cat "$emoji_file" |
     --bind "ctrl-y:execute-silent(awk 'NF { print \$1 }' '{+f}' | clip-copy)" \
     --bind "ctrl-u:execute-silent(awk 'NF { print \$2 }' '{+f}' | clip-copy)" \
     --bind "ctrl-t:execute-silent(awk 'NF { print \$0 }' '{+f}' | clip-copy)" \
-    --header 'Copy emoji: ctrl-y | Copy desc: ctrl-u | Copy all: ctrl-t' |
+    --header 'Copy emoji: ctrl-y | Copy desc: ctrl-u | Copy all: ctrl-t' < "$emoji_file" |
   awk '{ print $1 }' \
-))
+)
 
 printf '%s\n' "${selected_emoji[@]}"
 

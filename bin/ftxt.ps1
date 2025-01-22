@@ -181,7 +181,7 @@ try {
       --preview "$preview_cmd" `
       --with-shell "$pwsh_cmd" `
       --prompt 'Files> ' `
-      --info=inline `
+      --input-border `
       @Query `
       --bind 'ctrl-/:change-preview-window(down|hidden|)' `
       --bind 'ctrl-^:toggle-preview' `

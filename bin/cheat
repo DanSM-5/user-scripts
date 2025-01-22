@@ -64,12 +64,13 @@ PREVIEW="
     man \"\$cmd_name\" 2> /dev/null"
 
 
-selected=($(fzf \
+mapfile -t selected < <(fzf \
   --preview="$PREVIEW" \
   --preview-window '70%' \
   --header 'ctrl-h: Show help' \
   --bind=ctrl-h:preview:"cat $help_file" \
   --tiebreak=begin,chunk,length \
+  --input-border \
   --reverse \
   --cycle \
   --multi \
@@ -83,10 +84,9 @@ selected=($(fzf \
   --bind 'alt-c:clear-query' \
   --bind 'alt-a:select-all' \
   --bind 'alt-d:deselect-all' \
-  --bind 'ctrl-l:toggle-preview' \
-  --bind "start:$RELOAD" \
-  --bind "change:$RELOAD"
-))
+  --bind 'ctrl-^:toggle-preview' \
+  --bind "start:$RELOAD"
+)
 
 if [ -z "${selected[*]}" ]; then
   exit

@@ -231,7 +231,7 @@ $source_command | Invoke-Expression |
   fzf `
   --history="$history_file" `
   --height 80% --min-height 20 --border `
-  --info=inline `
+  --input-border `
   --bind 'ctrl-/:change-preview-window(down|hidden|)' `
   --bind 'ctrl-^:toggle-preview' `
   --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `

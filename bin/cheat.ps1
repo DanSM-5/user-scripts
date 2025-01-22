@@ -59,6 +59,7 @@ $selected = fzf `
   --header 'ctrl-h: Show help' `
   --bind=ctrl-h:preview:"Get-Content $help_file" `
   --tiebreak=begin,chunk,length `
+  --input-border `
   --reverse `
   --cycle `
   --multi `
@@ -73,9 +74,8 @@ $selected = fzf `
   --bind 'alt-c:clear-query' `
   --bind 'alt-a:select-all' `
   --bind 'alt-d:deselect-all' `
-  --bind 'ctrl-l:toggle-preview' `
-  --bind "start:$RELOAD" `
-  --bind "change:$RELOAD"
+  --bind 'ctrl-^:toggle-preview' `
+  --bind "start:$RELOAD"
 
 if (!$selected) {
   exit
