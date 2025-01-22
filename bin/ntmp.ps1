@@ -34,5 +34,7 @@ $editor = if ($env:PREFERRED_EDITOR) { $env:PREFERRED_EDITOR }
   elseif ($env:EDITOR) { $env:EDITOR }
   else { vim }
 
+New-Item -ItemType Directory -Path $temporary -ErrorAction SilentlyContinue
+
 & $editor "$temporary${dirsep}tmp-$(New-Guid).md"
 

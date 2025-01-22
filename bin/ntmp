@@ -6,7 +6,10 @@
 # :save /path/to/save
 
 editor="${PREFERRED_EDITOR:-"${EDITOR:-vim}"}"
+scratch_dir="/tmp/scratch"
+
+mkdir -p "$scratch_dir"
 
 # Open temp file on [n]vim
-"${editor}" "/tmp/scratch/tmp-$(uuidgen 2>/dev/null || date +%d-%m-%Y_%H-%M-%S).md"
+"${editor}" "/$scratch_dir/tmp-$(uuidgen 2>/dev/null || date +%d-%m-%Y_%H-%M-%S).md"
 
