@@ -5,6 +5,11 @@ Host github-personal
   IdentitiesOnly yes
   User git
 
+# Macos only to store on keychain
+# Host *
+# UseKeyChanin yes
+# AddKeysToAgent yes
+
 # Fallback all non-specific
 # Host *
 #   Hostname github.com
