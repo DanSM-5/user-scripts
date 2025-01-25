@@ -216,3 +216,34 @@ cd path/to/repo
 git submodule update --init [--recursive] # use recursive to handle nested submodules
 ````
 
+## Use git for colorising output
+
+Get color escape sequences using git
+
+```bash
+rbb=`git config --get-color "" "red black bold"`
+reset=`git config --get-color "" "reset"`
+
+echo "${rbb}ERROR${reset}: Message"
+```
+
+## Manage config files with git
+
+Use git to manage config files
+
+```bash
+config_location='/path/to/config'
+
+cget () {
+  git config --file "$config_location" get "$1"
+}
+
+cset () {
+  git config --file "$config_location" set "$@"
+}
+
+cuns () {
+  git config --file "$config_location" unset "$1"
+}
+```
+

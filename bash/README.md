@@ -139,3 +139,30 @@ For multiple key codes use `read -r` and exit by pressing enter:
 read -r
 ```
 
+## Handle logn and short flags
+
+Before running through `getopts`, translate out convenient long-versions
+
+```bash
+  for opt in "$@"; do
+    shift
+    case "${opt}" in
+      '--disable-emoji-db')    set -- "$@" '-j' ;;
+      '--disable-emoticon-db') set -- "$@" '-m' ;;
+      '--escape')              set -- "$@" '-e' ;;
+      '--help')                set -- "$@" '-h' ;;
+      '--languages')           set -- "$@" '-l' ;;
+      '--print-languages')     set -- "$@" '-p' ;;
+      '--skin-tones')          set -- "$@" '-s' ;;
+      '--verbose')             set -- "$@" '-v' ;;
+      *)                       set -- "$@" "${opt}" ;;
+    esac
+  done
+
+  # Back to the beginning now and get our opts
+  OPTIND=1
+  while getopts ':e:hjl:mpvs:' opt; do
+    # and so on
+[...]
+```
+
