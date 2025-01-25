@@ -23,7 +23,8 @@
   rebase = false
 
 [interactive]
-  diffFilter = delta --color-only
+  # Cat is needed to avoid hanging on windows
+  diffFilter = delta --color-only | cat
 [add.interactive]
   useBuiltin = false # required for git 2.37.0
 
