@@ -73,3 +73,8 @@
 ; 	insteadOf = git@github.com:
 ; 	insteadOf = git@github-personal:
 
+# Sample aliases
+[alias]
+  st = status
+  up = ! git fetch && git pull --rebase
+
