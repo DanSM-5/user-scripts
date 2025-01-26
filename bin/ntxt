@@ -12,7 +12,7 @@ dirlocation="${TXT_LOCATION:-$HOME/prj/txt}"
 filename=''
 
 filename="${*:-note_$(date +%d-%m-%Y_%H-%M-%S).md}"
-filename="$dirlocation/$filename"
+filename="$dirlocation/${filename#/}"
 mkdir -p "$dirlocation"
 
 "$editor" "$filename"
