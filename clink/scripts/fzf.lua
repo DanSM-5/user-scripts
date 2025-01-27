@@ -1023,8 +1023,12 @@ addexflags(clink.argmatcher('fzf'), {
 --------------------------------------------------------------------------------
 -- Custom Variables.
 
+-- Workaround for diagnostics
+os.setenv = os.setenv
+
 local home = os.getenv('USERPROFILE') or ''
--- user_conf_path = home .. '\\.usr_conf'
+local user_conf_path = home .. '\\.usr_conf'
+local user_scripts_path = home .. '\\user-scripts'
 local fzf_preview_script = home .. '\\.usr_conf\\utils\\fzf-preview.ps1'
 local fzf_copy_helper = home .. '\\.usr_conf\\utils\\copy-helper.ps1'
 local fzf_log_helper = home .. '\\.usr_conf\\utils\\log-helper.ps1'
@@ -1090,34 +1094,126 @@ FD_EXCLUDE_OPTIONS_LIST = {
   '--exclude', 'nodejs',
   '--exclude', 'podman',
   '--exclude', 'PlayOnLinux*',
-  '--exclude', '.PlayOnLinux'
+  '--exclude', '.PlayOnLinux',
 }
 
 FD_EXCLUDE_OPTIONS = table.concat(FD_EXCLUDE_OPTIONS_LIST, ' ')
 FD_SHOW_OPTIONS = table.concat(FD_SHOW_OPTIONS_LIST, ' ')
 FD_OPTIONS = FD_SHOW_OPTIONS .. ' ' .. FD_EXCLUDE_OPTIONS
 
-local preview_window_binding = ' --bind "ctrl-/:change-preview-window(down|hidden|)" '
-local common_bindings = ' --bind "alt-a:select-all" --bind "alt-d:deselect-all" --bind "alt-f:first" --bind "alt-l:last" --bind "alt-c:clear-query" --bind "alt-up:preview-page-up,alt-down:preview-page-down,ctrl-s:toggle-sort" '
+local preview_window_binding = table.concat({
+  '--bind', '"ctrl-/:change-preview-window(down|hidden|)"',
+  '--bind', '"ctrl-^:toggle-preview"'
+}, ' ')
+local common_bindings = table.concat({
+  '--bind', 'alt-a:select-all',
+  '--bind', 'alt-d:deselect-all',
+  '--bind', 'alt-f:first',
+  '--bind', 'alt-l:last',
+  '--bind', 'alt-c:clear-query',
+  '--bind', 'alt-up:preview-page-up,alt-down:preview-page-down',
+  '--bind', 'ctrl-s:toggle-sort',
+}, ' ')
+local common_opts = table.concat({
+  '--ansi', '--cycle',
+  '--input-border',
+}, ' ')
+local fzf_default_cmd = table.concat({
+  'rg', '--files',
+  '--no-ignore', '--hidden', '--follow',
+  '--glob', '"!.git"',
+  '--glob', '"!node_modules"',
+}, ' ')
+local fzf_ctrlt_cmd = table.concat({
+  'fd',
+  '--color=always',
+  FD_OPTIONS,
+}, ' ')
+local fzf_altc_cmd = table.concat({
+  'fd',
+  '--color=always',
+  '--type', 'directory',
+  FD_OPTIONS,
+}, ' ')
+
 local shome = home:gsub([[\]], '/')
-local def_history = '--history=' .. shome .. '/.cache/fzf-history/fzf-history-default '
-local ctrlr_history = '--history=' .. shome .. '/.cache/fzf-history/fzf-history-ctrlr '
-local ctrlt_history = '--history=' .. shome .. '/.cache/fzf-history/fzf-history-ctrlt '
-local altc_history = '--history=' .. shome .. '/.cache/fzf-history/fzf-history-altc '
+local sconf = user_conf_path:gsub([[\]], '/')
+local scrip = user_scripts_path:gsub([[\]], '/')
+local def_history = '--history=' .. shome .. '/.cache/fzf-history/fzf-history-default'
+local ctrlr_history = '--history=' .. shome .. '/.cache/fzf-history/fzf-history-ctrlr'
+local ctrlt_history = '--history=' .. shome .. '/.cache/fzf-history/fzf-history-ctrlt'
+local altc_history = '--history=' .. shome .. '/.cache/fzf-history/fzf-history-altc'
 
-os.setenv('FZF_DEFAULT_OPTS', def_history .. " --height=80% --layout=reverse --border --color=dark --color='fg:-1,bg:-1,hl:#c678dd,fg+:#ffffff,bg+:#4b5263,hl+:#d858fe' --color='info:#98c379,prompt:#61afef,pointer:#be5046,marker:#e5c07b,spinner:#61afef,header:#61afef'")
+local fzf_default_opts = table.concat({
+  def_history,
+  '--height=80%',
+  '--layout=reverse', '--border', '--color=dark',
+  '--color="fg:-1,bg:-1,hl:#c678dd,fg+:#ffffff,bg+:#4b5263,hl+:#d858fe"',
+  '--color="info:#98c379,prompt:#61afef,pointer:#be5046,marker:#e5c07b,spinner:#61afef,header:#61afef"',
+}, ' ')
 
-os.setenv('FZF_CTRL_R_OPTS', ctrlr_history .. common_bindings .. ' --preview "pwsh -NoLogo -NonInteractive -NoProfile -File ' .. fzf_log_helper .. ' {}" --preview-window "up:3:hidden:wrap" --bind "ctrl-/:toggle-preview" --bind "ctrl-y:execute-silent(pwsh -NoLogo -NonInteractive -NoProfile -File ' .. fzf_copy_helper .. ' {})+abort" --color header:italic --cycle --prompt "History> " --header "ctrl-y: Copy"')
+local fzf_ctrlr_opts = table.concat({
+  ctrlr_history,
+  common_bindings,
+  common_opts,
+  '--with-shell', '"pwsh -NoProfile -NonInteractive -NoLogo -Command"',
+  '--preview', '"' .. fzf_log_helper .. ' {}"',
+  '--preview-window', 'up:3:hidden:wrap',
+  '--bind', 'ctrl-/:toggle-preview',
+  '--bind', '"ctrl-y:execute-silent(' .. fzf_copy_helper .. ' {})+abort"',
+  '--color', 'header:italic',
+  '--prompt', '"History> "',
+  '--header', '"ctrl-y: Copy"',
+}, ' ')
 
-os.setenv('FZF_CTRL_T_OPTS', ctrlt_history .. common_bindings .. preview_window_binding .. ' --preview "pwsh -NoProfile -NonInteractive -NoLogo -File ' .. fzf_preview_script .. ' . {}" --multi --ansi --cycle --header "ctrl-a: All | ctrl-d: Dirs | ctrl-f: Files | ctrl-y: Copy | ctrl-t: CWD" --prompt "All> " --bind "ctrl-a:change-prompt(All >)+reload(fd --color=always ' .. FD_OPTIONS .. ')" --bind "ctrl-f:change-prompt(Files >)+reload(fd --color=always --type file ' .. FD_OPTIONS .. ')" --bind "ctrl-d:change-prompt(Dirs >)+reload(fd --color=always --type directory ' .. FD_OPTIONS .. ')" --bind "ctrl-t:change-prompt(CWD >)+reload(eza --color=always --all --oneline --dereference --group-directories-first)" --bind "ctrl-y:execute-silent(pwsh -NoLogo -NonInteractive -NoProfile -File ' .. fzf_copy_helper .. ' {+f})+abort" --bind "ctrl-o:execute-silent(pwsh -NoLogo -NoProfile -NonInteractive -Command Start-Process {})+abort" --preview-window "60%" ')
+local fzf_ctrlt_opts = table.concat({
+  ctrlt_history,
+  common_bindings,
+  preview_window_binding,
+  common_opts,
+  '--with-shell', '"pwsh -NoProfile -NonInteractive -NoLogo -Command"',
+  '--preview', '"' .. fzf_preview_script .. ' . {}"',
+  '--multi', '--ansi', '--cycle',
+  '--header', '"ctrl-a: All | ctrl-d: Dirs | ctrl-f: Files | ctrl-y: Copy | ctrl-t: CWD"',
+  '--prompt', '"All> "',
+  '--bind', '"ctrl-a:change-prompt(All >)+reload(fd --color=always ' .. FD_OPTIONS .. ')"',
+  '--bind', '"ctrl-f:change-prompt(Files >)+reload(fd --color=always --type file ' .. FD_OPTIONS .. ')"',
+  '--bind', '"ctrl-d:change-prompt(Dirs >)+reload(' .. fzf_altc_cmd .. ' ' .. FD_OPTIONS .. ')"',
+  '--bind', '"ctrl-t:change-prompt(CWD >)+reload(eza --color=always --all --oneline --dereference --group-directories-first)"',
+  '--bind', '"ctrl-y:execute-silent(' .. fzf_copy_helper .. ' {+f})+abort"',
+  '--bind', '"ctrl-o:execute-silent(Start-Process {})+abort"',
+  '--preview-window', '"60%"',
+}, ' ')
 
-os.setenv('FZF_ALT_C_OPTS', altc_history .. common_bindings .. preview_window_binding .. ' --ansi --cycle --prompt "CD> " --color header:italic --preview-window "60%" --preview "pwsh -NoProfile -NonInteractive -NoLogo -File ' .. fzf_preview_script .. ' . {}" ')
+local fzf_altc_opts = table.concat({
+  altc_history,
+  common_bindings,
+  preview_window_binding,
+  common_opts,
+  '--with-shell', '"pwsh -NoProfile -NonInteractive -NoLogo -Command"',
+  '--preview', '"' .. fzf_preview_script .. ' . {}"',
+  '--prompt "CD> "',
+  '--color header:italic',
+  '--preview-window', '60%',
+  '--bind', '"ctrl-t:change-prompt(CWD> )+reload(eza -A --show-symlinks --color=always --only-dirs --dereference --no-quotes --oneline $PWD)"',
+  '--bind', '"ctrl-a:change-prompt(CD> )+reload(' .. fzf_altc_cmd .. ')"',
+  '--bind', '"ctrl-u:change-prompt(Up> )+reload(' .. fzf_altc_cmd .. ' . ..)"',
+  '--bind', '"ctrl-e:change-prompt(Scripts> )+reload(echo '.. sconf .. ' ; ' .. fzf_altc_cmd .. ' . ' .. sconf .. ')"',
+  '--bind', '"ctrl-r:change-prompt(Config> )+reload(echo '.. scrip .. ' ; ' .. fzf_altc_cmd .. ' . ' .. scrip .. ')"',
+  '--bind', '"ctrl-w:change-prompt(Projects> )+reload('.. fzf_altc_cmd .. ' . ' .. shome .. '/projects)"',
+}, ' ')
 
+-- fd show and exclude options
 os.setenv('FD_SHOW_OPTIONS', FD_SHOW_OPTIONS)
 os.setenv('FD_EXCLUDE_OPTIONS', FD_EXCLUDE_OPTIONS)
 os.setenv('FD_OPTIONS', FD_OPTIONS)
-
-os.setenv('FZF_DEFAULT_COMMAND', 'rg --files --no-ignore --hidden --follow')
-os.setenv('FZF_CTRL_T_COMMAND', 'fd --color=always ' .. FD_OPTIONS)
-os.setenv('FZF_ALT_C_COMMAND', 'fd --type directory --color=always ' .. FD_OPTIONS)
+-- fzf variables: commands
+os.setenv('FZF_DEFAULT_COMMAND', fzf_default_cmd)
+os.setenv('FZF_CTRL_T_COMMAND', fzf_ctrlt_cmd)
+os.setenv('FZF_ALT_C_COMMAND', fzf_altc_cmd)
+-- fzf variables: options
+os.setenv('FZF_DEFAULT_OPTS', fzf_default_opts)
+os.setenv('FZF_CTRL_R_OPTS', fzf_ctrlr_opts)
+os.setenv('FZF_CTRL_T_OPTS', fzf_ctrlt_opts)
+os.setenv('FZF_ALT_C_OPTS', fzf_altc_opts)
 
