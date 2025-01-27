@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
 
-# NOTE:
-# less uses the below variable to print unicode characters instead
-# of displaying the sequence. Needed to bat with paging=always flag.
-# Ref: https://github.com/sharkdp/bat/issues/2578#issuecomment-1598332705
-export LESSUTFCHARDEF=E000-F8FF:p,F0000-FFFFD:p,100000-10FFFD:p
+# NOTE: This script does not work when running from powershell
+# Calling the lf_pager for powershell seems to do nothing
+if [ "$IS_CMD" = true ] || [ "$IS_POWERSHELL" = true ]; then
+  pwsh.exe -NoLogo -NonInteractive -NoProfile -File "$user_scripts_path/bin/lf_pager.ps1" "${@}"
+  # exit 0
+  # export LESSUTFCHARDEF=E000-F8FF:p,F0000-FFFFD:p,100000-10FFFD:p
+  # "$user_conf_path/utils/fzf-preview.sh" "${@}" | bat
+else
+  # NOTE:
+  # less uses the below variable to print unicode characters instead
+  # of displaying the sequence. Needed to bat with paging=always flag.
+  # Ref: https://github.com/sharkdp/bat/issues/2578#issuecomment-1598332705
+  export LESSUTFCHARDEF=E000-F8FF:p,F0000-FFFFD:p,100000-10FFFD:p
 
-"$user_conf_path/utils/fzf-preview.sh" "$@" | bat --style=plain --color=always --paging=always
+  "$user_conf_path/utils/fzf-preview.sh" "$@" | bat --style=plain --color=always --paging=always
+fi
 
