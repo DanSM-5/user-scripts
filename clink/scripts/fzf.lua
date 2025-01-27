@@ -1139,10 +1139,11 @@ local fzf_altc_cmd = table.concat({
 local shome = home:gsub([[\]], '/')
 local sconf = user_conf_path:gsub([[\]], '/')
 local scrip = user_scripts_path:gsub([[\]], '/')
-local def_history = '--history=' .. shome .. '/.cache/fzf-history/fzf-history-default'
-local ctrlr_history = '--history=' .. shome .. '/.cache/fzf-history/fzf-history-ctrlr'
-local ctrlt_history = '--history=' .. shome .. '/.cache/fzf-history/fzf-history-ctrlt'
-local altc_history = '--history=' .. shome .. '/.cache/fzf-history/fzf-history-altc'
+local fzf_hist_dir = shome .. '/.cache/fzf-history'
+local def_history = '--history=' .. fzf_hist_dir .. '/fzf-history-default'
+local ctrlr_history = '--history=' .. fzf_hist_dir .. '/fzf-history-ctrlr'
+local ctrlt_history = '--history=' .. fzf_hist_dir .. '/fzf-history-ctrlt'
+local altc_history = '--history=' .. fzf_hist_dir .. '/fzf-history-altc'
 
 local fzf_default_opts = table.concat({
   def_history,
@@ -1190,6 +1191,7 @@ local fzf_altc_opts = table.concat({
   common_bindings,
   preview_window_binding,
   common_opts,
+  '--header', '"ctrl-a: CD | ctrl-d: Up | ctrl-e: Config | ctrl-r: Scripts | ctrl-t: CWD | ctrl-w: Projects"',
   '--with-shell', '"pwsh -NoProfile -NonInteractive -NoLogo -Command"',
   '--preview', '"' .. fzf_preview_script .. ' . {}"',
   '--prompt "CD> "',
@@ -1203,6 +1205,8 @@ local fzf_altc_opts = table.concat({
   '--bind', '"ctrl-w:change-prompt(Projects> )+reload('.. fzf_altc_cmd .. ' . ' .. shome .. '/projects)"',
 }, ' ')
 
+-- History location for fzf
+os.setenv('FZF_HIST_DIR', fzf_hist_dir)
 -- fd show and exclude options
 os.setenv('FD_SHOW_OPTIONS', FD_SHOW_OPTIONS)
 os.setenv('FD_EXCLUDE_OPTIONS', FD_EXCLUDE_OPTIONS)
