@@ -3,25 +3,26 @@
 # TODO: consider using IFS="\n" for some open options
 
 if [ "$IS_WSL" = true ]; then
-  for filename in ${fx[@]}; do
+  for filename in "${fx[@]}"; do
     # xdg-open opens a terminal in linux gui
     # xdg-open $filename
-    pwsh.exe -nolo -nonin -nopro -c Start-Process \""$(wslpath -aw $filename)"\" &
+    pwsh.exe -nolo -nonin -nopro -c Start-Process \""$(wslpath -aw "$filename")"\" &
   done
 elif [ "$IS_LINUX" = true ]; then
-  for filename in ${fx[@]}; do
-    xdg-open $filename &
+  for filename in "${fx[@]}"; do
+    xdg-open "$filename" &
   done
 elif [ "$IS_MAC" = true ]; then
-  for filename in ${fx[@]}; do
-    open $filename &
+  for filename in "${fx[@]}"; do
+    open "$filename" &
   done
 elif command -v "start" &> /dev/null; then
-  for filename in ${fx[@]}; do
-    # TODO: consider changing start to avoid executing files
-    start "$(convert_path_to_unix "$filename")"
-    # Using powershell doesn't require name conversion
-    # powershell.exe -nolo -nonin -nopro -c "Start-Process $filename"
+  for filename in "${fx[@]}"; do
+    if [[ -f $filename ]] || [[ -d $filename ]]; then
+      pwsh.exe -nolo -nonin -nopro -c "Start-Process '$filename'"
+      # NOTE: The below fails with complex file names
+      # start "$filename"
+    fi
   done
 fi
 

@@ -17,10 +17,9 @@ try {
 
   # Expand '~' and normalize paths to use forward slash
   $path_arg = "$args".Replace('~', $HOME).Replace('\', '/').Trim()
-  $location = $PWD.ProviderPath.Replace('\', '/')
 
   # Feed it to the fzf-preview script
-  & "$env:user_conf_path/utils/fzf-preview.ps1" $location $path_arg
+  & "$env:user_conf_path/utils/fzf-preview.ps1" $path_arg
 } finally {
   $OutputEncoding = $InitialOutputEncoding
   [Console]::OutputEncoding = $InitialConsoleEncoding

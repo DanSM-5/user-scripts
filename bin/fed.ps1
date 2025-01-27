@@ -25,7 +25,7 @@ if ($PSVersionTable.PSVersion -gt [version]'7.0.0') {
   $change_preview_window = 'right|down|'
 }
 $fzfPreviewScript = Join-Path -Path $user_conf_path -ChildPath 'utils/fzf-preview.ps1'
-$fzf_preview_normal = "$fzfPreviewScript . {}"
+$fzf_preview_normal = "$fzfPreviewScript {}"
 
 $fzf_options = @(
   '--height', '80%',
