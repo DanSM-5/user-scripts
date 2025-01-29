@@ -74,3 +74,36 @@ gpg --search-keys names
 
 Tries to search public gpg servers using the names
 
+## Sign documents
+
+To sign a document with GPG, you can use the following command to create a clear-text signature:
+
+```bash
+gpg --armor --output file.txt.asc --clear-sign file.txt
+```
+
+- The `--armor` option ensures that the output is in ASCII format
+
+Alternatively, you can create a detached signature, which separates the signature from the original document:
+
+```bash
+gpg --armor --output file.txt.sig --detach-sign file.txt
+```
+
+This command generates a signature file file.txt.sig that can be used to verify the authenticity and integrity of file.txt.
+
+
+## Verify signature
+
+For clear-text signature:
+
+```bash
+gpg --verify file.txt.asc
+```
+
+For a detached signature:
+
+```bash
+gpg --verify file.txt.sig file.txt
+```
+
