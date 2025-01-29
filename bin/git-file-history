@@ -1,0 +1,239 @@
+#!/usr/bin/env bash
+
+open=false
+git_args=()
+
+showHelp () {
+  printf "%s\n" "
+    Show the commit history on a file
+
+    Synopsis:
+      \$ git-file-history [flags] [file to search]
+
+    Description:
+      Show the commit history of a file and preview the patches of that file.
+
+    Usage:
+      Call \`git-file-history\` to view the history of commits on a specific file.
+      Use ctrl-y to copy hashes to clipboard (require dependencies on linux).
+      Use ctrl-a to display the full patch and ctrl-d to display the patch on the specific file (default).
+
+    Dependencies:
+      - git
+      - fzf
+      - delta (optional)
+
+      Linux only. One of the below for clipboard functionality.
+      - wl-copy
+      - xclip
+      - xsel
+
+    Flags:
+
+      -h, --help                   > Print this message.
+
+      -a, --all                    > Include all references in the search (tags, branches, etc.)
+
+      -e, --edit                   > Open the selected commits in your editor (\$EDITOR).
+
+      -f, --file [filename]        > File to use to narrow the search. Can be included multiple times.
+
+    Arguments:
+
+      Remaining arguments are treated as the initial query for search.
+  "
+}
+
+# Allow complex regex globs
+shopt -s extglob
+
+# Args parsing
+# Ref: https://stackoverflow.com/a/14203146
+# shellcheck disable=SC2221 disable=SC2222
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -[aA]|-?(-)[aA]ll)
+      git_args+=('--all')
+      shift # past argument
+      ;;
+    -[eE]|-?(-)[eE]edit)
+      open=true
+      shift # past argument
+      ;;
+    -[hH]|-?(-)[hH]elp)
+      showHelp
+      exit 0
+    ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # Positional args are considered urls to download
+      shift # past argument
+      ;;
+  esac
+done
+
+# Restore positional arguments
+set -- "${POSITIONAL_ARGS[@]}"
+
+filename="$1"
+
+if [ -z "$filename" ] || ! [ -f "$filename" ]; then
+  # Preview window command
+  file_preview="
+    LINE={}
+    FILE=\$(awk -F: '{ print \$1 }' <<< \"\$LINE\")
+    NUMBER=\$(awk -F: '{ print \$2 }' <<< \"\$LINE\")
+
+    if [ -z \"\$NUMBER\" ]; then
+      NUMBER=0
+    fi
+
+    # set preview command
+    if command -v bat &> /dev/null; then
+      bat --style='${BAT_STYLE:-numbers}' --color=always --pager=never \
+        --highlight-line=\$NUMBER -- \"\$FILE\"
+    else
+      cat -- \"\$FILE\"
+    fi
+  "
+
+  # Set grep command
+  if command -v 'rg' &>/dev/null; then
+    grep_command='rg --with-filename --line-number --color=always {q}'
+  else
+    # grep -h -n --color=always -R
+    grep_command='grep --with-filename --line-number --color=always --dereference-recursive {q}'
+  fi
+
+  # Set reload command
+  if command -v 'fd' &>/dev/null; then
+    reload_files='fd --type file --color=always'
+  else
+    # grep -h -n --color=always -R
+    reload_files='find . -type f'
+  fi
+
+  filename="$(fzf \
+    --walker=file \
+    --preview "$file_preview" \
+    --ansi --cycle \
+    --border \
+    --input-border \
+    --delimiter : \
+    --no-multi \
+    --bind "alt-r:reload($reload_files)" \
+    --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Select file> )+enable-search+clear-query+rebind(ctrl-r,alt-r)' \
+    --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" \
+    --bind "change:reload:$grep_command" \
+    --bind 'start:unbind(change)' \
+    --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+    --bind 'ctrl-^:toggle-preview' \
+    --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+    --bind 'shift-up:preview-up,shift-down:preview-down' \
+    --bind 'alt-f:first' \
+    --bind 'alt-l:last' \
+    --bind 'alt-c:clear-query' \
+    --preview-window '+{2}-/2' \
+    --prompt 'Select file> ' |
+    cut -d':' -f1
+  )"
+fi
+
+if [ -z "$filename" ]; then
+  rbb="$(git config --get-color "" "red black bold")"
+  echo "${rbb}You need to provide a file or select one" >&2
+  exit
+fi
+
+# echo "$filename"
+# exit
+
+editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
+history_location="${FZF_HIST_DIR:-$HOME/.cache/fzf-history}"
+history_file="$history_location/git-search-commits"
+
+# Ensure history location exists
+mkdir -p "$history_location"
+
+
+# Find clipboard utility
+copy='true'
+if [ "$OS" = 'Windows_NT' ]; then
+  # Gitbash
+  copy="cat '{+f}' | awk '{ print \$1 }' | clip.exe"
+elif [ "$OSTYPE" = 'darwin' ]; then
+  copy="cat {+f} | awk '{ print \$1 }' | pbcopy"
+# Assume linux if above didn't match
+elif [ -n "$WAYLAND_DISPLAY" ] && command -v 'wl-copy' &>/dev/null; then
+  copy="cat {+f} | awk '{ print \$1 }' | wl-copy --foreground --type text/plain"
+elif [ -n "$DISPLAY" ] && command -v 'xsel' &>/dev/null; then
+  copy="cat {+f} | awk '{ print \$1 }' | xsel -i -b"
+elif [ -n "$DISPLAY" ] && command -v 'xclip' &>/dev/null; then
+  copy="cat {+f} | awk '{ print \$1 }' | xclip -i -selection clipboard"
+fi
+
+git_command="git log --color=always --oneline --follow ${git_args[*]} -- %s || true"
+source_command="$(printf "$git_command" "$filename")"
+
+preview='git show --color=always {1} %s'
+if command -v delta &>/dev/null; then
+  preview_cmd="$(printf "$preview" "-- \"$filename\" | delta")"
+  preview_all="$(printf "$preview" ' | delta ')"
+else
+  preview_cmd="$(printf "$preview" "-- \"$filename\"")"
+  preview_all="$(printf "$preview" '')"
+fi
+
+# Call fzf
+mapfile -t commits < <(eval "$source_command" |
+  fzf \
+  --history="$history_file" \
+  --height 80% --min-height 20 --border \
+  --input-border \
+  --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+  --bind 'ctrl-^:toggle-preview' \
+  --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+  --bind 'shift-up:preview-up,shift-down:preview-down' \
+  --bind 'ctrl-s:toggle-sort' \
+  --bind 'alt-a:select-all' \
+  --bind 'alt-d:deselect-all' \
+  --bind 'alt-f:first' \
+  --bind 'alt-l:last' \
+  --bind 'alt-c:clear-query' \
+  --prompt 'GitSearch> ' \
+  --header "ctrl-a: Show full patch | ctrl-d: Show file patch | ctrl-y: Copy hashes" \
+  --multi --ansi \
+  --layout=reverse \
+  --bind "ctrl-y:execute-silent:$copy" \
+  --bind "ctrl-a:transform:echo 'preview:$preview_all'" \
+  --bind "ctrl-d:transform:echo 'preview:$preview_cmd'" \
+  --preview-window "right,70%" \
+  --preview "$preview_cmd" |
+  awk '{ print $1 }'
+)
+
+# If no commits, exit
+if [ -z "${commits[*]}" ]; then
+  exit
+fi
+
+# Show selected commits
+if [ "$open" = false ]; then
+  git show "${commits[@]}"
+  exit
+fi
+
+# Open in editor
+tmpfile="$(mktemp)"
+git show "${commits[@]}" > "$tmpfile"
+
+# On (n)vim editor set filetype
+if [[ "$editor" =~ ^n?vim?$ ]]; then
+  exec "$editor" -c ":filetype detect" "$tmpfile"
+else
+  exec "$editor" "$tmpfile"
+fi
+
