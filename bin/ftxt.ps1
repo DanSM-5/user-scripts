@@ -45,10 +45,6 @@ if (-not (Test-Path -PathType Container -Path "$txt" -ErrorAction SilentlyContin
   return
 }
 
-function find_files () {
-  fd --color=always --type file .
-}
-
 # Find files command
 $find_files_cmd = 'fd --color=always --type file .'
 # Grep command
@@ -155,10 +151,9 @@ $OPENER = Get-LaunchCommand
 
 # Preview window command
 $preview_cmd = "
-  `$selected = {}
-  `$LINE = (({}) -Split ':')
-  `$FILE = `$LINE[0]
-  `$NUMBER = if (`$LINE[1] -eq `$null) { '0' } else { `$LINE[1] }
+  `$FILE = {1}
+  `$LINE = {2}
+  `$NUMBER = if (-Not (`$LINE.Trim())) { '0' } else { `$LINE }
 
   # set preview command
   if (Get-Command -All -Name 'bat' -ErrorAction SilentlyContinue) {
@@ -173,7 +168,7 @@ try {
   Push-Location "$txt" *> $null
 
   # Search files
-  find_files |
+  $find_files_cmd | Invoke-Expression |
     fzf --height 80% --min-height 20 --border `
       --ansi --cycle --multi `
       --delimiter : `
