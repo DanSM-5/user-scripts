@@ -152,6 +152,19 @@ if ($Display) {
   $fzf_args.Add('+{2}-/2,right,60%')
 }
 
+# Special environment variables to customize internal commands
+$GFH_FZF_ARGS = if ($env:GFH_FZF_ARGS) { $env:GFH_FZF_ARGS } else { '' }
+$GFH_GIT_ARGS = if ($env:GFH_GIT_ARGS) { $env:GFH_GIT_ARGS } else { '' }
+$GFH_FD_ARGS = if ($env:GFH_FD_ARGS) { $env:GFH_FD_ARGS } else { '' }
+$GFH_RG_ARGS = if ($env:GFH_RG_ARGS) { $env:GFH_RG_ARGS } else { '' }
+$GFH_BAT_ARGS = if ($env:GFH_BAT_ARGS) { $env:GFH_BAT_ARGS } else { '' }
+
+foreach ($farg in ($GFH_FZF_ARGS -Split ' ')) {
+  if ($farg.Trim()) {
+    $fzf_args.Add($farg.Trim())
+  }
+}
+
 if ($File.Count -eq 0) {
   # Preview window command
   $file_preview = "
@@ -161,29 +174,28 @@ if ($File.Count -eq 0) {
 
     # set preview command
     if (Get-Command -All -Name 'bat' -ErrorAction SilentlyContinue) {
-      bat --style='numbers' --color=always --pager=never --highlight-line=`$NUMBER -- `$FILE
+      bat --style='numbers' --color=always --pager=never --highlight-line=`$NUMBER $GFH_BAT_ARGS -- `$FILE
     } else {
-      Get-Content `$FILE
+      Get-Content $GFH_BAT_ARGS `$FILE
     }
   "
 
   # Set grep command
   if (Get-Command -Name 'rg' -All) {
-    $grep_command = 'rg --with-filename --line-number --color=always {q}'
+    $grep_command = "rg --with-filename --line-number --color=always $GFH_RG_ARGS {q}"
   } else {
-    $grep_command = 'grep --with-filename --line-number --color=always --dereference-recursive {q}'
+    $grep_command = "grep --with-filename --line-number --color=always --dereference-recursive $GFH_RG_ARGS {q}"
   }
 
   # Set reload command
   if (Get-Command -Name 'fd' -All) {
-    $reload_files = 'fd --type file --color=always'
+    $reload_files = "fd --type file --color=always $GFH_FD_ARGS"
   } else {
-    $reload_files = 'Get-ChildItem -Recurse | % { Resolve-Path -Relative $_.FullName }'
+    $reload_files = "Get-ChildItem -Recurse $GFH_FD_ARGS | % { Resolve-Path -Relative $_.FullName }"
   }
 
   $filename = $reload_files | Invoke-Expression |
     fzf `
-      @fzf_args `
       --ansi --cycle `
       --border `
       --delimiter : `
@@ -206,7 +218,8 @@ if ($File.Count -eq 0) {
       --bind 'alt-f:first' `
       --bind 'alt-l:last' `
       --bind 'alt-c:clear-query' `
-      --prompt 'Select file> ' |
+      --prompt 'Select file> ' `
+      @fzf_args |
     ForEach-Object { ($_ -Split ':')[0] }
 } else {
   # Last one passed
@@ -245,7 +258,7 @@ if ($All) {
   $git_args.Add('--all')
 }
 
-$git_command = "git log --color=always --oneline --follow $git_args -- {0} || true"
+$git_command = "git log --color=always --oneline --follow $git_args $GFH_GIT_ARGS -- {0} || true"
 $source_command = $git_command -f $filename
 
 $preview = 'git show --color=always {0}'
@@ -261,7 +274,6 @@ if (Get-Command -Name 'delta' -All) {
 $commits = [System.Collections.Generic.List[string]]::new()
 
 $source_command | Invoke-Expression | fzf `
-  @fzf_args `
   --history="$history_file" `
   --min-height 20 --border `
   --input-border `
@@ -283,7 +295,8 @@ $source_command | Invoke-Expression | fzf `
   --bind "ctrl-y:execute-silent:$copy" `
   --bind "ctrl-a:transform:$echo 'preview:$preview_all'" `
   --bind "ctrl-f:transform:$echo 'preview:$preview_cmd'" `
-  --preview "$preview_cmd" | ForEach-Object {
+  --preview "$preview_cmd" `
+  @fzf_args | ForEach-Object {
     $line = $_ -split "\s+"
     if ($line[0]) {
       $commits.Add($line[0])

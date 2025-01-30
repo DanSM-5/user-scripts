@@ -107,6 +107,17 @@ else
   )
 fi
 
+# Special environment variables to customize internal commands
+GFH_FZF_ARGS="${GFH_FZF_ARGS:-}"
+GFH_GIT_ARGS="${GFH_GIT_ARGS:-}"
+GFH_FD_ARGS="${GFH_FD_ARGS:-}"
+GFH_RG_ARGS="${GFH_RG_ARGS:-}"
+GFH_BAT_ARGS="${GFH_BAT_ARGS:-}"
+
+for farg in $GFH_FZF_ARGS; do
+  fzf_args+=("$farg")
+done
+
 if [ -z "$filename" ] || ! [ -f "$filename" ]; then
   # Preview window command
   file_preview="
@@ -121,31 +132,30 @@ if [ -z "$filename" ] || ! [ -f "$filename" ]; then
     # set preview command
     if command -v bat &> /dev/null; then
       bat --style='${BAT_STYLE:-numbers}' --color=always --pager=never \
-        --highlight-line=\$NUMBER -- \"\$FILE\"
+        --highlight-line=\$NUMBER $GFH_BAT_ARGS -- \"\$FILE\"
     else
-      cat -- \"\$FILE\"
+      cat $GFH_BAT_ARGS -- \"\$FILE\"
     fi
   "
 
   # Set grep command
   if command -v 'rg' &>/dev/null; then
-    grep_command='rg --with-filename --line-number --color=always {q}'
+    grep_command="rg --with-filename --line-number --color=always $GFH_RG_ARGS {q}"
   else
     # grep -h -n --color=always -R
-    grep_command='grep --with-filename --line-number --color=always --dereference-recursive {q}'
+    grep_command="grep --with-filename --line-number --color=always --dereference-recursive $GFH_RG_ARGS {q}"
   fi
 
   # Set reload command
   if command -v 'fd' &>/dev/null; then
-    reload_files='fd --type file --color=always'
+    reload_files="fd --type file --color=always $GFH_FD_ARGS"
   else
     # grep -h -n --color=always -R
-    reload_files='find . -type f'
+    reload_files="find . -type f $GFH_FD_ARGS"
   fi
 
   filename="$(eval "$reload_files" |
     fzf \
-      "${fzf_args[@]}" \
       --ansi --cycle \
       --border \
       --delimiter : \
@@ -166,7 +176,8 @@ if [ -z "$filename" ] || ! [ -f "$filename" ]; then
       --bind 'alt-f:first' \
       --bind 'alt-l:last' \
       --bind 'alt-c:clear-query' \
-      --prompt 'Select file> ' |
+      --prompt 'Select file> ' \
+      "${fzf_args[@]}" |
     cut -d':' -f1
   )"
 fi
@@ -201,7 +212,7 @@ elif [ -n "$DISPLAY" ] && command -v 'xclip' &>/dev/null; then
   copy="cat {+f} | awk '{ print \$1 }' | xclip -i -selection clipboard"
 fi
 
-git_command="git log --color=always --oneline --follow ${git_args[*]} -- %s || true"
+git_command="git log --color=always --oneline --follow ${git_args[*]} $GFH_GIT_ARGS -- %s || true"
 source_command="$(printf "$git_command" "$filename")"
 
 preview='git show --color=always %s'
@@ -216,7 +227,6 @@ fi
 # Call fzf
 mapfile -t commits < <(eval "$source_command" |
   fzf \
-    "${fzf_args[@]}" \
     --history="$history_file" \
     --min-height 20 --border \
     --input-border \
@@ -237,7 +247,8 @@ mapfile -t commits < <(eval "$source_command" |
     --bind "ctrl-y:execute-silent:$copy" \
     --bind "ctrl-a:transform:echo 'preview:$preview_all'" \
     --bind "ctrl-f:transform:echo 'preview:$preview_cmd'" \
-    --preview "$preview_cmd" |
+    --preview "$preview_cmd" \
+    "${fzf_args[@]}" |
   awk '{ print $1 }'
 )
 
