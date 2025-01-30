@@ -236,7 +236,7 @@ mapfile -t commits < <(eval "$source_command" |
     --layout=reverse \
     --bind "ctrl-y:execute-silent:$copy" \
     --bind "ctrl-a:transform:echo 'preview:$preview_all'" \
-    --bind "ctrl-d:transform:echo 'preview:$preview_cmd'" \
+    --bind "ctrl-f:transform:echo 'preview:$preview_cmd'" \
     --preview "$preview_cmd" |
   awk '{ print $1 }'
 )
