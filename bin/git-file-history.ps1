@@ -211,7 +211,6 @@ if ($File.Count -eq 0) {
       --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" `
       --bind "change:reload:$grep_command" `
       --bind 'start:unbind(change)' `
-      --bind 'ctrl-/:change-preview-window(down|hidden|)' `
       --bind 'ctrl-^:toggle-preview' `
       --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
       --bind 'shift-up:preview-up,shift-down:preview-down' `
@@ -277,7 +276,6 @@ $source_command | Invoke-Expression | fzf `
   --history="$history_file" `
   --min-height 20 --border `
   --input-border `
-  --bind 'ctrl-/:change-preview-window(down|hidden|)' `
   --bind 'ctrl-^:toggle-preview' `
   --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
   --bind 'shift-up:preview-up,shift-down:preview-down' `
