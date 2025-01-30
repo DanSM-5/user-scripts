@@ -99,7 +99,7 @@ if [ "$fullscreen" = 'true' ]; then
     '--bind' 'ctrl-/:change-preview-window(right|hidden|)'
     '--preview-window' '+{2}-/2,top,60%'
   )
-esle
+else
   fzf_args=(
     '--height' '80%'
     '--bind' 'ctrl-/:change-preview-window(down|hidden|)'
