@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+user_conf_path="${user_conf_path:-"$HOME/.usr_conf"}"
+user_scripts_path="${user_scripts_path:-"$HOME/user-scripts"}"
+
 # NOTE: This script does not work when running from powershell
 # Calling the lf_pager for powershell seems to do nothing
 if [ "$IS_CMD" = true ] || [ "$IS_POWERSHELL" = true ]; then
