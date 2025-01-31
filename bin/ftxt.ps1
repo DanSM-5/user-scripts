@@ -165,37 +165,37 @@ $preview_cmd = "
 
 try {
   # Push into directory to avoid long file names
-  Push-Location "$txt" *> $null
+  Push-Location -LiteralPath "$txt" *> $null
 
   # Search files
   $find_files_cmd | Invoke-Expression |
     fzf --height 80% --min-height 20 --border `
       --ansi --cycle --multi `
-      --delimiter : `
-      --preview-window '+{2}-/2' `
-      --preview "$preview_cmd" `
-      --with-shell "$pwsh_cmd" `
-      --prompt 'Files> ' `
-      --input-border `
-      @Query `
-      --bind 'ctrl-/:change-preview-window(down|hidden|)' `
-      --bind 'ctrl-^:toggle-preview' `
-      --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
-      --bind 'shift-up:preview-up,shift-down:preview-down' `
-      --bind 'ctrl-s:toggle-sort' `
       --bind 'alt-a:select-all' `
+      --bind 'alt-c:clear-query' `
       --bind 'alt-d:deselect-all' `
       --bind 'alt-f:first' `
       --bind 'alt-l:last' `
-      --bind 'alt-c:clear-query' `
-      --header 'ctrl-f: File selection (reload alt-r) | ctrl-r: Search mode' `
-      --bind "alt-r:reload($find_files_cmd)" `
+      --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
+      --bind 'ctrl-/:change-preview-window(down|hidden|)' `
+      --bind 'ctrl-^:toggle-preview' `
       --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Files> )+enable-search+clear-query+rebind(ctrl-r,alt-r)' `
-      --bind ("ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)") `
-      --bind "change:reload:$sleepCmd $grep_command" `
+      --bind 'ctrl-s:toggle-sort' `
+      --bind 'shift-up:preview-up,shift-down:preview-down' `
       --bind 'start:unbind(change)' `
+      --bind "alt-r:reload($find_files_cmd)" `
+      --bind "change:reload:$sleepCmd $grep_command" `
+      --bind "ctrl-o:execute:$OPENER" `
       --bind "enter:become:$OPENER" `
-      --bind "ctrl-o:execute:$OPENER"
+      --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" `
+      --delimiter : `
+      --header 'ctrl-f: File selection (reload alt-r) | ctrl-r: Search mode' `
+      --input-border `
+      --preview-window '+{2}-/2' `
+      --preview "$preview_cmd" `
+      --prompt 'Files> ' `
+      --with-shell "$pwsh_cmd" `
+      @Query
   
 } finally {
   # Recover location
