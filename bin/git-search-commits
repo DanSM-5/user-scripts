@@ -173,36 +173,34 @@ elif [ -n "$DISPLAY" ] && command -v 'xclip' &>/dev/null; then
   copy="cat {+f} | awk '{ print \$1 }' | xclip -i -selection clipboard"
 fi
 
-# It may be useful but prefer the initil pipe for now
-# --bind "start:reload:$source_command"
-
 # Call fzf
-mapfile -t commits < <(eval "$source_command" |
-  fzf \
-  --history="$history_file" \
-  --height 80% --min-height 20 --border \
-  --input-border \
-  --bind 'ctrl-/:change-preview-window(down|hidden|)' \
-  --bind 'ctrl-^:toggle-preview' \
-  --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
-  --bind 'shift-up:preview-up,shift-down:preview-down' \
-  --bind 'ctrl-s:toggle-sort' \
-  --bind 'alt-a:select-all' \
-  --bind 'alt-d:deselect-all' \
-  --bind 'alt-f:first' \
-  --bind 'alt-l:last' \
-  --bind 'alt-c:clear-query' \
-  --prompt 'GitSearch> ' \
-  --header "Mode: $mode | ctrl-r: Interactive search | ctrl-f: Filtering results | ctrl-y: Copy hashes" \
-  --multi --ansi \
-  --layout=reverse \
-  --disabled \
-  --query "$*" \
-  --bind "ctrl-y:execute-silent:$copy" \
-  --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)" \
-  --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)" \
-  --bind "change:reload:$reload_command" \
-  --preview "$fzf_preview" |
+mapfile -t commits < <(fzf \
+    --bind 'alt-a:select-all' \
+    --bind 'alt-c:clear-query' \
+    --bind 'alt-d:deselect-all' \
+    --bind 'alt-f:first' \
+    --bind 'alt-l:last' \
+    --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+    --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+    --bind 'ctrl-^:toggle-preview' \
+    --bind 'ctrl-s:toggle-sort' \
+    --bind 'shift-up:preview-up,shift-down:preview-down' \
+    --bind "change:reload:$reload_command" \
+    --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)" \
+    --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)" \
+    --bind "ctrl-y:execute-silent:$copy" \
+    --bind "start:reload:$source_command" \
+    --disabled \
+    --header "Mode: $mode | ctrl-r: Interactive search | ctrl-f: Filtering results | ctrl-y: Copy hashes" \
+    --height 80% --min-height 20 --border \
+    --history="$history_file" \
+    --input-border \
+    --layout=reverse \
+    --multi --ansi \
+    --preview-window '60%' \
+    --preview "$fzf_preview" \
+    --prompt 'GitSearch> ' \
+    --query "$*" |
   awk '{ print $1 }'
 )
 
