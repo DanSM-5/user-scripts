@@ -2,6 +2,7 @@
 
 open=false
 fullscreen=false
+print_hashes=false
 git_args=()
 
 showHelp () {
@@ -45,7 +46,9 @@ showHelp () {
 
       -f, --file [filename]        > File to use for search.
 
-      -d, --display                 > Show fzf in full screen
+      -d, --display                > Show fzf in full screen
+
+      -p, --print                  > Print the hashes on exit
 
     Arguments:
 
@@ -78,10 +81,14 @@ while [[ $# -gt 0 ]]; do
       fullscreen=true
       shift # past argument
       ;;
+    -[pP]|-?(-)[pP]rint)
+      print_hashes=true
+      shift # past argument
+      ;;
     -[hH]|-?(-)[hH]elp)
       showHelp
       exit 0
-    ;;
+      ;;
     -*|--*)
       echo "Unknown option $1"
       exit 1
@@ -251,6 +258,12 @@ mapfile -t commits < <(fzf \
 
 # If no commits, exit
 if [ -z "${commits[*]}" ]; then
+  exit
+fi
+
+# Print selected hashes
+if [ "$print_hashes" = true ]; then
+  printf '%s\n' "${commits[*]}"
   exit
 fi
 

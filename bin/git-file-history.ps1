@@ -22,6 +22,9 @@
 .PARAMETER Display
   Open fzf using the full terminal screen
 
+.PARAMETER Print
+  Print the selected hashes on exit
+
 .INPUTS
   No input from pipeline
 
@@ -38,7 +41,10 @@
   git-file-history -d
 
 .EXAMPLE
-  git-file-history -e 
+  git-file-history -e
+
+.EXAMPLE
+  git-file-history -p
 
 .EXAMPLE
   git-file-history -e -a ./path/to/file
@@ -69,6 +75,8 @@ Param(
   [Switch] $Help = $false,
   # Show fzf in full screen
   [Switch] $Display = $false,
+  # Print the selected hashes on exit
+  [Switch] $Print = $false,
   # Query to search
   [Parameter(ValueFromRemainingArguments = $true, position = 0 )]
   [String[]] $File = @()
@@ -117,6 +125,8 @@ function showHelp {
       -File [filename]             > File to use for search.
 
       -Display [switch]            > Show fzf in full screen
+
+      -Print [switch]              > Print the hashes on exit
 
     Arguments:
 
@@ -302,6 +312,12 @@ $source_command | Invoke-Expression | fzf `
 
 # If no commits, exit
 if ($commits.Count -eq 0) {
+  exit
+}
+
+# Print selected hashes
+if ($Print) {
+  Write-Output @commits
   exit
 }
 

@@ -3,6 +3,7 @@
 # Default mode
 mode='log'
 open=false
+print_hashes=false
 editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
 history_location="${FZF_HIST_DIR:-$HOME/.cache/fzf-history}"
 history_file="$history_location/git-search-commits"
@@ -60,6 +61,8 @@ showHelp () {
 
       -f, --file [filename]        > File to use to narrow the search. Can be included multiple times.
 
+      -p, --print                  > Print the hashes on exit
+
     Arguments:
 
       Remaining arguments are treated as the initial query for search.
@@ -102,10 +105,14 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    -[pP]|-?(-)[pP]rint)
+      print_hashes=true
+      shift # past argument
+      ;;
     -[hH]|-?(-)[hH]elp)
       showHelp
       exit 0
-    ;;
+      ;;
     -*|--*)
       echo "Unknown option $1"
       exit 1
@@ -206,6 +213,12 @@ mapfile -t commits < <(fzf \
 
 # If no commits, exit
 if [ -z "${commits[*]}" ]; then
+  exit
+fi
+
+# Print selected hashes
+if [ "$print_hashes" = true ]; then
+  printf '%s\n' "${commits[*]}"
   exit
 fi
 

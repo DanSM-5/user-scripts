@@ -27,6 +27,9 @@
 .PARAMETER File
   Single file, coma separated list of files or array of files that will be used to narrow the search.
 
+.PARAMETER Print
+  Print the selected hashes on exit
+
 .PARAMETER Query
   Extra arguments or using the `-Query` parameter will be used to build the initial query for search.
 
@@ -55,6 +58,9 @@
   git-search-commits -q 'search'
 
 .EXAMPLE
+  git-file-history -p
+
+.EXAMPLE
   git-search-commits -f ./path/to/file1, ./path/to/file2  -q 'search'
 
 .NOTES
@@ -78,6 +84,8 @@ Param(
   [Switch] $Edit = $false,
   # Show help
   [Switch] $Help = $false,
+  # Print the selected hashes on exit
+  [Switch] $Print = $false,
   # Files to narrow search to
   [String[]] $File = @(),
   # Query to search
@@ -132,6 +140,8 @@ function showHelp {
       -Query [string]              > String to search. The flag `-Query` can be omited.
 
       -File [string[]]             > File or files to use to narrow the search.
+
+      -Print [switch]              > Print the hashes on exit
 
     Arguments:
 
@@ -263,6 +273,12 @@ $source_command | Invoke-Expression | fzf `
 
 # If no commits, exit
 if ($commits.Count -eq 0) {
+  exit
+}
+
+# Print selected hashes
+if ($Print) {
+  Write-Output @commits
   exit
 }
 
