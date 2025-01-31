@@ -54,7 +54,7 @@ $history_location = if ($env:FZF_HIST_DIR) {
   "$HOME/.cache/fzf-history"
 }
 # For fzf --history we need to use forward slashes even on windows
-$history_file = "$history_location/git-file-history" -Replace '\\', '/'
+$history_file = "$history_location/fuzzy-edit" -Replace '\\', '/'
 # Ensure history location exists
 New-Item -Path $history_location -ItemType Directory -ErrorAction SilentlyContinue
 
