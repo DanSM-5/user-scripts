@@ -160,7 +160,7 @@ try {
   # containing a colon ':'.
   # Rather than creating a more robust preview, I'm pulling
   # of a hack here. Sorry whosoever looks at this.
-  Push-Location -LiteralPath $location
+  Push-Location -LiteralPath $location *> $null
 
   $selection = $files_cmd | Invoke-Expression |
     fzf @fzf_args |
@@ -174,6 +174,6 @@ try {
   & "$editor" $selection
 }
 finally {
-  Pop-Location
+  Pop-Location *> $null
 }
 
