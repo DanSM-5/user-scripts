@@ -263,7 +263,7 @@ fi
 
 # Print selected hashes
 if [ "$print_hashes" = true ]; then
-  printf '%s\n' "${commits[*]}"
+  printf '%s\n' "${commits[@]}"
   exit
 fi
 
