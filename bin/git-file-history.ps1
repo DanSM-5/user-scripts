@@ -196,28 +196,27 @@ if ($File.Count -eq 0) {
 
   $filename = $reload_files | Invoke-Expression |
     fzf `
-      --ansi --cycle `
-      --border `
+      --ansi --cycle --no-multi `
+      --bind 'alt-c:clear-query' `
+      --bind 'alt-f:first' `
+      --bind 'alt-l:last' `
+      --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
+      --bind 'ctrl-^:toggle-preview' `
+      --bind 'ctrl-s:toggle-sort' `
+      --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Select file> )+enable-search+clear-query+rebind(ctrl-r,alt-r)' `
+      --bind 'shift-up:preview-up,shift-down:preview-down' `
+      --bind 'start:unbind(change)' `
+      --bind "alt-r:reload($reload_files)" `
+      --bind "change:reload:$grep_command" `
+      --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" `
       --delimiter : `
       --header 'Select a file to search' `
       --input-border `
       --layout=reverse `
-      --min-height 20 `
-      --no-multi `
+      --min-height 20 --border `
       --preview "$file_preview" `
-      --with-shell "$pwsh -NoLogo -NonInteractive -NoProfile -Command" `
-      --bind "alt-r:reload($reload_files)" `
-      --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Select file> )+enable-search+clear-query+rebind(ctrl-r,alt-r)' `
-      --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" `
-      --bind "change:reload:$grep_command" `
-      --bind 'start:unbind(change)' `
-      --bind 'ctrl-^:toggle-preview' `
-      --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
-      --bind 'shift-up:preview-up,shift-down:preview-down' `
-      --bind 'alt-f:first' `
-      --bind 'alt-l:last' `
-      --bind 'alt-c:clear-query' `
       --prompt 'Select file> ' `
+      --with-shell "$pwsh -NoLogo -NonInteractive -NoProfile -Command" `
       @fzf_args |
     ForEach-Object { ($_ -Split ':')[0] }
 } else {
@@ -273,27 +272,27 @@ if (Get-Command -Name 'delta' -All) {
 $commits = [System.Collections.Generic.List[string]]::new()
 
 $source_command | Invoke-Expression | fzf `
-  --history="$history_file" `
-  --min-height 20 --border `
-  --input-border `
-  --bind 'ctrl-^:toggle-preview' `
-  --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
-  --bind 'shift-up:preview-up,shift-down:preview-down' `
-  --bind 'ctrl-s:toggle-sort' `
+  --ansi --cycle --multi `
   --bind 'alt-a:select-all' `
+  --bind 'alt-c:clear-query' `
   --bind 'alt-d:deselect-all' `
   --bind 'alt-f:first' `
   --bind 'alt-l:last' `
-  --bind 'alt-c:clear-query' `
-  --prompt 'File History> ' `
-  --header "ctrl-a: Show full patch | ctrl-f: Show file patch | ctrl-y: Copy hashes" `
-  --multi --ansi `
-  --layout=reverse `
-  --with-shell "$pwsh -NoLogo -NonInteractive -NoProfile -Command" `
-  --bind "ctrl-y:execute-silent:$copy" `
+  --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
+  --bind 'ctrl-^:toggle-preview' `
+  --bind 'ctrl-s:toggle-sort' `
+  --bind 'shift-up:preview-up,shift-down:preview-down' `
   --bind "ctrl-a:transform:$echo 'preview:$preview_all'" `
   --bind "ctrl-f:transform:$echo 'preview:$preview_cmd'" `
+  --bind "ctrl-y:execute-silent:$copy" `
+  --header "ctrl-a: Show full patch | ctrl-f: Show file patch | ctrl-y: Copy hashes" `
+  --history="$history_file" `
+  --input-border `
+  --layout=reverse `
+  --min-height 20 --border `
   --preview "$preview_cmd" `
+  --prompt 'File History> ' `
+  --with-shell "$pwsh -NoLogo -NonInteractive -NoProfile -Command" `
   @fzf_args | ForEach-Object {
     $line = $_ -split "\s+"
     if ($line[0]) {
