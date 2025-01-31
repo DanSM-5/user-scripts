@@ -1,9 +1,36 @@
 #!/usr/bin/env pwsh
 
+[CmdletBinding()]
+Param(
+  # Start fullscreen
+  [Switch] $Fullscreen = $false,
+  # Query to search
+  [Parameter(ValueFromRemainingArguments = $true, position = 0 )]
+  [String[]] $QueryArgs = @()
+)
+
+$fzf_args = [System.Collections.Generic.List[string]]::new()
+
+if ($Fullscreen) {
+  $fzf_args.Add('--height')
+  $fzf_args.Add('100%')
+  $fzf_args.Add('--bind')
+  $fzf_args.Add('ctrl-/:change-preview-window(right|hidden|)')
+  $fzf_args.Add('--preview-window')
+  $fzf_args.Add('+{2}-/2,top,60%')
+} else {
+  $fzf_args.Add('--height')
+  $fzf_args.Add('80%')
+  $fzf_args.Add('--bind')
+  $fzf_args.Add('ctrl-/:change-preview-window(down|hidden|)')
+  $fzf_args.Add('--preview-window')
+  $fzf_args.Add('+{2}-/2,right,60%')
+}
+
 # Path to search files in
-$location = if ($args[0]) { $args[0] } else { '.' }
+$location = if ($QueryArgs[0]) { $QueryArgs[0] } else { '.' }
 # Query to pass to fzf
-$query = $args[1..$args.length]
+$query = $QueryArgs[1..$QueryArgs.length]
 $pattern = '.'
 $editor = if ($env:PREFERRED_EDITOR) { $env:PREFERRED_EDITOR }
   elseif ($env:EDITOR) { $env:EDITOR }
@@ -17,61 +44,26 @@ $user_conf_path = if ($env:user_conf_path) {
 $dirsep = if ($IsWindows -or ($env:OS -eq 'Windows_NT')) { '\' } else { '/' }
 if ($PSVersionTable.PSVersion -gt [version]'7.0.0') {
   $pwsh_cmd = 'pwsh'
-  $preview_window = '60%'
-  $change_preview_window = 'down|hidden|'
 } else {
   $pwsh_cmd = 'powershell'
-  $preview_window = 'hidden,60%'
-  $change_preview_window = 'right|down|'
-}
-$fzfPreviewScript = Join-Path -Path $user_conf_path -ChildPath 'utils/fzf-preview.ps1'
-$fzf_preview_normal = "$fzfPreviewScript {}"
-
-$fzf_options = @(
-  '--height', '80%',
-  '--min-height', '20',
-  '--border'
-  '--input-border',
-  '--bind', 'alt-f:first',
-  '--bind', 'alt-l:last',
-  '--bind', 'alt-c:clear-query',
-  '--bind', 'ctrl-a:select-all',
-  '--bind', 'ctrl-d:deselect-all',
-  '--bind', "ctrl-/:change-preview-window($change_preview_window)",
-  '--bind', 'ctrl-^:toggle-preview',
-  '--bind', 'alt-up:preview-page-up,alt-down:preview-page-down',
-  '--bind', 'ctrl-s:toggle-sort',
-  '--ansi',
-  '--cycle',
-  '--multi',
-  '--preview-window', $preview_window,
-  '--with-shell', "$pwsh_cmd -NoLogo -NonInteractive -NoProfile -Command",
-  '--preview', $fzf_preview_normal,
-  '--header', "(ctrl-/) Search in: $location"
-)
-
-if ($query) {
-  $fzf_options += @('--query', "$query")
 }
 
-$fd_show = "$user_conf_path${dirsep}fzf${dirsep}fd_show" 
-$fd_exclude = "$user_conf_path${dirsep}fzf${dirsep}fd_exclude" 
-
-if (Test-Path -Path $fd_show -PathType Leaf -ErrorAction SilentlyContinue) {
-  $fd_show = Get-Content $fd_show
+$history_location = if ($env:FZF_HIST_DIR) {
+  $env:FZF_HIST_DIR
 } else {
-  $fd_show = @()
+  "$HOME/.cache/fzf-history"
 }
+# For fzf --history we need to use forward slashes even on windows
+$history_file = "$history_location/git-file-history" -Replace '\\', '/'
+# Ensure history location exists
+New-Item -Path $history_location -ItemType Directory -ErrorAction SilentlyContinue
 
-if (Test-Path -Path $fd_exclude -PathType Leaf -ErrorAction SilentlyContinue) {
-  $fd_exclude = Get-Content $fd_exclude
-} else {
-  $fd_exclude = @()
-}
+$FED_RG_ARGS = if ($env:FED_RG_ARGS) { $env:FED_RG_ARGS } else { '' }
+$FED_FZF_ARGS = if ($env:FED_FZF_ARGS) { $env:FED_FZF_ARGS } else { '' }
 
 # If location is not a directory
 # set it as the pattern and search from the home directory
-if ( -not (Test-Path -Path $location -PathType Container -ErrorAction SilentlyContinue) ) {
+if (-not (Test-Path -LiteralPath $location -PathType Container -ErrorAction SilentlyContinue)) {
   $pattern = "$location"
   $location = "$HOME"
 }
@@ -81,21 +73,107 @@ if ("$location" -like '~*') {
   $location = $HOME + $location.Substring(1)
 }
 
-$selection = @($(
-  fd `
-    @fd_show `
-    @fd_exclude `
-    --path-separator '/' `
-    --color=always `
-    -tf `
-    "$pattern" "$location" |
-  fzf `
-    @fzf_options
-))
 
-if (-not $selection) {
-  return
+$fd_show = "$user_conf_path${dirsep}fzf${dirsep}fd_show" 
+$fd_exclude = "$user_conf_path${dirsep}fzf${dirsep}fd_exclude" 
+
+if (Test-Path -LiteralPath $fd_show -PathType Leaf -ErrorAction SilentlyContinue) {
+  $fd_show = Get-Content $fd_show
+} else {
+  $fd_show = @()
 }
 
-& "$editor" $selection
+if (Test-Path -LiteralPath $fd_exclude -PathType Leaf -ErrorAction SilentlyContinue) {
+  $fd_exclude = Get-Content $fd_exclude
+} else {
+  $fd_exclude = @()
+}
+
+# files command assumes fd
+$files_cmd = "fd --color=always $fd_show $fd_exclude --path-separator '/' -L -tf '$pattern'"
+
+# Set grep command
+if (Get-Command -Name 'rg' -All) {
+  $grep_cmd = "rg --with-filename --line-number --color=always $FED_RG_ARGS {q}"
+} else {
+  # grep -h -n --color=always -R
+  $grep_cmd = "grep --with-filename --line-number --color=always --dereference-recursive $FED_RG_ARGS {q}"
+}
+
+$bat_style = if ($env:BAT_STYLE) { $env:BAT_STYLE } else { 'numbers' }
+# Preview window command
+$preview_cmd = "
+  `$FILE = {1}
+  `$LINE = {2}
+  `$NUMBER = if (-Not (`$LINE.Trim())) { '0' } else { `$LINE }
+
+  # set preview command
+  if (Get-Command -All -Name 'bat' -ErrorAction SilentlyContinue) {
+    bat --style=$bat_style --color=always --pager=never --highlight-line=`$NUMBER -- `$FILE
+  } else {
+    Get-Content `$FILE
+  }
+"
+
+$fzf_args.AddRange([string[]]@(
+  '--ansi', '--cycle', '--multi',
+  '--bind', 'alt-a:select-all',
+  '--bind', 'alt-c:clear-query',
+  '--bind', 'alt-d:deselect-all',
+  '--bind', 'alt-f:first',
+  '--bind', 'alt-l:last',
+  '--bind', 'alt-up:preview-page-up,alt-down:preview-page-down',
+  '--bind', 'ctrl-^:toggle-preview',
+  '--bind', 'ctrl-s:toggle-sort',
+  '--bind', 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Select> )+enable-search+clear-query+rebind(ctrl-r,alt-r)',
+  '--bind', 'shift-up:preview-up,shift-down:preview-down',
+  '--bind', "start:unbind(change)",
+  '--bind', "alt-r:reload($files_cmd)",
+  '--bind', "change:reload:$grep_cmd",
+  '--bind', "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_cmd)+rebind(change,ctrl-f)",
+  '--delimiter', ':',
+  '--header', "Search in: $location",
+  "--history=$history_file",
+  '--input-border',
+  '--layout=reverse',
+  '--min-height', '20', '--border',
+  '--preview', $preview_cmd,
+  '--prompt', 'Select> ',
+  '--with-shell', "$pwsh_cmd -NoLogo -NonInteractive -NoProfile -Command"
+))
+
+if ($query) {
+  $fzf_args.Add('--query')
+  $fzf_args.Add("$query")
+}
+
+foreach ($farg in ($FED_FZF_ARGS -Split ' ')) {
+  if ($farg.Trim()) {
+    $fzf_args.Add($farg.Trim())
+  }
+}
+
+try {
+  # NOTE: Windows workaround
+  # Need to push location to force fd to use relative paths
+  # Absolute paths break preview due to drive letter
+  # containing a colon ':'.
+  # Rather than creating a more robust preview, I'm pulling
+  # of a hack here. Sorry whosoever looks at this.
+  Push-Location -LiteralPath $location
+
+  $selection = $files_cmd | Invoke-Expression |
+    fzf @fzf_args |
+    ForEach-Object { ($_ -Split ':')[0] } |
+    Sort-Object -Unique
+
+  if (-not $selection) {
+    return
+  }
+
+  & "$editor" $selection
+}
+finally {
+  Pop-Location
+}
 

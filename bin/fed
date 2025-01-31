@@ -3,6 +3,47 @@
 # Enable debug logs
 [[ -v debug ]] && set -x
 
+# Allow complex regex
+shopt -s extglob
+
+# Args parsing
+# Ref: https://stackoverflow.com/a/14203146
+# shellcheck disable=SC2221 disable=SC2222
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -[fF]|-?(-)[fF]ullscreen)
+      fullscreen=true
+      shift # past argument
+      ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # Positional args are considered urls to download
+      shift # past argument
+      ;;
+  esac
+done
+
+# Restore positional arguments
+set -- "${POSITIONAL_ARGS[@]}"
+
+# Set fullscreen or regular size
+if [ "$fullscreen" = 'true' ]; then
+  fzf_args=(
+    '--height' '100%'
+    '--bind' 'ctrl-/:change-preview-window(right|hidden|)'
+    '--preview-window' '+{2}-/2,top,60%'
+  )
+else
+  fzf_args=(
+    '--height' '80%'
+    '--bind' 'ctrl-/:change-preview-window(down|hidden|)'
+    '--preview-window' '+{2}-/2,right,60%'
+  )
+fi
+
 # Path to search files in
 location="${1:-.}"
 # Query to pass to fzf
@@ -11,6 +52,16 @@ pattern="."
 editor="${PREFERRED_EDITOR:-"${EDITOR:-vim}"}"
 # env variable for user config location
 user_conf_path="${user_conf_path:-"$HOME/.usr_conf"}"
+history_location="${FZF_HIST_DIR:-$HOME/.cache/fzf-history}"
+history_file="$history_location/fuzzy-edit"
+# Ensure history location exists
+mkdir -p "$history_location"
+
+FED_RG_ARGS="${FED_RG_ARGS:-}"
+FED_FZF_ARGS="${FED_FZF_ARGS:-}"
+for farg in $FED_FZF_ARGS; do
+  fzf_args+=("$farg")
+done
 
 # If location is not a directory
 # set it as the pattern and search from the home directory
@@ -31,30 +82,74 @@ else
   fd_exclude=()
 fi
 
+# files command assumes fd
+files_cmd="fd --color=always ${fd_show[*]} ${fd_exclude[*]} -L -tf '$pattern'"
+
+# Set grep command
+if command -v 'rg' &>/dev/null; then
+  grep_cmd="rg --with-filename --line-number --color=always $FED_RG_ARGS {q}"
+else
+  # grep -h -n --color=always -R
+  grep_cmd="grep --with-filename --line-number --color=always --dereference-recursive $FED_RG_ARGS {q}"
+fi
+
+# Preview window command
+preview_cmd="
+  FILE={1}
+  NUMBER={2}
+
+  if [ -z \"\$NUMBER\" ]; then
+    NUMBER=0
+  fi
+
+  # set preview command
+  if command -v bat &> /dev/null; then
+    bat --style='${BAT_STYLE:-numbers}' --color=always --pager=never \
+      --highlight-line=\$NUMBER -- \"\$FILE\"
+  else
+    cat -- \"\$FILE\"
+  fi
+"
+
+# NOTE: Windows workaround
+# Need to push location to force fd to use relative paths
+# Absolute paths break preview due to drive letter
+# containing a colon ':'.
+# Rather than creating a more robust preview, I'm pulling
+# of a hack here. Sorry whosoever looks at this.
+pushd "$location" || exit
+
 while IFS='' read -r new_line; do
   selection+=("$new_line")
-done < <(fd --color=always \
-    "${fd_show[@]}" \
-    "${fd_exclude[@]}" \
-    -L -tf "$pattern" "$location" |
-  fzf --height 80% --min-height 20 --border \
-    --input-border \
+done < <(fzf \
+    --ansi --cycle --multi \
+    --bind 'alt-a:select-all' \
+    --bind 'alt-c:clear-query' \
+    --bind 'alt-d:deselect-all' \
     --bind 'alt-f:first' \
     --bind 'alt-l:last' \
-    --bind 'alt-c:clear-query' \
-    --bind 'ctrl-a:select-all' \
-    --bind 'ctrl-d:deselect-all' \
-    --bind 'ctrl-/:change-preview-window(down|hidden|)' \
-    --bind 'ctrl-^:toggle-preview' \
     --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+    --bind 'ctrl-^:toggle-preview' \
     --bind 'ctrl-s:toggle-sort' \
-    --ansi \
-    --cycle \
-    --multi \
-    --preview-window '60%' \
-    --preview "$user_conf_path/utils/fzf-preview.sh {}" \
-    --header "(ctrl-/) Search in: $location" \
-    --query "$query")
+    --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Select> )+enable-search+clear-query+rebind(ctrl-r,alt-r)' \
+    --bind 'shift-up:preview-up,shift-down:preview-down' \
+    --bind "start:unbind(change)+reload($files_cmd)" \
+    --bind "alt-r:reload($files_cmd)" \
+    --bind "change:reload:$grep_cmd" \
+    --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_cmd)+rebind(change,ctrl-f)" \
+    --delimiter : \
+    --header "Search in: $location" \
+    --history="$history_file" \
+    --input-border \
+    --layout=reverse \
+    --min-height 20 --border \
+    --preview "$preview_cmd" \
+    --query "$query" \
+    --prompt 'Select> ' \
+    --with-shell 'bash -c' \
+    "${fzf_args[@]}" |
+  cut --delimiter : -f1 |
+  sort -u)
 
 # shellcheck disable=SC2128
 if [ -z "$selection" ]; then
@@ -62,4 +157,6 @@ if [ -z "$selection" ]; then
 fi
 
 "$editor" "${selection[@]}"
+
+popd || exit
 
