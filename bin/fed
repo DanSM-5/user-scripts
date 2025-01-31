@@ -117,7 +117,7 @@ preview_cmd="
 # containing a colon ':'.
 # Rather than creating a more robust preview, I'm pulling
 # of a hack here. Sorry whosoever looks at this.
-pushd "$location" || exit
+pushd "$location" &>/dev/null || exit
 
 while IFS='' read -r new_line; do
   selection+=("$new_line")
@@ -158,5 +158,5 @@ fi
 
 "$editor" "${selection[@]}"
 
-popd || exit
+popd &>/dev/null || exit
 
