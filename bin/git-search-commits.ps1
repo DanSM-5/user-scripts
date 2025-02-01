@@ -30,6 +30,9 @@
 .PARAMETER Print
   Print the selected hashes on exit
 
+.PARAMETER Display
+  Open fzf using the full terminal screen
+
 .PARAMETER Query
   Extra arguments or using the `-Query` parameter will be used to build the initial query for search.
 
@@ -84,6 +87,8 @@ Param(
   [Switch] $Edit = $false,
   # Show help
   [Switch] $Help = $false,
+  # Show fzf in full screen
+  [Switch] $Display = $false,
   # Print the selected hashes on exit
   [Switch] $Print = $false,
   # Files to narrow search to
@@ -138,6 +143,8 @@ function showHelp {
       -Edit [switch]               > Open the selected commits in your editor (`$EDITOR).
 
       -Query [string]              > String to search. The flag `-Query` can be omited.
+
+      -Display [switch]            > Show fzf in full screen
 
       -File [string[]]             > File or files to use to narrow the search.
 
@@ -226,6 +233,34 @@ if (Get-Command -Name delta -All -ErrorAction SilentlyContinue) {
 # Ensure history location exists
 New-Item -Path $history_location -ItemType Directory -ErrorAction SilentlyContinue
 
+$fzf_args = [System.Collections.Generic.List[string]]::new()
+
+if ($Display) {
+  $fzf_args.Add('--bind')
+  $fzf_args.Add('ctrl-/:change-preview-window(right|hidden|)')
+  $fzf_args.Add('--preview-window')
+  $fzf_args.Add('top,60%')
+
+  # Bug in fzf making fullscreen
+  # not recognizing ctrl-/ or ctrl-^
+  if ($IsWindows -or ($env:OS -eq 'Windows_NT')) {
+    # Bug in fzf making fullscreen
+    # not recognizing ctrl-/ or ctrl-^
+    $fzf_args.Add('--height')
+    $fzf_args.Add('99%')
+  } else {
+    $fzf_args.Add('--height')
+    $fzf_args.Add('100%')
+  }
+} else {
+  $fzf_args.Add('--height')
+  $fzf_args.Add('80%')
+  $fzf_args.Add('--bind')
+  $fzf_args.Add('ctrl-/:change-preview-window(down|hidden|)')
+  $fzf_args.Add('--preview-window')
+  $fzf_args.Add('right,60%')
+}
+
 $pwsh = if (Get-Command -Name 'pwsh' -All -ErrorAction SilentlyContinue) { 'pwsh' } else { 'powershell' }
 $copy = '
   Get-Content {+f} | ForEach-Object { ($_ -Split "\s+")[0] } | Set-Clipboard
@@ -238,13 +273,13 @@ $copy = '
 $commits = [System.Collections.Generic.List[string]]::new()
 
 $source_command | Invoke-Expression | fzf `
+    --ansi --cycle --multi `
     --bind 'alt-a:select-all' `
     --bind 'alt-c:clear-query' `
     --bind 'alt-d:deselect-all' `
     --bind 'alt-f:first' `
     --bind 'alt-l:last' `
     --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
-    --bind 'ctrl-/:change-preview-window(down|hidden|)' `
     --bind 'ctrl-^:toggle-preview' `
     --bind 'ctrl-s:toggle-sort' `
     --bind 'shift-up:preview-up,shift-down:preview-down' `
@@ -254,16 +289,15 @@ $source_command | Invoke-Expression | fzf `
     --bind "ctrl-y:execute-silent:$copy" `
     --disabled `
     --header "Mode: $cmd_mode | ctrl-r: Interactive search | ctrl-f: Filtering results | ctrl-y: Copy hashes" `
-    --height 80% --min-height 20 --border `
     --history="$history_file" `
     --input-border `
     --layout=reverse `
-    --multi --ansi `
-    --preview-window '60%' `
+    --min-height 20 --border `
     --preview "$fzf_preview" `
     --prompt 'GitSearch> ' `
     --query "$Query" `
-    --with-shell "$pwsh -NoLogo -NonInteractive -NoProfile -Command" |
+    --with-shell "$pwsh -NoLogo -NonInteractive -NoProfile -Command" `
+    @fzf_args |
   ForEach-Object {
     $line = $_ -split "\s+"
     if ($line[0]) {

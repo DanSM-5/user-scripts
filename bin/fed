@@ -32,10 +32,17 @@ set -- "${POSITIONAL_ARGS[@]}"
 # Set fullscreen or regular size
 if [ "$fullscreen" = 'true' ]; then
   fzf_args=(
-    '--height' '100%'
     '--bind' 'ctrl-/:change-preview-window(right|hidden|)'
     '--preview-window' '+{2}-/2,top,60%'
   )
+
+  if [ "$OS" = 'Windows_NT' ]; then
+    # Bug in fzf making fullscreen
+    # not recognizing ctrl-/ or ctrl-^
+    fzf_args+=('--height' '99%')
+  else
+    fzf_args+=('--height' '100%')
+  fi
 else
   fzf_args=(
     '--height' '80%'

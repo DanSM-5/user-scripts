@@ -102,10 +102,17 @@ done
 
 if [ "$fullscreen" = 'true' ]; then
   fzf_args=(
-    '--height' '100%'
     '--bind' 'ctrl-/:change-preview-window(right|hidden|)'
     '--preview-window' '+{2}-/2,top,60%'
   )
+
+  if [ "$OS" = 'Windows_NT' ]; then
+    # Bug in fzf making fullscreen
+    # not recognizing ctrl-/ or ctrl-^
+    fzf_args+=('--height' '99%')
+  else
+    fzf_args+=('--height' '100%')
+  fi
 else
   fzf_args=(
     '--height' '80%'
@@ -190,6 +197,12 @@ fi
 if [ -z "$filename" ]; then
   rbb="$(git config --get-color "" "red black bold")"
   echo "${rbb}You need to provide a file or select one" >&2
+  exit
+fi
+
+if [ -f "$filename" ]; then
+  rbb="$(git config --get-color "" "red black bold")"
+  echo "${rbb}Cannot fined the specified file: $filename" >&2
   exit
 fi
 

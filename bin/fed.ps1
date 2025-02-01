@@ -13,11 +13,21 @@ $fzf_args = [System.Collections.Generic.List[string]]::new()
 
 if ($Fullscreen) {
   $fzf_args.Add('--height')
-  $fzf_args.Add('100%')
+  $fzf_args.Add('99%')
   $fzf_args.Add('--bind')
   $fzf_args.Add('ctrl-/:change-preview-window(right|hidden|)')
   $fzf_args.Add('--preview-window')
   $fzf_args.Add('+{2}-/2,top,60%')
+
+  if ($IsWindows -or ($env:OS -eq 'Windows_NT')) {
+    # Bug in fzf making fullscreen
+    # not recognizing ctrl-/ or ctrl-^
+    $fzf_args.Add('--height')
+    $fzf_args.Add('99%')
+  } else {
+    $fzf_args.Add('--height')
+    $fzf_args.Add('100%')
+  }
 } else {
   $fzf_args.Add('--height')
   $fzf_args.Add('80%')

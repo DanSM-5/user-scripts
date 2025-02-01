@@ -4,6 +4,7 @@
 mode='log'
 open=false
 print_hashes=false
+fullscreen=false
 editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
 history_location="${FZF_HIST_DIR:-$HOME/.cache/fzf-history}"
 history_file="$history_location/git-search-commits"
@@ -61,6 +62,8 @@ showHelp () {
 
       -f, --file [filename]        > File to use to narrow the search. Can be included multiple times.
 
+      -d, --display                > Show fzf in full screen
+
       -p, --print                  > Print the hashes on exit
 
     Arguments:
@@ -97,6 +100,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     -[eE]|-?(-)[eE]edit)
       open=true
+      shift # past argument
+      ;;
+    -[dD]|-?(-)[dD]isplay)
+      fullscreen=true
       shift # past argument
       ;;
     -[fF]|-?(-)[fF]ile)
@@ -163,6 +170,28 @@ fi
 # Ensure history location exists
 mkdir -p "$history_location"
 
+# Set fullscreen or regular size
+if [ "$fullscreen" = 'true' ]; then
+  fzf_args=(
+    '--bind' 'ctrl-/:change-preview-window(right|hidden|)'
+    '--preview-window' 'top,60%'
+  )
+
+  if [ "$OS" = 'Windows_NT' ]; then
+    # bug in fzf making fullscreen
+    # not recognizing ctrl-/ or ctrl-^
+    fzf_args+=('--height' '99%')
+  else
+    fzf_args+=('--height' '100%')
+  fi
+else
+  fzf_args=(
+    '--height' '80%'
+    '--bind' 'ctrl-/:change-preview-window(down|hidden|)'
+    '--preview-window' 'right,60%'
+  )
+fi
+
 # Find clipboard utility
 copy='true'
 # if [[ "$(uname)" =~ MINGW.*|MSYS.*|CYGWIN.*|.*NT.* ]]; then
@@ -182,13 +211,13 @@ fi
 
 # Call fzf
 mapfile -t commits < <(fzf \
+    --ansi --cycle --multi \
     --bind 'alt-a:select-all' \
     --bind 'alt-c:clear-query' \
     --bind 'alt-d:deselect-all' \
     --bind 'alt-f:first' \
     --bind 'alt-l:last' \
     --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
-    --bind 'ctrl-/:change-preview-window(down|hidden|)' \
     --bind 'ctrl-^:toggle-preview' \
     --bind 'ctrl-s:toggle-sort' \
     --bind 'shift-up:preview-up,shift-down:preview-down' \
@@ -199,15 +228,14 @@ mapfile -t commits < <(fzf \
     --bind "start:reload:$source_command" \
     --disabled \
     --header "Mode: $mode | ctrl-r: Interactive search | ctrl-f: Filtering results | ctrl-y: Copy hashes" \
-    --height 80% --min-height 20 --border \
     --history="$history_file" \
     --input-border \
     --layout=reverse \
-    --multi --ansi \
-    --preview-window '60%' \
+    --min-height 20 --border \
     --preview "$fzf_preview" \
     --prompt 'GitSearch> ' \
-    --query "$*" |
+    --query "$*" \
+    "${fzf_args[@]}" |
   awk '{ print $1 }'
 )
 
