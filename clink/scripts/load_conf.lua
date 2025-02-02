@@ -24,9 +24,14 @@ os.setenv('user_config_cache', home .. '\\.cache\\.user_config_cache')
 os.setenv('prj', home .. '\\prj')
 
 -- Add ~/.local/bin at the top
-os.setenv('PATH', home .. '\\.local\\bin' .. ';'.. home .. '\\bin' .. ';' .. os.getenv('PATH') )
--- Add ~/user-scripts/bin at the bottom
-os.setenv('PATH', os.getenv('PATH') .. ';' .. home .. '\\user-scripts\\bin')
+local new_path = table.concat({
+  home .. '\\.local\\bin',
+  home .. '\\bin',
+  os.getenv('PATH'),
+  home .. '\\user-scripts\\bin',
+}, ';')
+
+os.setenv('PATH', new_path)
 os.setenv('EDITOR', 'nvim')
 os.setenv('PREFERRED_EDITOR', 'nvim')
 os.setenv('BAT_THEME', 'OneHalfDark')
