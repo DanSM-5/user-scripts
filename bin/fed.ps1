@@ -46,12 +46,12 @@ $editor = if ($env:PREFERRED_EDITOR) { $env:PREFERRED_EDITOR }
   elseif ($env:EDITOR) { $env:EDITOR }
   else { 'vim' }
 # env variable for user config location
-$user_conf_path = if ($env:user_conf_path) {
-  $env:user_conf_path
-} else { "$HOME/.usr_conf" }
+# $user_conf_path = if ($env:user_conf_path) {
+#   $env:user_conf_path
+# } else { "$HOME/.usr_conf" }
 
 # Detect native path separator
-$dirsep = if ($IsWindows -or ($env:OS -eq 'Windows_NT')) { '\' } else { '/' }
+# $dirsep = if ($IsWindows -or ($env:OS -eq 'Windows_NT')) { '\' } else { '/' }
 if ($PSVersionTable.PSVersion -gt [version]'7.0.0') {
   $pwsh_cmd = 'pwsh'
 } else {
@@ -83,24 +83,8 @@ if ("$location" -like '~*') {
   $location = $HOME + $location.Substring(1)
 }
 
-
-$fd_show = "$user_conf_path${dirsep}fzf${dirsep}fd_show" 
-$fd_exclude = "$user_conf_path${dirsep}fzf${dirsep}fd_exclude" 
-
-if (Test-Path -LiteralPath $fd_show -PathType Leaf -ErrorAction SilentlyContinue) {
-  $fd_show = Get-Content $fd_show
-} else {
-  $fd_show = @()
-}
-
-if (Test-Path -LiteralPath $fd_exclude -PathType Leaf -ErrorAction SilentlyContinue) {
-  $fd_exclude = Get-Content $fd_exclude
-} else {
-  $fd_exclude = @()
-}
-
 # files command assumes fd
-$files_cmd = "fd --color=always $fd_show $fd_exclude --path-separator '/' -L -tf '$pattern'"
+$files_cmd = "fds --color=always --path-separator '/' -L -tf '$pattern'"
 
 # Set grep command
 if (Get-Command -Name 'rg' -All) {
@@ -182,8 +166,7 @@ try {
   }
 
   & "$editor" $selection
-}
-finally {
+} finally {
   Pop-Location *> $null
 }
 

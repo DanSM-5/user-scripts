@@ -58,7 +58,7 @@ query="${*:2}"
 pattern="."
 editor="${PREFERRED_EDITOR:-"${EDITOR:-vim}"}"
 # env variable for user config location
-user_conf_path="${user_conf_path:-"$HOME/.usr_conf"}"
+# user_conf_path="${user_conf_path:-"$HOME/.usr_conf"}"
 history_location="${FZF_HIST_DIR:-$HOME/.cache/fzf-history}"
 history_file="$history_location/fuzzy-edit"
 # Ensure history location exists
@@ -77,20 +77,8 @@ if ! [ -d "$location" ]; then
   location="$HOME"
 fi
 
-if [ -f "$user_conf_path/fzf/fd_show" ]; then
-  mapfile -t fd_show < "$user_conf_path/fzf/fd_show"
-else
-  fd_show=()
-fi
-
-if [ -f "$user_conf_path/fzf/fd_exclude" ]; then
-  mapfile -t fd_exclude < "$user_conf_path/fzf/fd_exclude"
-else
-  fd_exclude=()
-fi
-
 # files command assumes fd
-files_cmd="fd --color=always ${fd_show[*]} ${fd_exclude[*]} -L -tf '$pattern'"
+files_cmd="fds --color=always -L -tf '$pattern'"
 
 # Set grep command
 if command -v 'rg' &>/dev/null; then
