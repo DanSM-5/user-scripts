@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+user_scripts_path="${user_scripts_path:-"$HOME/user-scripts"}"
+
+fd_exclude_file="$user_scripts_path/fd/fd_exclude"
+fd_show_file="$user_scripts_path/fd/fd_show"
+
+mapfile -t fd_exclude < "$fd_exclude_file"
+mapfile -t fd_show < "$fd_show_file"
+
+# echo "Arguments read from fd_exclude_file: ${fd_exclude[*]}"
+# echo "Arguments read from fd_show_file: ${fd_show[*]}"
+
+exec fd "${fd_show[@]}" "${fd_exclude[@]}" "$@"
+
