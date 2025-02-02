@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+# Print results
+edit_selected="$1"
+
+# Setup
+user_conf_path="${user_conf_path:-"$HOME/.usr_conf"}"
+user_scripts_path="${user_scripts_path:-"$HOME/user-scripts"}"
+fzf_preview_normal="$user_conf_path/utils/fzf-preview.sh {}"
+fzf_history="${FZF_HIST_DIR:-"$HOME/.cache/fzf-history"}"
+editor="${PREFERRED_EDITOR:-"${EDITOR:-vim}"}"
+mkdir -p "$fzf_history"
+
+# Commands for fzf
+fd_command="fds --color=always --type file . {}"
+load_command="$user_conf_path/utils/getprojects"
+
+# Fzf selection
+mapfile -t selection < <(fzf \
+  "--history=$fzf_history/cprj" \
+  --ansi --cycle \
+  --bind 'alt-a:select-all' \
+  --bind 'alt-c:clear-query' \
+  --bind 'alt-d:deselect-all' \
+  --bind 'alt-f:first' \
+  --bind 'alt-l:last' \
+  --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+  --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+  --bind 'ctrl-^:toggle-preview' \
+  --bind 'ctrl-s:toggle-sort' \
+  --bind "ctrl-f:change-prompt(Files> )+reload($fd_command)+clear-query+change-multi+unbind(ctrl-f)" \
+  --bind "ctrl-o:execute-silent(\"$user_scripts_path/bin/start\" {})+abort" \
+  --bind "ctrl-r:change-prompt(Projs> )+reload($load_command)+rebind(ctrl-f)+clear-query+change-multi(0)" \
+  --bind "ctrl-y:execute-silent(\"$user_conf_path/utils/copy-helper\" \"{+f}\")+abort" \
+  --bind "start:reload:$load_command" \
+  --header 'ctrl-r: Projects | ctrl-f: Files | ctrl-o: Open | ctrl-y: Copy' \
+  --height 80% --min-height 20 --border \
+  --input-border \
+  --no-multi \
+  --preview-window '60%' \
+  --preview "$fzf_preview_normal" \
+  --prompt 'Projs> ' \
+)
+
+# Exit if no selection
+if [ -z "${selection[*]}" ]; then
+  exit
+fi
+
+# Edit selected files
+if [ "$edit_selected" = '-e' ] && ! [ -d "$selection" ]; then
+  "$editor" "${selection[@]}"
+  exit
+fi
+
+# We cannot cd within a script
+# so we print selected directory
+printf '%s\n' "${selection[@]}"
+
