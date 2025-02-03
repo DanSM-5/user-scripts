@@ -200,9 +200,9 @@ if [ -z "$filename" ]; then
   exit
 fi
 
-if [ -f "$filename" ]; then
+if ! [ -f "$filename" ]; then
   rbb="$(git config --get-color "" "red black bold")"
-  echo "${rbb}Cannot fined the specified file: $filename" >&2
+  echo "${rbb}Cannot find the specified file: $filename" >&2
   exit
 fi
 
