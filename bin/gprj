@@ -1,15 +1,28 @@
 #!/usr/bin/env bash
 
+[[ -v debug ]] && set -x
+
 # Print results
 edit_selected="$1"
 
 # Setup
 user_conf_path="${user_conf_path:-"$HOME/.usr_conf"}"
 user_scripts_path="${user_scripts_path:-"$HOME/user-scripts"}"
+GPRJ_FZF_ARGS="${GPRJ_FZF_ARGS:-}"
 fzf_preview_normal="$user_conf_path/utils/fzf-preview.sh {}"
 fzf_history="${FZF_HIST_DIR:-"$HOME/.cache/fzf-history"}"
 editor="${PREFERRED_EDITOR:-"${EDITOR:-vim}"}"
 mkdir -p "$fzf_history"
+
+# Check if separated by null character "\0"
+# if echo "$GPRJ_FZF_ARGS" | grep -Pa '\x00'; then
+#   mapfile -t fzf_args < <(echo "$GPRJ_FZF_ARGS"| awk -v RS='\0' '{ print $1 }')
+# else
+  declare -a fzf_args
+  for farg in $GPRJ_FZF_ARGS; do
+    fzf_args+=("$farg")
+  done
+# fi
 
 # Commands for fzf
 fd_command="fds --color=always --type file . {}"
@@ -40,6 +53,7 @@ mapfile -t selection < <(fzf \
   --preview-window '60%' \
   --preview "$fzf_preview_normal" \
   --prompt 'Projs> ' \
+  "${fzf_args[@]}"
 )
 
 # Exit if no selection

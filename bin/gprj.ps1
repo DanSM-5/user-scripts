@@ -8,6 +8,7 @@ $dirsep = if ($IsWindows -or ($env:OS = 'Windows_NT')) { '\' } else { '/' }
 $user_conf_path = if ($env:user_conf_path) { $env:user_conf_path } else { "${HOME}${dirsep}.usr_conf" }
 $user_scripts_path = if ($env:user_scripts_path) { $env:user_scripts_path } else { "${HOME}${dirsep}user-scripts" }
 $fzf_preview_normal = "$user_conf_path/utils/fzf-preview.ps1 {}"
+$GPRJ_FZF_ARGS = if ($env:GPRJ_FZF_ARGS) { $env:GPRJ_FZF_ARGS } else { '' }
 $fzf_history = if ($env:FZF_HIST_DIR) { $env:FZF_HIST_DIR } else {
   "$($HOME.Replace('\', '/'))/.cache/fzf-history"
 }
@@ -20,6 +21,18 @@ if ($PSVersionTable.PSVersion -gt [version]'7.0.0') {
   $pwsh_cmd = 'powershell'
 }
 New-Item -Path $fzf_history -ItemType Directory -ErrorAction SilentlyContinue
+
+# Check if separated by null character "`0"
+$split_char = ' '
+# if ($GPRJ_FZF_ARGS.Contains("`0")) {
+#   $split_char = "`0"
+# }
+
+foreach ($farg in ($GFH_FZF_ARGS -Split $split_char)) {
+  if ($farg.Trim()) {
+    $fzf_args.Add($farg.Trim())
+  }
+}
 
 # Commands for fzf
 $fd_command = "fds --color=always --type file . {}"
@@ -50,7 +63,8 @@ $selection = & $load_command |
     --preview-window '60%' `
     --preview "$fzf_preview_normal" `
     --with-shell "$pwsh_cmd -NoLogo -NonInteractive -NoProfile -Command" `
-    --prompt 'Projs> '
+    --prompt 'Projs> ' `
+    @fzf_args
 
 # Exit if no selection
 if (!$selection) { return }
