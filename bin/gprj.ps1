@@ -28,7 +28,8 @@ $split_char = ' '
 #   $split_char = "`0"
 # }
 
-foreach ($farg in ($GPRJ_FZF_ARGS -Split $split_char)) {
+$fzf_args = [System.Collections.Generic.List[string]]::new()
+foreach ($farg in ($GPRJ_FZF_ARGS -Split ' ')) {
   if ($farg.Trim()) {
     $fzf_args.Add($farg.Trim())
   }
