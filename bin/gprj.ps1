@@ -28,7 +28,7 @@ $split_char = ' '
 #   $split_char = "`0"
 # }
 
-foreach ($farg in ($GFH_FZF_ARGS -Split $split_char)) {
+foreach ($farg in ($GPRJ_FZF_ARGS -Split $split_char)) {
   if ($farg.Trim()) {
     $fzf_args.Add($farg.Trim())
   }
