@@ -247,3 +247,19 @@ cuns () {
 }
 ```
 
+## Show file at revision
+
+**NOTE** The pathspec must use `/` as path separator even on windows.
+
+```bash
+git show <commit-ref>:<pathspec>
+```
+
+## Show patch on file
+
+```bash
+git show <commit-ref> [--follow] -- <pathspec>
+```
+
+**NOTE**: Add follow to track changes like renames or changes in paths.
+
