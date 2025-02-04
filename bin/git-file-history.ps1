@@ -285,12 +285,19 @@ $git_command = "git log --color=always --oneline --follow $git_args $GFH_GIT_ARG
 $source_command = $git_command -f $filename
 
 $preview = 'git show --color=always {0}'
-if (Get-Command -Name 'delta' -All) {
+if (Get-Command -Name 'delta' -All -ErrorAction SilentlyContinue) {
   $preview_cmd = $preview -f "--follow {1} -- '$filename' | delta"
   $preview_all = $preview -f '{1} | delta '
 } else {
   $preview_cmd = $preview -f "--follow {1} -- '$filename'"
   $preview_all = $preview -f '{1}'
+}
+$preview_file = $preview -f "{1}:`"$($filename.Replace('\', '/'))`""
+$preview_graph = 'git log --color=always --oneline --decorate --graph {1}'
+
+if (Get-Command -Name 'bat' -All -ErrorAction SilentlyContinue) {
+  $bat_style = if ($env:BAT_STYLE) { $env:BAT_STYLE } else { 'numbers,header' }
+  $preview_file = $preview_file + " | bat --color=always --style=$bat_style --file-name `"$filename`""
 }
 
 # Call fzf
@@ -308,9 +315,11 @@ $source_command | Invoke-Expression | fzf `
   --bind 'ctrl-s:toggle-sort' `
   --bind 'shift-up:preview-up,shift-down:preview-down' `
   --bind "ctrl-a:transform:$echo 'preview:$preview_all'" `
-  --bind "ctrl-f:transform:$echo 'preview:$preview_cmd'" `
+  --bind "ctrl-d:transform:$echo 'preview:$preview_cmd'" `
+  --bind "ctrl-f:transform:$echo 'preview:$preview_file'" `
+  --bind "ctrl-g:transform:$echo 'preview:$preview_graph'" `
   --bind "ctrl-y:execute-silent:$copy" `
-  --header "ctrl-a: Show full patch | ctrl-f: Show file patch | ctrl-y: Copy hashes" `
+  --header "ctrl-a: Full patch | ctrl-d: File patch | ctrl-f: File | ctrl-y: Copy hashes" `
   --history="$history_file" `
   --input-border `
   --layout=reverse `

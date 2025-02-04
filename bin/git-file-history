@@ -241,6 +241,13 @@ else
   preview_cmd="$(printf "$preview" "--follow -- \"$filename\"")"
   preview_all="$(printf "$preview" '{1}')"
 fi
+preview_file="$(printf "$preview" "{1}:\"$filename\"")"
+preview_graph='git log --color=always --oneline --decorate --graph {1}'
+
+if command -v 'bat' &>/dev/null; then
+  bat_style="${BAT_STYLE:-numbers,header}"
+  preview_file="$preview_file | bat --color=always --style=$bat_style --file-name \"$filename\""
+fi
 
 # Call fzf
 mapfile -t commits < <(fzf \
@@ -256,9 +263,11 @@ mapfile -t commits < <(fzf \
     --bind 'shift-up:preview-up,shift-down:preview-down' \
     --bind "start:reload($source_command)" \
     --bind "ctrl-a:transform:echo 'preview:$preview_all'" \
-    --bind "ctrl-f:transform:echo 'preview:$preview_cmd'" \
+    --bind "ctrl-d:transform:echo 'preview:$preview_cmd'" \
+    --bind "ctrl-f:transform:echo 'preview:$preview_file'" \
+    --bind "ctrl-g:transform:echo 'preview:$preview_graph'" \
     --bind "ctrl-y:execute-silent:$copy" \
-    --header "ctrl-a: Show full patch | ctrl-f: Show file patch | ctrl-y: Copy hashes" \
+    --header "ctrl-a: Full patch | ctrl-d: File patch | ctrl-f: File | ctrl-y: Copy hashes" \
     --history="$history_file" \
     --input-border \
     --layout=reverse \
