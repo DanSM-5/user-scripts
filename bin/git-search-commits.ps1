@@ -288,6 +288,7 @@ $source_command | Invoke-Expression | fzf `
     --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)" `
     --bind "ctrl-y:execute-silent:$copy" `
     --disabled `
+    --expect="ctrl-o,ctrl-e" `
     --header "Mode: $cmd_mode | ctrl-r: Interactive search | ctrl-f: Filtering results | ctrl-y: Copy hashes" `
     --history="$history_file" `
     --input-border `
@@ -300,36 +301,53 @@ $source_command | Invoke-Expression | fzf `
     @fzf_args |
   ForEach-Object {
     $line = $_ -split "\s+"
-    if ($line[0]) {
-      $commits.Add($line[0])
-    }
+    $commits.Add($line[0])
   }
 
 # If no commits, exit
-if ($commits.Count -eq 0) {
+if ($commits.Count -lt 2) {
+  exit
+}
+
+$expected_key = $commits[0]
+$hashes = $commits.GetRange(1, $commits.Count - 1)
+
+function print_patches () {
+  git show @hashes
+}
+
+function open_editor () {
+  $tmpfile = New-TemporaryFile
+  git show @hashes > $tmpfile.FullName
+
+  # On (n)vim editor set filetype
+  if ($editor -Match '^n?vim?$') {
+    & "$editor" -c ":filetype detect" $tmpfile.FullName
+  } else {
+    & "$editor" $tmpfile.FullName
+  }
+}
+
+if ($expected_key -eq 'ctrl-o') {
+  print_patches
+  exit
+}
+
+if ($expected_key -eq 'ctrl-e') {
+  open_editor
+  exit
+}
+
+if ($Print) {
+  print_patches
+  exit
+}
+
+if ($Edit) {
+  open_editor
   exit
 }
 
 # Print selected hashes
-if ($Print) {
-  Write-Output @commits
-  exit
-}
-
-# Show selected commits
-if (!$Edit) {
-  git show @commits
-  exit
-}
-
-# Open in editor
-$tmpfile = New-TemporaryFile
-git show @commits > $tmpfile.FullName
-
-# On (n)vim editor set filetype
-if ($editor -Match '^n?vim?$') {
-  & "$editor" -c ":filetype detect" "$tmpfile"
-} else {
-  & "$editor" "$tmpfile"
-}
+Write-Output @hashes
 

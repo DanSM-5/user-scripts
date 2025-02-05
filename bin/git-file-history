@@ -2,7 +2,7 @@
 
 open=false
 fullscreen=false
-print_hashes=false
+print_patches=false
 git_args=()
 
 showHelp () {
@@ -48,7 +48,7 @@ showHelp () {
 
       -d, --display                > Show fzf in full screen
 
-      -p, --print                  > Print the hashes on exit
+      -p, --print                  > Print the patches on exit
 
     Arguments:
 
@@ -82,7 +82,7 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       ;;
     -[pP]|-?(-)[pP]rint)
-      print_hashes=true
+      print_patches=true
       shift # past argument
       ;;
     -[hH]|-?(-)[hH]elp)
@@ -267,6 +267,7 @@ mapfile -t commits < <(fzf \
     --bind "ctrl-f:transform:echo 'preview:$preview_file'" \
     --bind "ctrl-g:transform:echo 'preview:$preview_graph'" \
     --bind "ctrl-y:execute-silent:$copy" \
+    --expect=ctrl-o,ctrl-e \
     --header "ctrl-a: Full patch | ctrl-d: File patch | ctrl-f: File | ctrl-y: Copy hashes" \
     --history="$history_file" \
     --input-border \
@@ -279,30 +280,48 @@ mapfile -t commits < <(fzf \
 )
 
 # If no commits, exit
-if [ -z "${commits[*]}" ]; then
+if [ -z "${commits[1]}" ]; then
+  exit
+fi
+
+expected_key="${commits[0]}"
+
+print_patches () {
+  git show "${commits[@]:1}"
+}
+
+open_editor () {
+  local tmpfile="$(mktemp)"
+  git show "${commits[@]:1}" > "$tmpfile"
+
+  # On (n)vim editor set filetype
+  if [[ "$editor" =~ ^n?vim?$ ]]; then
+    exec "$editor" -c ":filetype detect" "$tmpfile"
+  else
+    exec "$editor" "$tmpfile"
+  fi
+}
+
+if [ "$expected_key" = 'ctrl-o' ]; then
+  print_patches
+  exit
+fi
+
+if [ "$expected_key" = 'ctrl-e' ]; then
+  open_editor
+  exit
+fi
+
+if [ "$print_patches" = true ]; then
+  print_patches
+  exit
+fi
+
+if [ "$open" = true ]; then
+  open_editor
   exit
 fi
 
 # Print selected hashes
-if [ "$print_hashes" = true ]; then
-  printf '%s\n' "${commits[@]}"
-  exit
-fi
-
-# Show selected commits
-if [ "$open" = false ]; then
-  git show "${commits[@]}"
-  exit
-fi
-
-# Open in editor
-tmpfile="$(mktemp)"
-git show "${commits[@]}" > "$tmpfile"
-
-# On (n)vim editor set filetype
-if [[ "$editor" =~ ^n?vim?$ ]]; then
-  exec "$editor" -c ":filetype detect" "$tmpfile"
-else
-  exec "$editor" "$tmpfile"
-fi
+printf '%s\n' "${commits[@]:1}"
 
