@@ -1,4 +1,5 @@
 {
+  "prettier.singleQuote": true,
   "workbench.iconTheme": "vscode-icons",
   "editor.wordWrap": "on",
   "workbench.editorAssociations": {
@@ -21,18 +22,19 @@
   "editor.fontLigatures": true,
   "debug.javascript.autoAttachFilter": "disabled",
   "telemetry.telemetryLevel": "off",
-  "terminal.external.windowsExec": "wt -p Ubuntu --title \"VSCode debugger\" Ubuntu",
+  // "terminal.external.windowsExec": "wt -p Ubuntu --title \"VSCode debugger\" Ubuntu",
   "editor.guides.bracketPairs": true,
   "editor.guides.highlightActiveBracketPair": true,
   "editor.bracketPairColorization.enabled": true,
+  "editor.stickyScroll.enabled": true,
   "scm.alwaysShowActions": true,
   "vsicons.dontShowNewVersionMessage": true,
   "git.mergeEditor": false,
   "terminal.integrated.enableImages": true,
   "terminal.integrated.shellIntegration.enabled": true,
   "terminal.integrated.shellIntegration.suggestEnabled": true,
-  "editor.stickyScroll.enabled": true,
   "terminal.integrated.fontFamily": "CaskaydiaCove Nerd Font",
+  "terminal.integrated.fontLigatures": true,
   "emmet.useInlineCompletions": true,
   "workbench.colorCustomizations": {
     "statusBar.background" : "#833ea6",
@@ -44,7 +46,16 @@
   "vscode-neovim.neovimInitVimPaths.win32": "~/.config/vscode-nvim/init.lua",
   "vscode-neovim.neovimInitVimPaths.darwin": "~/.config/vscode-nvim/init.lua",
   // "vscode-neovim.useWSL": true,
-  // "vscode-neovim.neovimExecutablePaths.linux": "~/.config/vscode-nvim/nvimw",
+  "vscode-neovim.neovimExecutablePaths.linux": "~/.config/vscode-nvim/nvimw",
+  "vscode-neovim.neovimExecutablePaths.win32": "nvim",
+  "vscode-neovim.compositeKeys": {
+    "jk": {
+      "command": "vscode-neovim.escape"
+    },
+  },
+  "extensions.experimental.affinity": {
+    "asvetliakov.vscode-neovim": 1
+  },
   "editor.lineNumbers": "relative",
   "diffEditor.diffAlgorithm": "advanced",
   "cSpell.userWords": [
@@ -80,21 +91,31 @@
       "overrideName": true
     }
   },
+  // "terminal.integrated.defaultProfile.linux": "bash",
   "git.defaultBranchName": "master",
   "window.zoomLevel": 3,
   "liveServer.settings.donotShowInfoMsg": true,
-  "extensions.experimental.affinity": {
-    "asvetliakov.vscode-neovim": 1
-  },
+  "liveServer.settings.donotVerifyTags": true,
+  "search.useIgnoreFiles": false,
+  "files.eol": "\n",
+  "workbench.sideBar.location": "right",
+  "search.followSymlinks": false,
+  "editor.smoothScrolling": false,
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.cursorBlinking": "phase",
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  "search.useIgnoreFiles": false,
-  "files.eol": "\n",
-  "liveServer.settings.donotVerifyTags": true,
-  "vscode-neovim.compositeKeys": {
-    "jk": {
-      "command": "vscode-neovim.escape"
-    },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
 }
