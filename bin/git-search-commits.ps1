@@ -286,7 +286,7 @@ $source_command | Invoke-Expression | fzf `
     --bind "change:reload:$reload_command" `
     --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)" `
     --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)" `
-    --bind "ctrl-y:execute-silent:$copy" `
+    --bind "ctrl-y:execute-silent($copy)+bell" `
     --disabled `
     --expect="ctrl-o,ctrl-e" `
     --header "Mode: $cmd_mode | ctrl-r: Interactive search | ctrl-f: Filtering results | ctrl-y: Copy hashes" `
