@@ -140,7 +140,6 @@ if ($Help) {
 }
 
 $pwsh = if (Get-Command -Name 'pwsh' -All -ErrorAction SilentlyContinue) { 'pwsh' } else { 'powershell' }
-$echo = if ($IsWindows -or ($env:OS -eq 'Windows_NT')) { 'echo.exe' } else { 'echo' }
 $copy = '
   Get-Content {+f} | ForEach-Object { ($_ -Split "\s+")[0] } | Set-Clipboard
 '
@@ -314,10 +313,10 @@ $source_command | Invoke-Expression | fzf `
   --bind 'ctrl-^:toggle-preview' `
   --bind 'ctrl-s:toggle-sort' `
   --bind 'shift-up:preview-up,shift-down:preview-down' `
-  --bind "ctrl-a:transform:$echo 'preview:$preview_all'" `
-  --bind "ctrl-d:transform:$echo 'preview:$preview_cmd'" `
-  --bind "ctrl-f:transform:$echo 'preview:$preview_file'" `
-  --bind "ctrl-g:transform:$echo 'preview:$preview_graph'" `
+  --bind "ctrl-a:preview:$preview_all" `
+  --bind "ctrl-d:preview:$preview_cmd" `
+  --bind "ctrl-f:preview:$preview_file" `
+  --bind "ctrl-g:preview:$preview_graph" `
   --bind "ctrl-y:execute-silent:$copy" `
   --expect="ctrl-o,ctrl-e" `
   --header "ctrl-a: Full patch | ctrl-d: File patch | ctrl-f: File | ctrl-y: Copy hashes" `
@@ -332,6 +331,7 @@ $source_command | Invoke-Expression | fzf `
     $line = $_ -split "\s+"
     $commits.Add($line[0])
   }
+  # --bind "ctrl-g:transform:$echo 'preview:$preview_graph'" `
 
 # If no commits, exit
 if ($commits.Count -lt 2) {
