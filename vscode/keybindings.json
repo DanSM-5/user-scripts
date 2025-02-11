@@ -57,7 +57,7 @@
   },
   {
     "key": "ctrl+b",
-    "command": "workbench.action.toggleSidebarVisibility",
+    "command": "-workbench.action.toggleSidebarVisibility",
   },
   {
     "key": "ctrl+shift+j",
@@ -191,5 +191,45 @@
     "key": "ctrl+6",
     "command": "workbench.action.quickOpenPreviousRecentlyUsedEditorInGroup",
     "when": "!activeEditorGroupEmpty"
+  },
+
+  {
+    "key": "ctrl+alt+j",
+    "command": "-liveshare.join",
+    "when": "liveshare:state != 'Joined' && liveshare:state != 'Shared'"
+  },
+  {
+    "key": "ctrl+enter",
+    "command": "-github.copilot.generate",
+    "when": "editorTextFocus && github.copilot.activated && !commentEditorFocused && !inInteractiveInput && !interactiveEditorFocused"
+  },
+
+  {
+    "key": "ctrl+e",
+    "command": "-workbench.action.quickOpen",
+  },
+  {
+    "key": "ctrl+e",
+    "command": "hideSuggestWidget",
+    "when": "neovim.mode == 'insert' && suggestWidgetVisible && textInputFocus",
+    // Copilot
+    // "command": "editor.action.inlineSuggest.hide",
+    // "when": "editorTextFocus && (inlineEditIsVisible || inlineSuggestionVisible)",
+  },
+  {
+    "key": "ctrl+y",
+    "command": "acceptSelectedSuggestion",
+    "when": "acceptSuggestionOnEnter && suggestWidgetHasFocusedSuggestion && suggestWidgetVisible && suggestionMakesTextEdit && textInputFocus"
+  },
+  {
+    "key": "ctrl+b",
+    "command": "editor.action.triggerSuggest",
+    "when": "neovim.mode == 'insert' && editorHasCompletionItemProvider && textInputFocus && !editorReadonly && !suggestWidgetVisible"
+  },
+
+  {
+    "key": "q",
+    "command": "editor.action.hideHover",
+    "when": "editorHoverFocused",
   },
 ]
