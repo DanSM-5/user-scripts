@@ -103,6 +103,7 @@
   "editor.smoothScrolling": false,
   "editor.cursorSmoothCaretAnimation": "on",
   "editor.cursorBlinking": "phase",
+  "typescript.tsserver.experimental.enableProjectDiagnostics": true,
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
