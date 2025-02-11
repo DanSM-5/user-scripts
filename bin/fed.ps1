@@ -147,6 +147,8 @@ foreach ($farg in ($FED_FZF_ARGS -Split ' ')) {
   }
 }
 
+$selection = $null
+
 try {
   # NOTE: Windows workaround
   # Need to push location to force fd to use relative paths
@@ -156,10 +158,23 @@ try {
   # of a hack here. Sorry whosoever looks at this.
   Push-Location -LiteralPath $location *> $null
 
-  $selection = $files_cmd | Invoke-Expression |
-    fzf @fzf_args |
-    ForEach-Object { ($_ -Split ':')[0] } |
-    Sort-Object -Unique
+  if (($IsWindows -or ($OS -eq 'Windows_NT')) -and (Get-Command -Name 'With-UTF8' -All -ErrorAction SilentlyContinue)) {
+    # Wrap in With-UTF8 to fix file names
+    $selection = With-UTF8 {
+      # NOTE: `selection` here belongs to its own
+      # scope and we need to return the value from it.
+      $selection = $files_cmd | Invoke-Expression |
+        fzf @fzf_args |
+        ForEach-Object { ($_ -Split ':')[0] } |
+        Sort-Object -Unique
+      return $selection
+    }
+  } else {
+    $selection = $files_cmd | Invoke-Expression |
+      fzf @fzf_args |
+      ForEach-Object { ($_ -Split ':')[0] } |
+      Sort-Object -Unique
+  }
 
   if (-not $selection) {
     return
