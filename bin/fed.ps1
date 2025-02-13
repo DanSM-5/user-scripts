@@ -17,7 +17,7 @@ if ($Fullscreen) {
   $fzf_args.Add('--bind')
   $fzf_args.Add('ctrl-/:change-preview-window(right|hidden|)')
   $fzf_args.Add('--preview-window')
-  $fzf_args.Add('+{2}-/2,top,60%')
+  $fzf_args.Add('+{2}-/2,top,60%,wrap')
 
   if ($IsWindows -or ($env:OS -eq 'Windows_NT')) {
     # Bug in fzf making fullscreen
@@ -34,7 +34,7 @@ if ($Fullscreen) {
   $fzf_args.Add('--bind')
   $fzf_args.Add('ctrl-/:change-preview-window(down|hidden|)')
   $fzf_args.Add('--preview-window')
-  $fzf_args.Add('+{2}-/2,right,60%')
+  $fzf_args.Add('+{2}-/2,right,60%,wrap')
 }
 
 # Path to search files in

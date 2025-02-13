@@ -191,7 +191,7 @@ try {
       --delimiter : `
       --header 'ctrl-f: File selection (reload alt-r) | ctrl-r: Search mode' `
       --input-border `
-      --preview-window '+{2}-/2' `
+      --preview-window '+{2}-/2,wrap' `
       --preview "$preview_cmd" `
       --prompt 'Files> ' `
       --with-shell "$pwsh_cmd" `
