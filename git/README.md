@@ -263,3 +263,32 @@ git show <commit-ref> [--follow] -- <pathspec>
 
 **NOTE**: Add follow to track changes like renames or changes in paths.
 
+## Tags
+
+### List tags
+
+```bash
+git tag
+```
+
+### Add tag
+
+```bash
+# Simple tag
+git tag <name>
+# Anotated tag
+git tag <name> -a -m <message>
+# Signed tag
+git tag <name> -s -m <message>
+```
+
+### Delete tag
+
+```bash
+# Local tag
+git tag --delete <name>
+
+# Remote tag
+git push --delete origin <name>
+```
+
