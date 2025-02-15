@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+[[ -v debug ]] && set -x
+
+if ! command -v 'rga' &>/dev/null; then
+  exit 1
+fi
+
+RG_PREFIX="rga --files-with-matches"
+mapfile -t selected < <(
+FZF_DEFAULT_COMMAND="$RG_PREFIX '$1'" \
+  fzf --sort --preview="[[ ! -z {} ]] && rga --pretty --context 5 {q} {}" \
+  --phony -q "$1" \
+  --input-border \
+  --multi --ansi --border \
+  --bind 'alt-a:select-all' \
+  --bind 'alt-d:deselect-all' \
+  --bind 'alt-f:first' \
+  --bind 'alt-l:last' \
+  --bind 'alt-c:clear-query' \
+  --bind 'ctrl-^:toggle-preview' \
+  --bind 'ctrl-/:change-preview-window(down|hidden|),alt-up:preview-page-up,alt-down:preview-page-down,ctrl-s:toggle-sort' \
+  --bind "change:reload:$RG_PREFIX {q}" \
+  --preview-window="70%:wrap"
+)
+
+if [ -z "${selected[*]}" ]; then
+  exit 0
+fi
+
+# Detect platform
+case "$(uname -a)" in
+  MINGW*|MSYS*|CYGWIN*|*NT*)
+    # Gitbash
+
+    for item in "${selected[@]}"; do
+    # Trim input string
+      item="$(printf "%s" "$item" | sed -E 's/^[[:space:]]*//' | sed -E 's/[[:space:]]*$//')"
+
+      echo "Opening: $item"
+      explorer.exe "$item" || true
+    done
+
+    # NOTE: Re-enable if problematic
+    # if [ -f "$selected" ] || [ -d "$selected" ]; then
+    #   selected="$(transform_path cygpath "$selected")"
+    #   # selected="$(cygpath -aw "$selected" 2>&1)"
+    # fi
+
+    # Starting using pwsh makes the process to be attached to the shell process
+    # instead of being independent
+    # pwsh.exe -NoLogo -NonInteractive -NoProfile -Command "Start-Process $selected" > /dev/null 2>&1 &
+
+    # NOTE: This could use native start from gitbash
+    # This may save path convertion or other workarounds here
+    # /usr/bin/start "$selected"
+
+    # Implementation from /usr/bin/start
+    # Should I call that directly?
+    # "$COMSPEC" //c start "${@//&/^&}"
+    ;;
+  *[mM]icrosoft*)
+    # WSL 1 or 2
+
+    for item in "${selected[@]}"; do
+    # Trim input string
+      item="$(printf "%s" "$item" | sed -E 's/^[[:space:]]*//' | sed -E 's/[[:space:]]*$//')"
+
+      if [ -f "$item" ] || [ -d "$item" ]; then
+        item="$(transform_path wslpath "$item")"
+        # item="$(sed "s|wslpath: ||g" <<< "$(wslpath -aw "$item" 2>&1)")"
+      fi
+
+      echo "Opening: $item"
+      pwsh.exe -NoLogo -NonInteractive -NoProfile -Command "Start-Process $item"
+    done
+
+    ;;
+  *Android)
+    # Termux
+    # It also starts with Linux
+    # so make sure this is before the Linux case
+    for item in "${selected[@]}"; do
+    # Trim input string
+      item="$(printf "%s" "$item" | sed -E 's/^[[:space:]]*//' | sed -E 's/[[:space:]]*$//')"
+
+      echo "Opening: $item"
+      termux-open-url "$item"
+    done
+    ;;
+  Linux*)
+    # TODO: Verify if for-loop needed
+    xdg-open "${selected[@]}" < /dev/null > /dev/null 2>&1 &
+    disown
+    ;;
+  Darwin*)
+    open "${selected[@]}"
+    ;;
+esac
+
