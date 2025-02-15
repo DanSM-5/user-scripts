@@ -192,6 +192,11 @@
     "command": "workbench.action.quickOpenPreviousRecentlyUsedEditorInGroup",
     "when": "!activeEditorGroupEmpty"
   },
+  {
+    "key": "ctrl+6",
+    "command": "workbench.action.quickOpenNavigateNextInEditorPicker",
+    "when": "inEditorsPicker && inQuickOpen"
+  },
 
   {
     "key": "ctrl+alt+j",
@@ -232,4 +237,24 @@
     "command": "editor.action.hideHover",
     "when": "editorHoverFocused",
   },
+
+  // alt-y and alt-e
+  {
+    "command": "vscode-neovim.send",
+    // the key sequence to activate the binding
+    "key": "alt+y",
+    // don't activate during insert mode
+    "when": "editorTextFocus && (neovim.mode == 'normal')",
+    // the input to send to Neovim
+    "args": "<A-y>",
+  },
+  {
+    "command": "vscode-neovim.send",
+    // the key sequence to activate the binding
+    "key": "alt+e",
+    // don't activate during insert mode
+    "when": "editorTextFocus && (neovim.mode == 'normal')",
+    // the input to send to Neovim
+    "args": "<A-e>",
+  }
 ]
