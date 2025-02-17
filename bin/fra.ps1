@@ -10,12 +10,30 @@ $RG_PREFIX = 'rga --files-with-matches'
 [string[]]$selected = [string[]]@()
 $OG_FZF_DEFAULT_COMMAND = ''
 $query = $args[0]
+$pwsh = if (Get-Command -Name 'pwsh' -All -ErrorAction SilentlyContinue) { 'pwsh' } else { 'powershell' }
+
+$preview_cmd = if (!($env:NO_DELTA) -and (Get-Command 'delta' -ErrorAction SilentlyContinue)) {
+  'rga --json --pretty --context 5 {q} {} | delta'
+} else {
+  'rga --pretty --context 5 {q} {}'
+}
+$preview = "
+# Ensure filename won't break syntax
+`$file = @'
+{}
+'@
+`$file = `$file.Trim().Trim('`"').Trim(`"'`")
+if (`$file) {
+  $preview_cmd
+}
+"
+
 try {
   $OG_FZF_DEFAULT_COMMAND = $env:FZF_DEFAULT_COMMAND
   $env:FZF_DEFAULT_COMMAND = "$RG_PREFIX '$query'"
   $selected = fzf --sort `
-    --with-shell 'pwsh -NoLogo -NonInteractive -NoProfile -Command' `
-    --preview="if({}) { rga --pretty --context 5 {q} {} }" `
+    --with-shell "$pwsh -NoLogo -NonInteractive -NoProfile -Command" `
+    --preview $preview `
     --phony -q "$query" `
     --input-border `
     --multi --ansi --border `
