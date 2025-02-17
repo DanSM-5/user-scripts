@@ -87,17 +87,27 @@ if ("$location" -like '~*') {
 $files_cmd = "fds --color=always --path-separator '/' -L -tf '$pattern'"
 
 # Set grep command
+# if (Get-Command -Name 'rg' -All) {
+#   $grep_cmd = "rg --with-filename --line-number --color=always $FED_RG_ARGS {q}"
+# } else {
+#   # grep -h -n --color=always -R
+#   $grep_cmd = "grep --with-filename --line-number --color=always --dereference-recursive $FED_RG_ARGS {q}"
+# }
+
 if (Get-Command -Name 'rg' -All) {
-  $grep_cmd = "rg --with-filename --line-number --color=always $FED_RG_ARGS {q}"
+  $grep_cmd = "rg --files-with-matches --color=always $FED_RG_ARGS {q} || cd ."
 } else {
   # grep -h -n --color=always -R
-  $grep_cmd = "grep --with-filename --line-number --color=always --dereference-recursive $FED_RG_ARGS {q}"
+  $grep_cmd = "grep --files-with-matches --color=always --dereference-recursive $FED_RG_ARGS {q} || cd ."
 }
 
 $bat_style = if ($env:BAT_STYLE) { $env:BAT_STYLE } else { 'numbers' }
 # Preview window command
 $preview_cmd = "
-  `$FILE = {1}
+`$FILE = @'
+{1}
+'@
+  `$FILE = `$FILE.Trim().Trim('`"').Trim(`"'`")
   `$LINE = {2}
   `$NUMBER = if (-Not (`$LINE.Trim())) { '0' } else { `$LINE }
 
@@ -106,6 +116,26 @@ $preview_cmd = "
     bat --style=$bat_style --color=always --pager=never --highlight-line=`$NUMBER -- `$FILE
   } else {
     Get-Content `$FILE
+  }
+"
+
+
+if (Get-Command -Name 'delta' -ErrorAction SilentlyContinue) {
+  $preview_grep = 'rg --pretty --context 5 --json {q} {} | delta'
+} else {
+  $preview_grep = 'rg --pretty --context 5 {q} {}'
+}
+
+$preview_grep = "
+  `$file = @'
+{}
+'@
+  `$file = `$file.Trim().Trim('`"').Trim(`"'`")
+
+  if (Test-Path -LiteralPath `$file -PathType Leaf -ErrorAction SilentlyContinue) {
+    $preview_grep
+  } else {
+    Write-Output 'Not found'
   }
 "
 
@@ -119,12 +149,12 @@ $fzf_args.AddRange([string[]]@(
   '--bind', 'alt-up:preview-page-up,alt-down:preview-page-down',
   '--bind', 'ctrl-^:toggle-preview',
   '--bind', 'ctrl-s:toggle-sort',
-  '--bind', 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Select> )+enable-search+clear-query+rebind(ctrl-r,alt-r)',
+  '--bind', "ctrl-f:unbind(change,ctrl-f)+change-prompt(Narrow> )+enable-search+clear-query+rebind(ctrl-r)+change-preview:$preview_cmd",
   '--bind', 'shift-up:preview-up,shift-down:preview-down',
   '--bind', "start:unbind(change)",
-  '--bind', "alt-r:reload($files_cmd)",
+  '--bind', "alt-r:unbind(change,ctrl-f)+change-prompt(Select> )+enable-search+reload($files_cmd)+rebind(ctrl-r)+change-preview:$preview_cmd",
   '--bind', "change:reload:$grep_cmd",
-  '--bind', "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_cmd)+rebind(change,ctrl-f)",
+  '--bind', "ctrl-r:unbind(ctrl-r)+change-prompt(Search> )+disable-search+reload($grep_cmd)+rebind(change,ctrl-f)+change-preview:$preview_grep",
   '--delimiter', ':',
   '--header', "Search in: $location",
   "--history=$history_file",
