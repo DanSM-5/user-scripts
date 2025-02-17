@@ -313,10 +313,10 @@ $source_command | Invoke-Expression | fzf `
   --bind 'ctrl-^:toggle-preview' `
   --bind 'ctrl-s:toggle-sort' `
   --bind 'shift-up:preview-up,shift-down:preview-down' `
-  --bind "ctrl-a:preview:$preview_all" `
-  --bind "ctrl-d:preview:$preview_cmd" `
-  --bind "ctrl-f:preview:$preview_file" `
-  --bind "ctrl-g:preview:$preview_graph" `
+  --bind "ctrl-a:change-preview:$preview_all" `
+  --bind "ctrl-d:change-preview:$preview_cmd" `
+  --bind "ctrl-f:change-preview:$preview_file" `
+  --bind "ctrl-g:change-preview:$preview_graph" `
   --bind "ctrl-y:execute-silent($copy)+bell" `
   --expect="ctrl-o,ctrl-e" `
   --header "ctrl-a: Full patch | ctrl-d: File patch | ctrl-f: File | ctrl-y: Copy hashes" `
