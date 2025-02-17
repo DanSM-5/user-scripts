@@ -12,7 +12,7 @@ $OG_FZF_DEFAULT_COMMAND = ''
 $query = $args[0]
 $pwsh = if (Get-Command -Name 'pwsh' -All -ErrorAction SilentlyContinue) { 'pwsh' } else { 'powershell' }
 
-$preview_cmd = if (!($env:NO_DELTA) -and (Get-Command 'delta' -ErrorAction SilentlyContinue)) {
+$preview_cmd = if ($env:USE_DELTA -and (Get-Command 'delta' -ErrorAction SilentlyContinue)) {
   'rga --json --pretty --context 5 {q} {} | delta'
 } else {
   'rga --pretty --context 5 {q} {}'

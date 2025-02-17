@@ -8,7 +8,7 @@ fi
 
 RG_PREFIX="rga --files-with-matches"
 
-if ! [[ -v NO_DELTA ]] && command -v 'delta' &> /dev/null; then
+if [[ -v USE_DELTA ]] && command -v 'delta' &> /dev/null; then
   preview_cmd='rga --json --pretty --context 5 {q} {} | delta'
 else
   preview_cmd='rga --pretty --context 5 {q} {}'

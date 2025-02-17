@@ -4,6 +4,8 @@
 Param(
   # Start fullscreen
   [Switch] $Fullscreen = $false,
+  # Start fullscreen
+  [Switch] $Delta = $false,
   # Query to search
   [Parameter(ValueFromRemainingArguments = $true, position = 0 )]
   [String[]] $QueryArgs = @()
@@ -120,7 +122,7 @@ $preview_cmd = "
 "
 
 
-if (Get-Command -Name 'delta' -ErrorAction SilentlyContinue) {
+if (($env:USE_DELTA -or $Delta) -and (Get-Command -Name 'delta' -ErrorAction SilentlyContinue)) {
   $preview_grep = 'rg --pretty --context 5 --json {q} {} | delta'
 } else {
   $preview_grep = 'rg --pretty --context 5 {q} {}'
@@ -151,10 +153,10 @@ $fzf_args.AddRange([string[]]@(
   '--bind', 'ctrl-s:toggle-sort',
   '--bind', "ctrl-f:unbind(change,ctrl-f)+change-prompt(Narrow> )+enable-search+clear-query+rebind(ctrl-r)+change-preview:$preview_cmd",
   '--bind', 'shift-up:preview-up,shift-down:preview-down',
-  '--bind', "start:unbind(change)",
+  '--bind', "start:unbind(change,ctrl-f)+reload($files_cmd)",
   '--bind', "alt-r:unbind(change,ctrl-f)+change-prompt(Select> )+enable-search+reload($files_cmd)+rebind(ctrl-r)+change-preview:$preview_cmd",
   '--bind', "change:reload:$grep_cmd",
-  '--bind', "ctrl-r:unbind(ctrl-r)+change-prompt(Search> )+disable-search+reload($grep_cmd)+rebind(change,ctrl-f)+change-preview:$preview_grep",
+  '--bind', "ctrl-r:unbind(ctrl-r)+change-prompt(Search> )+disable-search+reload($grep_cmd)+rebind(change,ctrl-f)+change-preview($preview_grep)+refresh-preview",
   '--delimiter', ':',
   '--header', "Search in: $location",
   "--history=$history_file",

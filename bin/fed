@@ -3,6 +3,9 @@
 # Enable debug logs
 [[ -v debug ]] && set -x
 
+fullscreen=false
+delta=false
+
 # Allow complex regex
 shopt -s extglob
 
@@ -13,6 +16,10 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     -[fF]|-?(-)[fF]ullscreen)
       fullscreen=true
+      shift # past argument
+      ;;
+    -[dD]|-?(-)[dD]elta)
+      delta=true
       shift # past argument
       ;;
     -*|--*)
@@ -113,7 +120,7 @@ preview_cmd="
   fi
 "
 
-if command -v 'delta' &>/dev/null; then
+if [[ -v USE_DELTA || "$delta" == 'true' ]] && command -v 'delta' &>/dev/null; then
   preview_grep='rg --pretty --context 5 --json {q} {} | delta'
 else
   preview_grep='rg --pretty --context 5 {q} {}'
@@ -149,10 +156,10 @@ done < <(fzf \
     --bind 'ctrl-s:toggle-sort' \
     --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(Narrow> )+enable-search+clear-query+rebind(ctrl-r)+change-preview:$preview_cmd" \
     --bind 'shift-up:preview-up,shift-down:preview-down' \
-    --bind "start:unbind(change)+reload($files_cmd)" \
+    --bind "start:unbind(change,ctrl-f)+reload($files_cmd)" \
     --bind "alt-r:unbind(change,ctrl-f)+change-prompt(Select> )+enable-search+reload($files_cmd)+rebind(ctrl-r)+change-preview:$preview_cmd" \
     --bind "change:reload:$grep_cmd" \
-    --bind "ctrl-r:unbind(ctrl-r)+change-prompt(Search> )+disable-search+reload($grep_cmd)+rebind(change,ctrl-f)+change-preview:$preview_grep" \
+    --bind "ctrl-r:unbind(ctrl-r)+change-prompt(Search> )+disable-search+reload($grep_cmd)+rebind(change,ctrl-f)+change-preview($preview_grep)+refresh-preview" \
     --delimiter : \
     --header "Search in: $location" \
     --history="$history_file" \
