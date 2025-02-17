@@ -1,0 +1,70 @@
+#!/bin/sh
+
+# Check if the terminal supports colors
+if tput setaf 1 >/dev/null 2>&1; then
+  COLOR_INFO="$(tput setaf 4)"    # Bright Blue for general info
+  COLOR_WARN="$(tput setaf 3)"    # Yellow for warnings
+  COLOR_SUCCESS="$(tput setaf 2)" # Green for success
+  COLOR_RESET="$(tput sgr0)"
+else
+  COLOR_INFO=""
+  COLOR_WARN=""
+  COLOR_SUCCESS=""
+  COLOR_RESET=""
+fi
+
+# COLOR_INFO="$(git config --get-color '' 'blue black bold')"
+# COLOR_WARN="$(git config --get-color '' 'yellow black bold')"
+# COLOR_SUCCESS="$(git config --get-color '' 'green black bold')"
+# COLOR_RESET="$(git config --get-color '' 'reset')"
+
+# Function to print messages with appropriate colors
+echoinfo() {
+  printf "%s%s%s\n" "$COLOR_INFO" "$1" "$COLOR_RESET" >&2
+}
+
+echowarn() {
+  printf "%s%s%s\n" "$COLOR_WARN" "$1" "$COLOR_RESET" >&2
+}
+
+echosuccess() {
+  printf "%s%s%s\n" "$COLOR_SUCCESS" "$1" "$COLOR_RESET" >&2
+}
+
+# Display help message
+show_help() {
+  printf "Usage: %s [OPTION]\n" "$0"
+  printf "Capture input and echo it back to stdout.\n\n"
+  printf "Options:\n"
+  printf "  -h, --help    Show this help message and exit\n\n"
+  printf "Example:\n"
+  printf "  %s              # Capture input interactively\n" "$0"
+  printf "  echo 'Hello' | %s  # Capture input from a pipe\n" "$0"
+  exit 0
+}
+
+# Check for help option
+case "$1" in
+-h | --help) show_help ;;
+esac
+
+if command -v bat >/dev/null 2>&1; then
+  CAT="bat"
+else
+  CAT="cat"
+fi
+
+if [ -t 0 ]; then # Interactive mode
+  echoinfo "📋 Enter input and press Enter (Ctrl+D to finish):"
+fi
+
+input_content=$($CAT)
+
+if [ -z "$input_content" ]; then
+  echowarn "⚠️  No input received!"
+  exit 1
+fi
+
+# echosuccess "✅ Echoing the input to stdout!"
+printf "%s\n" "$input_content"
+
