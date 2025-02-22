@@ -369,6 +369,8 @@ $help_cmd = @"
     ctrl-y: Copy selected hash(es)
     ctrl-o: Exit and print selected hash(es) with \`git show\`
     ctrl-e: Exit and open selected hash(es) in editor
+    ctrl-r: Remove selected hash(es) from result
+    alt-r: Reload history
 
   Cursor keys:
     alt-a: Select all
@@ -403,6 +405,8 @@ $source_command | Invoke-Expression | fzf `
   --bind "ctrl-f:change-preview:$preview_file" `
   --bind "ctrl-g:change-preview:$preview_graph" `
   --bind "ctrl-y:execute-silent($copy)+bell" `
+  --bind 'ctrl-r:exclude-multi' `
+  --bind "alt-r:reload:$source_command" `
   --expect="ctrl-o,ctrl-e" `
   --bind "alt-h:preview:$help_cmd" `
   --header "ctrl-a: Full patch | ctrl-d: File patch | alt-h: Help" `
@@ -417,7 +421,6 @@ $source_command | Invoke-Expression | fzf `
     $line = $_ -split "\s+"
     $commits.Add($line[0])
   }
-  # --bind "ctrl-g:transform:$echo 'preview:$preview_graph'" `
 
 # If no commits, exit
 if ($commits.Count -lt 2) {
