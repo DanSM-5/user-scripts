@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+[[ -v debug ]] && set -x
+
 open=false
 fullscreen=false
 print_patches=false
@@ -133,6 +135,11 @@ for farg in $GFH_FZF_ARGS; do
 done
 
 if [ -z "$filename" ] || ! [ -f "$filename" ]; then
+  if [ -n "$filename" ]; then
+    ybb="$(git config --get-color "" "yellow black bold")"
+    reset="$(git config --get-color "" "reset")"
+    echo "${ybb}File \"$filename\" is invalid. Starting selection${reset}"
+  fi
   # Preview window command
   file_preview="
     LINE={}
@@ -168,6 +175,37 @@ if [ -z "$filename" ] || ! [ -f "$filename" ]; then
     reload_files="find . -type f $GFH_FD_ARGS"
   fi
 
+  help_cat_cmd="cat"
+
+  if command -v 'bat' &>/dev/null; then
+    help_cat_cmd='bat --color=always --language help --style=plain'
+  fi
+
+  help_cmd="
+  $help_cat_cmd <<< '
+  Preview window keys:
+    ctrl-^: Toggle preview
+    ctrl-/: Toggle preview position
+    ctrl-s: Toggle sort
+    shift-up: Preview up
+    shift-down: Preview down
+    alt-up: Preview page up
+    alt-down: Preview page down
+
+  Utility keys:
+    alt-r: Reload fuzzy filter
+    ctrl-r: Change search base on grep
+    ctrl-f: Fuzzy filter on grep search
+
+  Cursor keys:
+    alt-a: Select all
+    alt-d: Deselect all
+    alt-f: Go first
+    alt-l: Go last
+    alt-c: Clear query
+'
+"
+
   filename="$(fzf \
       --ansi --cycle --no-multi \
       --bind 'alt-c:clear-query' \
@@ -182,8 +220,9 @@ if [ -z "$filename" ] || ! [ -f "$filename" ]; then
       --bind "alt-r:reload($reload_files)" \
       --bind "change:reload:$grep_command" \
       --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" \
+      --bind "alt-h:preview:$help_cmd" \
       --delimiter : \
-      --header 'Select a file to search' \
+      --header 'Help: alt-h | Select a file to search:' \
       --input-border \
       --layout=reverse \
       --min-height 20 --border \
@@ -243,11 +282,44 @@ else
 fi
 preview_file="$(printf "$preview" "{1}:\"$filename\"")"
 preview_graph='git log --color=always --oneline --decorate --graph {1}'
+help_cat_cmd='cat'
 
 if command -v 'bat' &>/dev/null; then
   bat_style="${BAT_STYLE:-numbers,header}"
   preview_file="$preview_file | bat --color=always --style=$bat_style --file-name \"$filename\""
+  help_cat_cmd='bat --color=always --language help --style=plain'
 fi
+
+help_cmd="
+  $help_cat_cmd <<< '
+  Preview window keys:
+    ctrl-^: Toggle preview
+    ctrl-/: Toggle preview position
+    ctrl-s: Toggle sort
+    shift-up: Preview up
+    shift-down: Preview down
+    alt-up: Preview page up
+    alt-down: Preview page down
+
+  Preview keys:
+    ctrl-a: Preview whole patch
+    ctrl-d: Preview patch on file (default)
+    ctrl-f: Preview file at hash
+    ctrl-g: Preview graph at hash
+
+  Utility keys:
+    ctrl-y: Copy selected hash(es)
+    ctrl-o: Exit and print selected hash(es) with \`git show\`
+    ctrl-e: Exit and open selected hash(es) in editor
+
+  Cursor keys:
+    alt-a: Select all
+    alt-d: Deselect all
+    alt-f: Go first
+    alt-l: Go last
+    alt-c: Clear query
+  '
+"
 
 # Call fzf
 mapfile -t commits < <(fzf \
@@ -268,7 +340,8 @@ mapfile -t commits < <(fzf \
     --bind "ctrl-g:change-preview:$preview_graph" \
     --bind "ctrl-y:execute-silent($copy)+bell" \
     --expect=ctrl-o,ctrl-e \
-    --header "ctrl-a: Full patch | ctrl-d: File patch | ctrl-f: File | ctrl-y: Copy hashes" \
+    --bind "alt-h:preview:$help_cmd" \
+    --header "ctrl-a: Full patch | ctrl-d: File patch | alt-h: Help" \
     --history="$history_file" \
     --input-border \
     --layout=reverse \

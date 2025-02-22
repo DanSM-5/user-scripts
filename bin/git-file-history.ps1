@@ -184,7 +184,11 @@ foreach ($farg in ($GFH_FZF_ARGS -Split ' ')) {
   }
 }
 
-if ($File.Count -eq 0) {
+if ($File.Count -eq 0 -or !(Test-Path -PathType Leaf -LiteralPath $File[-1])) {
+  if ($File.Count -ne 0) {
+    Write-Warning "File `"$($File[-1])`" is invalid. Starting selection"
+  }
+
   # Preview window command
   $file_preview = "
     `$FILE = {1}
@@ -213,6 +217,45 @@ if ($File.Count -eq 0) {
     $reload_files = "Get-ChildItem -Recurse $GFH_FD_ARGS | % { Resolve-Path -Relative $_.FullName }"
   }
 
+  $help_cat_cmd = 'Get-Content'
+
+  if (Get-Command -Name 'bat' -All -ErrorAction SilentlyContinue) {
+    $help_cat_cmd = 'bat --color=always --language help --style=plain'
+  }
+
+  $help_cmd = @"
+  `$temp = New-TemporaryFile
+
+  try {
+'
+  Preview window keys:
+    ctrl-^: Toggle preview
+    ctrl-/: Toggle preview position
+    ctrl-s: Toggle sort
+    shift-up: Preview up
+    shift-down: Preview down
+    alt-up: Preview page up
+    alt-down: Preview page down
+
+  Utility keys:
+    alt-r: Reload fuzzy filter
+    ctrl-r: Change search base on grep
+    ctrl-f: Fuzzy filter on grep search
+
+  Cursor keys:
+    alt-a: Select all
+    alt-d: Deselect all
+    alt-f: Go first
+    alt-l: Go last
+    alt-c: Clear query
+' | Out-File `$temp.FullName
+
+    $help_cat_cmd `$temp.FullName
+  } finally {
+    Remove-Item -LiteralPath `$temp.FullName -Force -ErrorAction SilentlyContinue
+  }
+"@
+
   $filename = $reload_files | Invoke-Expression |
     fzf `
       --ansi --cycle --no-multi `
@@ -228,8 +271,9 @@ if ($File.Count -eq 0) {
       --bind "alt-r:reload($reload_files)" `
       --bind "change:reload:$grep_command" `
       --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" `
+      --bind "alt-h:preview:$help_cmd" `
       --delimiter : `
-      --header 'Select a file to search' `
+      --header 'Help: alt-h | Select a file to search:' `
       --input-border `
       --layout=reverse `
       --min-height 20 --border `
@@ -244,7 +288,7 @@ if ($File.Count -eq 0) {
 }
 
 if (-Not $filename) {
-  Write-Error "You need to provide a file or select one"
+  Write-Error 'You need to provide a file or select one'
   exit
 }
 
@@ -293,11 +337,52 @@ if (Get-Command -Name 'delta' -All -ErrorAction SilentlyContinue) {
 }
 $preview_file = $preview -f "{1}:`"$($filename.Replace('\', '/'))`""
 $preview_graph = 'git log --color=always --oneline --decorate --graph {1}'
+$help_cat_cmd = 'Get-Content'
 
 if (Get-Command -Name 'bat' -All -ErrorAction SilentlyContinue) {
   $bat_style = if ($env:BAT_STYLE) { $env:BAT_STYLE } else { 'numbers,header' }
   $preview_file = $preview_file + " | bat --color=always --style=$bat_style --file-name `"$filename`""
+  $help_cat_cmd = 'bat --color=always --language help --style=plain'
 }
+
+$help_cmd = @"
+  `$temp = New-TemporaryFile
+
+  try {
+'
+  Preview window keys:
+    ctrl-^: Toggle preview
+    ctrl-/: Toggle preview position
+    ctrl-s: Toggle sort
+    shift-up: Preview up
+    shift-down: Preview down
+    alt-up: Preview page up
+    alt-down: Preview page down
+
+  Preview keys:
+    ctrl-a: Preview whole patch
+    ctrl-d: Preview patch on file (default)
+    ctrl-f: Preview file at hash
+    ctrl-g: Preview graph at hash
+
+  Utility keys:
+    ctrl-y: Copy selected hash(es)
+    ctrl-o: Exit and print selected hash(es) with \`git show\`
+    ctrl-e: Exit and open selected hash(es) in editor
+
+  Cursor keys:
+    alt-a: Select all
+    alt-d: Deselect all
+    alt-f: Go first
+    alt-l: Go last
+    alt-c: Clear query
+' | Out-File `$temp.FullName
+
+    $help_cat_cmd `$temp.FullName
+  } finally {
+    Remove-Item -LiteralPath `$temp.FullName -Force -ErrorAction SilentlyContinue
+  }
+"@
 
 # Call fzf
 $commits = [System.Collections.Generic.List[string]]::new()
@@ -319,7 +404,8 @@ $source_command | Invoke-Expression | fzf `
   --bind "ctrl-g:change-preview:$preview_graph" `
   --bind "ctrl-y:execute-silent($copy)+bell" `
   --expect="ctrl-o,ctrl-e" `
-  --header "ctrl-a: Full patch | ctrl-d: File patch | ctrl-f: File | ctrl-y: Copy hashes" `
+  --bind "alt-h:preview:$help_cmd" `
+  --header "ctrl-a: Full patch | ctrl-d: File patch | alt-h: Help" `
   --history="$history_file" `
   --input-border `
   --layout=reverse `
