@@ -274,16 +274,13 @@ $copy = '
 '
 
 
-$help_cat_cmd = 'Get-Content'
+$help_cat_cmd = ''
 if (Get-Command -Name 'bat' -ErrorAction SilentlyContinue) {
-  $help_cat_cmd = 'bat --color=always --language help --style=plain'
+  $help_cat_cmd = '| bat --color=always --language help --style=plain'
 }
 
 $help_cmd = @"
-  `$temp = New-TemporaryFile
-
-  try {
-'
+Write-Output '
   Preview window keys:
     ctrl-^: Toggle preview
     ctrl-/: Toggle preview position
@@ -309,16 +306,8 @@ $help_cmd = @"
     alt-f: Go first
     alt-l: Go last
     alt-c: Clear query
-' | Out-File `$temp.FullName
-
-    $help_cat_cmd `$temp.FullName
-  }
-  finally {
-    Remove-Item -LiteralPath `$temp.FullName -Force -ErrorAction SilentlyContinue
-  }
+' $help_cat_cmd
 "@
-
-echo "Source: $source_command"
 
 # It may be useful but prefer the initil pipe for now
 # --bind "start:reload:$source_command"

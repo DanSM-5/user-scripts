@@ -217,17 +217,13 @@ if ($File.Count -eq 0 -or !(Test-Path -PathType Leaf -LiteralPath $File[-1])) {
     $reload_files = "Get-ChildItem -Recurse $GFH_FD_ARGS | % { Resolve-Path -Relative $_.FullName }"
   }
 
-  $help_cat_cmd = 'Get-Content'
-
+  $help_cat_cmd = ''
   if (Get-Command -Name 'bat' -All -ErrorAction SilentlyContinue) {
-    $help_cat_cmd = 'bat --color=always --language help --style=plain'
+    $help_cat_cmd = '| bat --color=always --language help --style=plain'
   }
 
   $help_cmd = @"
-  `$temp = New-TemporaryFile
-
-  try {
-'
+    Write-Output '
   Preview window keys:
     ctrl-^: Toggle preview
     ctrl-/: Toggle preview position
@@ -248,12 +244,7 @@ if ($File.Count -eq 0 -or !(Test-Path -PathType Leaf -LiteralPath $File[-1])) {
     alt-f: Go first
     alt-l: Go last
     alt-c: Clear query
-' | Out-File `$temp.FullName
-
-    $help_cat_cmd `$temp.FullName
-  } finally {
-    Remove-Item -LiteralPath `$temp.FullName -Force -ErrorAction SilentlyContinue
-  }
+' $help_cat_cmd
 "@
 
   $filename = $reload_files | Invoke-Expression |
@@ -330,19 +321,16 @@ if (Get-Command -Name 'delta' -All -ErrorAction SilentlyContinue) {
 }
 $preview_file = $preview -f "{1}:`"$($filename.Replace('\', '/'))`""
 $preview_graph = 'git log --color=always --oneline --decorate --graph {1}'
-$help_cat_cmd = 'Get-Content'
+$help_cat_cmd = ''
 
 if (Get-Command -Name 'bat' -All -ErrorAction SilentlyContinue) {
   $bat_style = if ($env:BAT_STYLE) { $env:BAT_STYLE } else { 'numbers,header' }
   $preview_file = $preview_file + " | bat --color=always --style=$bat_style --file-name `"$filename`""
-  $help_cat_cmd = 'bat --color=always --language help --style=plain'
+  $help_cat_cmd = '| bat --color=always --language help --style=plain'
 }
 
 $help_cmd = @"
-  `$temp = New-TemporaryFile
-
-  try {
-'
+Write-Output '
   Preview window keys:
     ctrl-^: Toggle preview
     ctrl-/: Toggle preview position
@@ -371,12 +359,7 @@ $help_cmd = @"
     alt-f: Go first
     alt-l: Go last
     alt-c: Clear query
-' | Out-File `$temp.FullName
-
-    $help_cat_cmd `$temp.FullName
-  } finally {
-    Remove-Item -LiteralPath `$temp.FullName -Force -ErrorAction SilentlyContinue
-  }
+' $help_cat_cmd
 "@
 
 # Call fzf
