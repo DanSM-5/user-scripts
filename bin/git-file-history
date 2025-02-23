@@ -5,7 +5,7 @@
 open=false
 fullscreen=false
 print_patches=false
-git_args=()
+git_args=''
 
 showHelp () {
   printf "%s\n" "
@@ -42,7 +42,7 @@ showHelp () {
 
       -h, --help                   > Print this message.
 
-      -a, --all                    > Include all references in the search (tags, branches, etc.)
+      -g, --gitargs                > Git arguments. E.g. '--branches --tags'
 
       -e, --edit                   > Open the selected commits in your editor (\$EDITOR).
 
@@ -66,9 +66,10 @@ shopt -s extglob
 # shellcheck disable=SC2221 disable=SC2222
 while [[ $# -gt 0 ]]; do
   case $1 in
-    -[aA]|-?(-)[aA]ll)
-      git_args+=('--all')
+    -[gG]|-?(-)[gG]it[aA]rgs)
+      git_args="$2"
       shift # past argument
+      shift # past value
       ;;
     -[fF]|-?(-)[fF]ile)
       filename="$2"
@@ -269,17 +270,23 @@ elif [ -n "$DISPLAY" ] && command -v 'xclip' &>/dev/null; then
   copy="awk '{ print \$1 }' {+f} | xclip -i -selection clipboard"
 fi
 
-git_command="git log --color=always --oneline --follow ${git_args[*]} $GFH_GIT_ARGS -- %s || true"
+git_command="git log --color=always --oneline --decorate --follow $GFH_GIT_ARGS $git_args -- %s || true"
+# shellcheck disable=SC2059
 source_command="$(printf "$git_command" "$filename")"
 
 preview='git show --color=always %s'
 if command -v delta &>/dev/null; then
+  # shellcheck disable=SC2059
   preview_cmd="$(printf "$preview" "--follow {1} -- \"$filename\" | delta")"
+  # shellcheck disable=SC2059
   preview_all="$(printf "$preview" '{1} | delta ')"
 else
+  # shellcheck disable=SC2059
   preview_cmd="$(printf "$preview" "--follow -- \"$filename\"")"
+  # shellcheck disable=SC2059
   preview_all="$(printf "$preview" '{1}')"
 fi
+# shellcheck disable=SC2059
 preview_file="$(printf "$preview" "{1}:\"$filename\"")"
 preview_graph='git log --color=always --oneline --decorate --graph {1}'
 help_cat_cmd='cat'

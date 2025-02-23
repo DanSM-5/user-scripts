@@ -7,8 +7,8 @@
 .DESCRIPTION
   Search the commit history of a file using fzf
 
-.PARAMETER All
-  Include all refs for git `--all` flag
+.PARAMETER GitArgs
+  Add arguments to git to customize output like '--all' to include all references
 
 .PARAMETER File
   File to use for search.
@@ -35,7 +35,7 @@
   git-file-history
 
 .EXAMPLE
-  git-file-history -a
+  git-file-history -g '--all'
 
 .EXAMPLE
   git-file-history -d
@@ -67,8 +67,8 @@
 
 [CmdletBinding()]
 Param(
-  # Show all refs like tags, branches, etc.
-  [Switch] $All = $false,
+  # Send arguments to git to customize output
+  [string[]] $GitArgs = @(),
   # Edit
   [Switch] $Edit = $false,
   # Show help
@@ -118,7 +118,7 @@ function showHelp {
 
       -Help [switch]               > Print this message.
 
-      -All [switch]                > Include all references in the search (tags, branches, etc.)
+      -GitArgs [string[]]          > Git arguments. E.g. '--branches --tags'
 
       -Edit [switch]               > Open the selected commits in your editor (`$EDITOR).
 
@@ -317,14 +317,7 @@ $history_file = "$history_location/git-file-history" -Replace '\\', '/'
 # Ensure history location exists
 New-Item -Path $history_location -ItemType Directory -ErrorAction SilentlyContinue
 
-
-$git_args = [System.Collections.Generic.List[string]]::new()
-
-if ($All) {
-  $git_args.Add('--all')
-}
-
-$git_command = "git log --color=always --oneline --follow $git_args $GFH_GIT_ARGS -- {0} || true"
+$git_command = "git log --color=always --oneline --decorate --follow $GFH_GIT_ARGS $GitArgs -- {0} || true"
 $source_command = $git_command -f $filename
 
 $preview = 'git show --color=always {0}'
