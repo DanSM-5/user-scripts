@@ -9,6 +9,9 @@
   Use fzf to select the commit hashes and open them with `git show`. If delta is installed,
   it will be used as the pager.
 
+.PARAMETER GitArgs
+  Add arguments to git to customize output like '--all' to include all references
+
 .PARAMETER Log
   Search a string in the log of the commits
 
@@ -74,6 +77,8 @@
 
 [CmdletBinding()]
 Param(
+  # Send arguments to git to customize output
+  [string[]] $GitArgs = @(),
   # Mode log
   [Switch] $Log = $false,
   # Mode regex
@@ -131,6 +136,8 @@ function showHelp {
     Flags:
 
       -Help [switch]               > Print this message.
+
+      -GitArgs [string[]]          > Git arguments. E.g. '--branches --tags'
 
       -Log [switch]                > Search in the log of the commits.
 
@@ -194,7 +201,7 @@ if (!$cmd_mode) {
 }
 
 # Command formatting
-$base_command = ''
+$base_command = "git log --color=always --oneline --decorate $GitArgs {0} 2> `$null"
 $files = ''
 $format_files = '{0}'
 
@@ -209,13 +216,13 @@ if ($File.Length -gt 0) {
 # Git command to perform
 switch ($cmd_mode) {
   'regex' {
-    $base_command = 'git log --color=always --oneline --branches --all -G {0} 2> $null' -f $format_files
+    $base_command = $base_command -f "-G $format_files"
   }
   'string' {
-    $base_command = 'git log --color=always --oneline --branches --all -S {0} 2> $null' -f $format_files
+    $base_command = $base_command -f "-G $format_files"
   }
   Default {
-    $base_command = 'git log --color=always --oneline --branches --all --grep {0} 2> $null' -f $format_files
+    $base_command = $base_command -f "--grep $format_files"
   }
 }
 
@@ -266,6 +273,53 @@ $copy = '
   Get-Content {+f} | ForEach-Object { ($_ -Split "\s+")[0] } | Set-Clipboard
 '
 
+
+$help_cat_cmd = 'Get-Content'
+if (Get-Command -Name 'bat' -ErrorAction SilentlyContinue) {
+  $help_cat_cmd = 'bat --color=always --language help --style=plain'
+}
+
+$help_cmd = @"
+  `$temp = New-TemporaryFile
+
+  try {
+'
+  Preview window keys:
+    ctrl-^: Toggle preview
+    ctrl-/: Toggle preview position
+    ctrl-s: Toggle sort
+    shift-up: Preview up
+    shift-down: Preview down
+    alt-up: Preview page up
+    alt-down: Preview page down
+
+  Modes keys:
+    ctrl-r: Interactive git search based on mode
+    ctrl-f: Fuzzy filtering current results
+
+  Utility keys:
+    ctrl-y: Copy selected hash(es)
+    ctrl-o: Exit and print selected hash(es) with \`git show\`
+    ctrl-e: Exit and open selected hash(es) in editor
+    ctrl-d: Drop selected hash(es) from result
+
+  Cursor keys:
+    alt-a: Select all
+    alt-d: Deselect all
+    alt-f: Go first
+    alt-l: Go last
+    alt-c: Clear query
+' | Out-File `$temp.FullName
+
+    $help_cat_cmd `$temp.FullName
+  }
+  finally {
+    Remove-Item -LiteralPath `$temp.FullName -Force -ErrorAction SilentlyContinue
+  }
+"@
+
+echo "Source: $source_command"
+
 # It may be useful but prefer the initil pipe for now
 # --bind "start:reload:$source_command"
 
@@ -287,9 +341,11 @@ $source_command | Invoke-Expression | fzf `
     --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)" `
     --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)" `
     --bind "ctrl-y:execute-silent($copy)+bell" `
+    --expect 'ctrl-o,ctrl-e' `
+    --bind 'ctrl-d:exclude-multi' `
+    --bind "alt-h:preview:$help_cmd" `
     --disabled `
-    --expect="ctrl-o,ctrl-e" `
-    --header "Mode: $cmd_mode | ctrl-r: Interactive search | ctrl-f: Filtering results | ctrl-y: Copy hashes" `
+    --header "Mode: $mode | alt-h: Help" `
     --history="$history_file" `
     --input-border `
     --layout=reverse `
