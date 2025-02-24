@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+[[ -v debug ]] && set -x
+
 # Directions:
 # - Use PREFERRED_EDITOR or EDITOR to set a your prefer editor program
 # - Use TXT_LOCATION to customize location of directory with text files
@@ -31,7 +33,7 @@ fi
 
 # Set grep command
 if command_exists 'rg'; then
-  grep_command='rg --with-filename --line-number --color=always {q}'
+  grep_command='rg --no-heading --smart-case --with-filename --line-number --color=always {q}'
 else
   # grep -h -n --color=always -R
   grep_command='grep --with-filename --line-number --color=always --dereference-recursive {q}'
@@ -56,70 +58,102 @@ preview_cmd="
   fi
 "
 
-# Set opener files
-if [ -n "$OS" ] && [ "$OS" = 'Windows_NT' ]; then
-  # NOTE: On windows the temporary file template needs quotations
-  TEMP_FILE='"{+f}"'
-else
-  TEMP_FILE='{+f}'
-fi
+editorOptions="${EDITOR_OPTS:-}"
 
-if [[ "$editor" =~ .*vim? ]]; then
-  OPENER="if [[ \$FZF_SELECT_COUNT -eq 0 ]]; then # No selection. Open the current line in Vim.
-            file={1}
-            line={2}
-            if [ -n \"\$line\" ]; then
-              # from search mode
-              $editor {1} +{2}
-            else
-              # from select mode
-              $editor {1}
-            fi
-          else
-            # Ensure all entries match the errorfile format of vim
-            parsed_file=\"\$(mktemp)\"
-            awk -F: '{ if (\$2 == \"\") print \$1\":1:  -\"; else print \$0; }' $TEMP_FILE > \"\$parsed_file\"
-            # nvim {+f}  # Build quickfix list for the selected items.
-            $editor +cw -q \"\$parsed_file\" # Build quickfix list for the selected items.
-            rm \"\$parsed_file\"
-          fi"
-else
-  # Handle non vim editors
-  OPENER="if [[ \$FZF_SELECT_COUNT -eq 0 ]]; then
-            $editor {1}
-          else
-            code \$(awk -F: '{print \$1}' $TEMP_FILE | tr '\\\\' '/')
-          fi"
-fi
+open_vim () {
+  local -n selections=$1
+  
+  if [ "${#selections[@]}" = 1 ]; then
+    args="$(awk -F: '{ if ($2 == "") printf "'\''%s'\''", $1; else printf "'\''%s'\'' +%s", $1, $2}' <<< "${selections[0]}")"
+    eval "$editor $editorOptions $args"
+  else
+    temp_qf="$(mktemp)"
+    # trap EXIT "rm -rf '$temp_qf' &>/dev/null"
+    for selection in "${selections[@]}"; do
+      awk -F: '{ if ($2 == "") print $1":1:  -"; else print $0}' <<< "$selection" >> "$temp_qf"
+    done
+    eval "$editor $editorOptions +cw -q $temp_qf"
+  fi
+}
+
+open_vscode () {
+  local -n selections=$1
+
+  # HACK to check to see if we're running under Visual Studio Code.
+  # If so, reuse Visual Studio Code currently open windows:
+  [[ -v VSCODE_PID ]] && editorOptions="$editorOptions --reuse-window"
+
+  for selection in "${selections[@]}"; do
+    args="$(awk -F: '{ if ($2 == "") printf "'\''%s'\''", $1; else printf "--goto '\''%s:%s'\''", $1, $2 }' <<< "$selection")"
+    eval "$editor $editorOptions $args"
+  done
+}
+
+open_nano () {
+  local -n selections=$1
+
+  if [ "${#selections[@]}" = 1 ]; then
+    args="$(awk -F: '{ if ($2 == "") printf "'\''%s'\''",$1; else printf "+%s '\''%s'\''", $2, $1 }')"
+    eval "$editor $editorOptions $args"
+  else
+    mapfile -t args < <(
+      printf '%s\n' "${selections[@]}" |
+        awk -F: '{ printf "'\''%s'\''", $1 }'
+    )
+    eval "$editor $editorOptions ${args[*]}"
+  fi
+}
+
+open_generic () {
+  local -n selections=$1
+
+  mapfile -t args < <(
+    printf '%s\n' "${selections[@]}" |
+      awk -F: '{ printf "'\''%s'\''", $1 }'
+  )
+  eval "$editor $editorOptions ${args[*]}"
+}
 
 # Chang to text files directory to avoid long file names
 cd "$txt" &>/dev/null || return
 
 # Search files
-fzf --height 80% --min-height 20 --border \
-  --ansi --cycle --multi \
-  --bind 'alt-a:select-all' \
-  --bind 'alt-c:clear-query' \
-  --bind 'alt-d:deselect-all' \
-  --bind 'alt-f:first' \
-  --bind 'alt-l:last' \
-  --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
-  --bind 'ctrl-/:change-preview-window(down|hidden|)' \
-  --bind 'ctrl-^:toggle-preview' \
-  --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Files> )+enable-search+clear-query+rebind(ctrl-r,alt-r)' \
-  --bind 'ctrl-s:toggle-sort' \
-  --bind 'shift-up:preview-up,shift-down:preview-down' \
-  --bind "alt-r:reload($find_files_cmd)" \
-  --bind "change:reload:$grep_command" \
-  --bind "ctrl-o:execute:$OPENER" \
-  --bind "enter:become:$OPENER" \
-  --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" \
-  --bind "start:unbind(change)+reload($find_files_cmd)" \
-  --delimiter : \
-  --header 'ctrl-f: File selection (reload alt-r) | ctrl-r: Search mode' \
-  --input-border \
-  --preview-window '+{2}-/2,wrap' \
-  --preview "$preview_cmd" \
-  --prompt 'Files> ' \
-  --query "$query"
+mapfile -t selected < <(
+  fzf --height 80% --min-height 20 --border \
+    --ansi --cycle --multi \
+    --bind 'alt-a:select-all' \
+    --bind 'alt-c:clear-query' \
+    --bind 'alt-d:deselect-all' \
+    --bind 'alt-f:first' \
+    --bind 'alt-l:last' \
+    --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+    --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+    --bind 'ctrl-^:toggle-preview' \
+    --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Files> )+enable-search+clear-query+rebind(ctrl-r,alt-r)' \
+    --bind 'ctrl-s:toggle-sort' \
+    --bind 'shift-up:preview-up,shift-down:preview-down' \
+    --bind "alt-r:reload($find_files_cmd)" \
+    --bind "change:reload:$grep_command" \
+    --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" \
+    --bind "start:unbind(change)+reload($find_files_cmd)" \
+    --delimiter : \
+    --header 'ctrl-f: File selection (reload alt-r) | ctrl-r: Search mode' \
+    --input-border \
+    --preview-window '+{2}-/2,wrap' \
+    --preview "$preview_cmd" \
+    --prompt 'Files> ' \
+    --query "$query"
+)
+
+if [ "${#selected[@]}" = 0 ]; then
+  exit
+elif [[ $editor =~ .*vim? ]]; then
+  open_vim selected
+elif [ "$editor" = 'code' ] || [ "$editor" = 'code-insiders' ] || [ "$editor" = 'codium' ]; then
+  open_vscode selected
+elif [ "$editor" = 'nano' ]; then
+  open_nano selected
+else
+  open_generic selected
+fi
 
