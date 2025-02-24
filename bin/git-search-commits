@@ -256,6 +256,7 @@ help_cmd="
 
 # Call fzf
 mapfile -t commits < <(fzf \
+    --accept-nth '{1}' \
     --ansi --cycle --multi \
     --bind 'alt-a:select-all' \
     --bind 'alt-c:clear-query' \
@@ -283,8 +284,7 @@ mapfile -t commits < <(fzf \
     --preview "$fzf_preview" \
     --prompt 'GitSearch> ' \
     --query "$*" \
-    "${fzf_args[@]}" |
-  awk '{ print $1 }'
+    "${fzf_args[@]}"
 )
 
 # If no commits, exit

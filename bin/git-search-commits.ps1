@@ -316,6 +316,7 @@ Write-Output '
 $commits = [System.Collections.Generic.List[string]]::new()
 
 $source_command | Invoke-Expression | fzf `
+    --accept-nth '{1}' `
     --ansi --cycle --multi `
     --bind 'alt-a:select-all' `
     --bind 'alt-c:clear-query' `
@@ -334,7 +335,7 @@ $source_command | Invoke-Expression | fzf `
     --bind 'ctrl-d:exclude-multi' `
     --bind "alt-h:preview:$help_cmd" `
     --disabled `
-    --header "Mode: $mode | alt-h: Help" `
+    --header "Mode: $cmd_mode | alt-h: Help" `
     --history="$history_file" `
     --input-border `
     --layout=reverse `
@@ -345,8 +346,7 @@ $source_command | Invoke-Expression | fzf `
     --with-shell "$pwsh -NoLogo -NonInteractive -NoProfile -Command" `
     @fzf_args |
   ForEach-Object {
-    $line = $_ -split "\s+"
-    $commits.Add($line[0])
+    $commits.Add($_)
   }
 
 # If no commits, exit

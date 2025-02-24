@@ -249,6 +249,7 @@ if ($File.Count -eq 0 -or !(Test-Path -PathType Leaf -LiteralPath $File[-1])) {
 
   $filename = $reload_files | Invoke-Expression |
     fzf `
+      --accept-nth '{1}' `
       --ansi --cycle --no-multi `
       --bind 'alt-c:clear-query' `
       --bind 'alt-f:first' `
@@ -271,8 +272,7 @@ if ($File.Count -eq 0 -or !(Test-Path -PathType Leaf -LiteralPath $File[-1])) {
       --preview "$file_preview" `
       --prompt 'Select file> ' `
       --with-shell "$pwsh -NoLogo -NonInteractive -NoProfile -Command" `
-      @fzf_args |
-    ForEach-Object { ($_ -Split ':')[0] }
+      @fzf_args
 } else {
   # Last one passed
   $filename = $File[-1]
@@ -366,6 +366,7 @@ Write-Output '
 $commits = [System.Collections.Generic.List[string]]::new()
 
 $source_command | Invoke-Expression | fzf `
+  --accept-nth '{1}' `
   --ansi --cycle --multi `
   --bind 'alt-a:select-all' `
   --bind 'alt-c:clear-query' `
@@ -394,8 +395,7 @@ $source_command | Invoke-Expression | fzf `
   --prompt 'File History> ' `
   --with-shell "$pwsh -NoLogo -NonInteractive -NoProfile -Command" `
   @fzf_args | ForEach-Object {
-    $line = $_ -split "\s+"
-    $commits.Add($line[0])
+    $commits.Add($_)
   }
 
 # If no commits, exit

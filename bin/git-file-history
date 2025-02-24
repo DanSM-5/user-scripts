@@ -208,6 +208,7 @@ if [ -z "$filename" ] || ! [ -f "$filename" ]; then
 "
 
   filename="$(fzf \
+      --accept-nth '{1}' \
       --ansi --cycle --no-multi \
       --bind 'alt-c:clear-query' \
       --bind 'alt-f:first' \
@@ -229,8 +230,7 @@ if [ -z "$filename" ] || ! [ -f "$filename" ]; then
       --min-height 20 --border \
       --preview "$file_preview" \
       --prompt 'Select file> ' \
-      "${fzf_args[@]}" |
-    cut -d':' -f1
+      "${fzf_args[@]}"
   )"
 fi
 
@@ -331,7 +331,9 @@ help_cmd="
 "
 
 # Call fzf
-mapfile -t commits < <(fzf \
+mapfile -t commits < <(
+  fzf \
+    --accept-nth '{1}' \
     --ansi --cycle --multi \
     --bind 'alt-a:select-all' \
     --bind 'alt-c:clear-query' \
@@ -359,8 +361,7 @@ mapfile -t commits < <(fzf \
     --min-height 20 --border \
     --preview "$preview_cmd" \
     --prompt 'File History> ' \
-    "${fzf_args[@]}" |
-  awk '{ print $1 }'
+    "${fzf_args[@]}"
 )
 
 # If no commits, exit
