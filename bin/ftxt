@@ -93,7 +93,7 @@ open_nano () {
   local -n selections=$1
 
   if [ "${#selections[@]}" = 1 ]; then
-    args="$(awk -F: '{ if ($2 == "") printf "'\''%s'\''",$1; else printf "+%s '\''%s'\''", $2, $1 }')"
+    args="$(awk -F: '{ if ($2 == "") printf "'\''%s'\''",$1; else printf "+%s '\''%s'\''", $2, $1 }' <<< "${selections[0]}")"
     eval "$editor $editorOptions $args"
   else
     mapfile -t args < <(
