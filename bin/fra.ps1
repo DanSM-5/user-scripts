@@ -6,7 +6,7 @@ if (!(Get-Command -Name 'rga' -All -ErrorAction SilentlyContinue)) {
   exit
 }
 
-$RG_PREFIX = 'rga --files-with-matches'
+$RG_PREFIX = 'rga --files-with-matches --smart-case'
 [string[]]$selected = [string[]]@()
 $OG_FZF_DEFAULT_COMMAND = ''
 $query = $args[0]

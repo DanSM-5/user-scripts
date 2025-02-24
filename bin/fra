@@ -6,7 +6,7 @@ if ! command -v 'rga' &>/dev/null; then
   exit 1
 fi
 
-RG_PREFIX="rga --files-with-matches"
+RG_PREFIX="rga --files-with-matches --smart-case"
 
 if [[ -v USE_DELTA ]] && command -v 'delta' &> /dev/null; then
   preview_cmd='rga --json --pretty --context 5 {q} {} | delta'

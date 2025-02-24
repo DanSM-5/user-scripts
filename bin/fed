@@ -96,7 +96,7 @@ files_cmd="fds --color=always -L -tf '$pattern'"
 # fi
 
 if command -v 'rg' &>/dev/null; then
-  grep_cmd="rg --files-with-matches --color=always $FED_RG_ARGS {q} || true"
+  grep_cmd="rg --files-with-matches --smart-case --color=always $FED_RG_ARGS {q} || true"
 else
   # grep -h -n --color=always -R
   grep_cmd="grep --files-with-matches --color=always --dereference-recursive $FED_RG_ARGS {q} || true"

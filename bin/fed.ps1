@@ -97,7 +97,7 @@ $files_cmd = "fds --color=always --path-separator '/' -L -tf '$pattern'"
 # }
 
 if (Get-Command -Name 'rg' -All) {
-  $grep_cmd = "rg --files-with-matches --color=always $FED_RG_ARGS {q} || cd ."
+  $grep_cmd = "rg --files-with-matches --smart-case --color=always $FED_RG_ARGS {q} || cd ."
 } else {
   # grep -h -n --color=always -R
   $grep_cmd = "grep --files-with-matches --color=always --dereference-recursive $FED_RG_ARGS {q} || cd ."
