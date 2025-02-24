@@ -68,7 +68,7 @@ open_vim () {
     eval "$editor $editorOptions $args"
   else
     temp_qf="$(mktemp)"
-    # trap EXIT "rm -rf '$temp_qf' &>/dev/null"
+    trap "rm -rf '$temp_qf' &>/dev/null" EXIT
     for selection in "${selections[@]}"; do
       awk -F: '{ if ($2 == "") print $1":1:  -"; else print $0}' <<< "$selection" >> "$temp_qf"
     done
