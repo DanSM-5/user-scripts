@@ -124,7 +124,7 @@ function open_vscode ([string[]]$selections) {
 
 function open_nano ([string[]]$selections) {
   if ($selections.Length -eq 1) {
-    $items = $selection -Split ':'
+    $items = $selections[0] -Split ':'
     $file = $items[0]
     $line = $items[1]
     if ($line) {
