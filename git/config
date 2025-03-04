@@ -6,7 +6,9 @@
 	signingkey = ~/.ssh/id_ed25519_personal_sign
 
 [credential]
-  helper = /mnt/c/Program\\ Files/Git/mingw64/libexec/git-core/git-credential-wincred.exe
+  # helper = /mnt/c/Program\\ Files/Git/mingw64/libexec/git-core/git-credential-wincred.exe
+  # Prefer new crossplatform credential manager
+	helper = /mnt/c/Program\\ Files/Git/mingw64/bin/git-credential-manager-core.exe
 
 [color]
   ui = true
@@ -139,6 +141,9 @@
 [rerere]
   enabled = true
   autoupdate = true
+
+[diff "md"]
+  xfuncname="^#.*"
 
 # [safe]
 #   directory = *
