@@ -11,16 +11,56 @@
 [color]
   ui = true
 
+[init]
+  defaultBranch = master
+
 [core]
   editor = nvim
   symlinks = true
 	autocrlf = input
   longPaths = true
   pager = delta
-  ; excludesfile = ~/.gitignore # global .gitignore
+  # Set ssh handler
+  # sshCommand = C:/Windows/System32/OpenSSH/ssh.exe
+
+  excludesfile = ~/.gitignore # global .gitignore
+  # Other ignorefile locations
+  # ~/git/ignore
+  # ~/.config/git/ignore
+
+  # Track changes in files to speedup `git status`
+  # fsmonitor = true
+  # untrackedCache = true
+
+# [fetch]
+  # Options below will ensure local repositpry
+  # is in sync with the removed refs in the remote.
+  # Enable carefully to avoid loss of data.
+  # prune = false
+  # pruneTags = false
+  # all true
 
 [pull]
   rebase = false
+  autoStash = true
+
+[push]
+  default = simple
+  autoSetupRemote = true
+  followTags = true
+
+[merge]
+  conflictstyle = zdiff3
+  # conflictstyle = diff3
+
+# [rebase]
+  # autoSquash = false
+  # autoStash = false
+  # https://andrewlock.net/working-with-stacked-branches-in-git-is-easier-with-update-refs
+  # updateRefs = true
+
+[branch]
+  sort = -committerdate
 
 [interactive]
   # Cat is needed to avoid hanging on windows
@@ -37,49 +77,73 @@
   dark = true
   # Display syntax highlight, make it bold, apply whatever delta does for background
   minus-style = syntax bold auto
+  # Support color-moved
+  map-styles = bold purple => syntax magenta, bold cyan => syntax blue
 
 [delat "interactive"]
   keep-plus-minus-markers = false
 
-[merge]
-  conflictstyle = zdiff3
-  # conflictstyle = diff3
-
 [diff]
   colorMoved = default
+  # colorMoved = zebra
+  # colorMoved = plain
   tool = nvimdiff
+  algorithm = histogram
+  renames = true
+  mnemonicPrefix = true
 
-; $BASE is provided for compatibility with custom merge tool commands and has the same value as $MERGED
-; $LOCAL is set to the name of the temporary file containing the contents of the diff pre-image
-; $REMOTE is set to the name of the temporary file containing the contents of the diff post-image
-; $MERGED is the name of the file which is being compared.
+# $BASE is provided for compatibility with custom merge tool commands and has the same value as $MERGED
+# $LOCAL is set to the name of the temporary file containing the contents of the diff pre-image
+# $REMOTE is set to the name of the temporary file containing the contents of the diff post-image
+# $MERGED is the name of the file which is being compared.
 [difftool "vimdiff"]
   cmd = ~/scoop/shims/vim.exe -d $LOCAL $REMOTE
 
-; If no manually set, it hangs in windows 🤔
-; All below options work
+# If no manually set, it hangs in windows 🤔
+# All below options work
 [difftool "nvimdiff"]
-  ; cmd = nvim --clean -d $LOCAL $REMOTE
-  ; cmd = nvim -u ~/vim-config/init.vim.old -d $LOCAL $REMOTE
+  # cmd = nvim --clean -d $LOCAL $REMOTE
+  # cmd = nvim -u ~/vim-config/init.vim.old -d $LOCAL $REMOTE
   cmd = nvim -d $LOCAL $REMOTE
-  ; cmd = nvim -d $BASE $LOCAL $REMOTE $MERGED -c '$wincmd w' -c 'wincmd J'
+  # cmd = nvim -d $BASE $LOCAL $REMOTE $MERGED -c '$wincmd w' -c 'wincmd J'
 
 [gpg]
 	format = ssh
 
-; [commit]
-;   gpgsign = true # Always sign commit (implicit -S)
+[commit]
+  # gpgsign = true # Always sign commit (implicit -S)
+  verbose = true
 
-; [alias]
-;   amend = commit --amend
+[column]
+  ui = auto
 
-; Override <insteadOf> with url
-; [url "https://github.com/"]
-; 	insteadOf = git@github.com:
-; 	insteadOf = git@github-personal:
+[tag]
+  sort = version:refname
+
+# [alias]
+#   amend = commit --amend
+
+# Override <insteadOf> with url
+# [url "https://github.com/"]
+# 	insteadOf = git@github.com:
+# 	insteadOf = git@github-personal:
 
 # Sample aliases
 [alias]
   st = status
   up = ! git fetch && git pull --rebase
+
+[help]
+	autocorrect = prompt
+
+[grep]
+  patternType = perl
+
+# Reused recorded resolutions
+[rerere]
+  enabled = true
+  autoupdate = true
+
+# [safe]
+#   directory = *
 
