@@ -144,7 +144,7 @@
 #   directory = *
 
 # Sample aliases
-; [alias]
-;   st = status
-;   up = ! git fetch && git pull --rebase
+[alias]
+  st = status
+  up = ! git fetch && git pull --rebase
 
