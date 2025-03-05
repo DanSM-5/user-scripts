@@ -171,13 +171,13 @@ try {
       --bind 'alt-up:preview-page-up,alt-down:preview-page-down' `
       --bind 'ctrl-/:change-preview-window(down|hidden|)' `
       --bind 'ctrl-^:toggle-preview' `
-      --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Files> )+enable-search+clear-query+rebind(ctrl-r,alt-r)' `
+      --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(Narrow> )+enable-search+clear-query+rebind(ctrl-r,alt-r)' `
       --bind 'ctrl-s:toggle-sort' `
       --bind 'shift-up:preview-up,shift-down:preview-down' `
       --bind 'start:unbind(change)' `
-      --bind "alt-r:reload($find_files_cmd)" `
+      --bind "alt-r:unbind(change,ctrl-f,alt-r)+change-prompt(Files> )+enable-search+clear-query+rebind(ctrl-r)+reload($find_files_cmd)" `
       --bind "change:reload:$sleepCmd $grep_command" `
-      --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" `
+      --bind "ctrl-r:unbind(ctrl-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f,alt-r)" `
       --delimiter : `
       --header 'ctrl-f: File selection (reload alt-r) | ctrl-r: Search mode' `
       --input-border `
