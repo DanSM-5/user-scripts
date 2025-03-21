@@ -81,7 +81,12 @@
   # Display syntax highlight, make it bold, apply whatever delta does for background
   minus-style = syntax bold auto
   # Support color-moved
-  map-styles = bold purple => syntax magenta, bold cyan => syntax blue
+  map-styles = bold purple => syntax "#271344", bold cyan => syntax "#072536"
+  # bold purple => syntax "#330f29", \
+  # bold blue => syntax "#271344", \
+  # bold cyan => syntax "#0d3531", \
+  # bold yellow => syntax "#222f14"
+  # "#04151f"
 
 [delat "interactive"]
   keep-plus-minus-markers = false
