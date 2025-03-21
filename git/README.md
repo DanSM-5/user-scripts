@@ -292,3 +292,25 @@ git tag --delete <name>
 git push --delete origin <name>
 ```
 
+## Check commit in history
+
+### Show branches with commit in history
+
+```bash
+# All branches that contain commit
+git branch --contains <hash>
+
+# If current branch contains commit
+git branch --contains <hash> | grep "$(git branch --show-current)"
+```
+
+### Detect if commit in history for scripts
+
+```bash
+if git merge-base --is-ancestor <hash> HEAD; then
+  # Commit is in history
+else
+  # Commit is not in history
+fi
+```
+
