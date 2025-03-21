@@ -178,6 +178,7 @@ try {
       --bind "alt-r:unbind(change,ctrl-f,alt-r)+change-prompt(Files> )+enable-search+clear-query+rebind(ctrl-r)+reload($find_files_cmd)" `
       --bind "change:reload:$sleepCmd $grep_command" `
       --bind "ctrl-r:unbind(ctrl-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f,alt-r)" `
+      --bind "start:unbind(change,ctrl-f,alt-r)" `
       --delimiter : `
       --header 'ctrl-f: File selection (reload alt-r) | ctrl-r: Search mode' `
       --input-border `
