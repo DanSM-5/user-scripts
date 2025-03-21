@@ -93,7 +93,7 @@ Search a `<TERM>` in the commit history and display the commits that contain pat
 - `--`: Start listing paths to reduce search
 
 ```bash
-git log -G "<TERM>" --branches [--all] [--patch] [-- path/to/file]
+git log -G "<TERM>" [--branches] [--all] [--patch] [-- path/to/file]
 ```
 
 ## Show paths tracked by git (pathspec)
