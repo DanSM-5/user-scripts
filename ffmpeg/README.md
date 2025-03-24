@@ -21,3 +21,6 @@ To upload videos without issues:
 - Video has to be smalled than 25Mb
 - Codecs `libx264` and `aac`
 
+```bash
+ffmpeg -i video.mp4 -vcodec libx264 -acodec aac out.mp4
+```
