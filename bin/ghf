@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+
+if ! command -v 'gh' &>/dev/null; then
+  printf '%s\n' 'No github cli available'
+  exit 1
+fi
+
+preview='GH_FORCE_TTY=$FZF_PREVIEW_COLUMNS gh pr view {1}'
+commond_options=(
+  --bind 'alt-c:clear-query'
+  --bind 'ctrl-l:change-preview-window(down|hidden|)'
+  --bind 'ctrl-/:change-preview-window(down|hidden|)'
+  --bind 'alt-up:preview-page-up,alt-down:preview-page-down'
+  --bind 'shift-up:preview-up,shift-down:preview-down'
+  --bind 'ctrl-^:toggle-preview'
+  --bind 'ctrl-s:toggle-sort'
+  --bind 'alt-f:first'
+  --bind 'alt-l:last'
+  --bind 'alt-a:select-all'
+  --bind 'alt-d:deselect-all'
+  --cycle
+  --ansi
+  --input-border
+  --no-multi
+  --accept-nth '{1}'
+)
+
+filters=(
+  '0 Assigned to me'
+  '1 Created by me'
+  '2 Needs my review'
+  '3 Draft PRs only'
+  '4 Ready PRs only'
+  '5 Merged PRs'
+  '6 Closed PRs'
+)
+filter_cmds=(
+  '--assigned @me'
+  '--author @me'
+  "--search 'review-requested:@me'"
+  '--draft'
+  "--search 'draft:false'"
+  '--state merged'
+  '--state closed'
+)
+prompt_cmds=(
+  'Assigned PRs> '
+  'Author PRs> '
+  'Need Review> '
+  'Draft PRs> '
+  'Ready PRs> '
+  'Merged PRs> '
+  'Closed PRs> '
+)
+
+select_filter () {
+  local filter
+  filter="$(printf '%s\n' "${filters[@]}" fzf \
+    --no-multi \
+    --input-border \
+    --cycle \
+    --with-nth '2..' \
+    "${commond_options[@]}"
+  )"
+
+  if [ -n "$filter" ]; then
+    local cmd="gh pr list ${filter_cmds[$filter]}" 
+    show_prs "${prompt_cmds[$filter]}"
+    return
+  fi
+
+  show_prs
+}
+
+show_prs () {
+  local cmd="${1:-gh pr list}"
+  local prompt="${2:-Github PRs> }"
+
+  mapfile -t selected < <(GH_FORCE_TTY='50%' fzf \
+    --bind "start:reload:$cmd" \
+    --binf 'ctrl-o:execute-silent:gh pr view {1} --web' \
+    --header 'ctrl-f: Filter PRs | ctrl-o: Open in browser | ctrl-s: Checkout to PR | ctrl-d: Display PR' \
+    --expect='ctrl-f,ctrl-s,ctrl-d' \
+    --header-lines '4' \
+    --prompt "$prompt" \
+    --preview "$preview" \
+    --preview-window '50%' \
+    "${commond_options[@]}"
+  )
+
+  if [ "${selected[0]}" = 'ctrl-f' ]; then
+    select_filter
+    return
+  fi
+
+  if [ "${selected[0]}" = 'ctrl-s' ]; then
+    gh pr checkout "${selected[1]}"
+  fi
+
+  case "${selected[0]}" in
+    ctrl-f)
+      select_filter
+      ;;
+    ctrl-s)
+      gh pr checkout "${selected[1]}"
+      ;;
+    ctrl-d)
+      gh pr view "${selected[1]}"
+      ;;
+    *)
+      printf '%s\n' "${selected[1]}"
+      ;;
+  esac
+}
+
+show_prs
