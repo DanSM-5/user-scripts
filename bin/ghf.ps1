@@ -85,7 +85,7 @@ function show_prs (
 ) {
   $OG_GH_FORCE_TTY = $env:GH_FORCE_TTY
   try {
-    $env:GH_FORCE_TTY = '50%'
+    $env:GH_FORCE_TTY = '100%'
     [string[]] $selected = fzf `
       --bind "start:reload:$cmd" `
       --bind 'ctrl-o:execute-silent:gh pr view {1} --web' `
