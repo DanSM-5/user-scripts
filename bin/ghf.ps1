@@ -88,7 +88,7 @@ function show_prs (
     $env:GH_FORCE_TTY = '50%'
     [string[]] $selected = fzf `
       --bind "start:reload:$cmd" `
-      --binf 'ctrl-o:execute-silent:gh pr view {1} --web' `
+      --bind 'ctrl-o:execute-silent:gh pr view {1} --web' `
       --header 'ctrl-f: Filter PRs | ctrl-o: Open in browser | ctrl-s: Checkout to PR | ctrl-d: Display PR' `
       --expect='ctrl-f,ctrl-s,ctrl-d' `
       --header-lines '4' `
