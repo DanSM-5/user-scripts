@@ -55,7 +55,7 @@ prompt_cmds=(
 
 select_filter () {
   local filter
-  filter="$(printf '%s\n' "${filters[@]}" fzf \
+  filter="$(printf '%s\n' "${filters[@]}" | fzf \
     --no-multi \
     --input-border \
     --cycle \
