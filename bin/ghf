@@ -65,7 +65,7 @@ select_filter () {
 
   if [ -n "$filter" ]; then
     local cmd="gh pr list ${filter_cmds[$filter]}" 
-    show_prs "${prompt_cmds[$filter]}"
+    show_prs "$cmd" "${prompt_cmds[$filter]}"
     return
   fi
 
