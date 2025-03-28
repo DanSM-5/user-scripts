@@ -256,5 +256,17 @@
     "when": "editorTextFocus && (neovim.mode == 'normal')",
     // the input to send to Neovim
     "args": "<A-e>",
-  }
+  },
+
+  // Enable signature help in insert mode
+  {
+    "key": "ctrl+space",
+    "command": "-editor.action.triggerSuggest"
+  },
+  {
+    "key": "ctrl+space",
+    "command": "editor.action.triggerParameterHints",
+    "when": "editorHasSignatureHelpProvider && editorTextFocus"
+  },
+
 ]
