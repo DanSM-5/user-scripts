@@ -123,6 +123,10 @@
   # gpgsign = true # Always sign commit (implicit -S)
   verbose = true
 
+[gpg "ssh"]
+  # Use correct ssh agent in windows to avoid being prompt for
+	# program = C:/Windows/System32/OpenSSH/ssh-keygen.exe
+
 [column]
   ui = auto
 
