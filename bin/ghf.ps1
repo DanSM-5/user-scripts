@@ -97,6 +97,10 @@ function show_prs (
       --preview-window '50%' `
       @commond_options
 
+    if ($selected.Length -eq 0) {
+      exit
+    }
+
     switch ($selected[0]) {
       'ctrl-f' { return gh pr checkout $selected[1] }
       'ctrl-s' { return select_filter }
