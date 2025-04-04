@@ -11,14 +11,14 @@
 // Pixiv - Add likes (non liked)
 Array.from(
     /* Pixiv - Add likes (non liked) */
-    document.querySelectorAll('.fYcrPo')
+    document.querySelectorAll('.gAARvC')
 )
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 1000))
 
 Array.from(
     /* Pixiv - Add likes (non liked) */
-    document.querySelectorAll('.fYcrPo')
+    document.querySelectorAll('.gAARvC')
 )
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 2 * 1000))
@@ -26,14 +26,14 @@ Array.from(
 // Pixiv - Remove likes from items
 Array.from(
     /* Pixiv - Remove likes from items */
-    document.querySelectorAll('.bXjFLc')
+    document.querySelectorAll('.wQCIS')
 )
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 1000))
 
 Array.from(
      /* Pixiv - Remove likes from items */
-    document.querySelectorAll('.bXjFLc')
+    document.querySelectorAll('.wQCIS')
 )
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 2 * 1000))
@@ -41,14 +41,14 @@ Array.from(
 // Pixiv - Get all urls in page
 Array.from(
     /* Pixiv - Get all urls in apge */
-    document.querySelectorAll('li a.iUsZyY')
+    document.querySelectorAll('li a.kGsreV')
 // @ts-ignore
 ).reduce((links, /** @type {HTMLAnchorElement} */ a) => `${links}\n${a.href}`, '')
 
 // Pixiv - Get all url from unliked items
 Array.from(
     /* Pixiv - Get all url from unliked items */
-    document.querySelectorAll('li a.iUsZyY:has(+ div .fYcrPo)')
+    document.querySelectorAll('li a.kGsreV:has(+ div .gAARvC)')
 // @ts-ignore
 ).reduce((links, /** @type {HTMLAnchorElement} */ a) => `${links}\n${a.href}`, '')
 
@@ -63,7 +63,7 @@ Array.from(
 // Pixiv - Get all url from liked items
 Array.from(
     /* Pixiv - Get all url from liked items */
-    document.querySelectorAll('li a.iUsZyY:has(+ div .bXjFLc)')
+    document.querySelectorAll('li a.kGsreV:has(+ div .wQCIS)')
 // @ts-ignore
 ).reduce((links, a) => `${links}\n${a.href}`, '')
 
@@ -176,30 +176,17 @@ const paginatedClickProcess = ({
   return pending.promise
 };
 
+// Pixiv - Paginated process
 paginatedClickProcess({
   // @ts-ignore
   getElements: () => Array.from(
     /* Pixiv - Add likes (non liked) */
-    document.querySelectorAll('.fYcrPo')
+    document.querySelectorAll('.gAARvC')
   )
   // @ts-ignore
   .map((/** @type {HTMLElement} */ el) => el.parentElement),
-  getNextPage: () => (/** @type {HTMLElement} */ (document.querySelectorAll('.sc-xhhh7v-1.hqFKax:not(.iiDpnk) + a:not([hidden])')?.[0]))
+  getNextPage: () => (/** @type {HTMLElement} */ (document.querySelectorAll('.sc-ddbdb82a-1.jPzasX:not(.gMZEpK) + a:not([hidden])')?.[0]))
 });
-
-// const onAllElements = () => Promise.all(
-//   Array.from(
-//     /* Pixiv - Add likes (non liked) */
-//     document.querySelectorAll('.fYcrPo')
-//   )
-//   .map(el => e.parentElement)
-//   .map(
-//     (el, i) => new Promise((resolve) => setTimeout(() => {
-//       el.click();
-//       resolve();
-//     }, i * 2 * 1000))
-//   ),
-// );
 
 
 //: }}} :---------------------------------------------------------------------------
