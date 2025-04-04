@@ -29,7 +29,7 @@ $commond_options = @(
   '--bind', 'alt-d:deselect-all',
   '--cycle',
   '--ansi',
-  '--input-border',
+  '--input-border=rounded',
   '--no-multi',
   '--with-shell', $pwsh,
   '--accept-nth', '{1}'
@@ -65,8 +65,8 @@ $prompt_cmds = @(
 
 function select_filter () {
   $filter = $filters | fzf `
+    --header 'esc: No filter' `
     --no-multi `
-    --input-border `
     --cycle `
     --with-nth '2..' `
     @commond_options
@@ -85,16 +85,20 @@ function show_prs (
 ) {
   $OG_GH_FORCE_TTY = $env:GH_FORCE_TTY
   try {
+    $pipe_cmd = "$Cmd | Where-Object { `$_.Trim() }"
     $env:GH_FORCE_TTY = '100%'
     [string[]] $selected = fzf `
-      --bind "start:reload:$cmd" `
+      --bind "start:reload:$pipe_cmd" `
       --bind 'ctrl-o:execute-silent:gh pr view {1} --web' `
       --header 'ctrl-f: Filter PRs | ctrl-o: Open in browser | ctrl-s: Checkout to PR | ctrl-d: Display PR' `
       --expect='ctrl-f,ctrl-s,ctrl-d' `
-      --header-lines '4' `
+      --header-border 'rounded' `
+      --header-lines '2' `
+      --header-lines-border 'bottom' `
       --prompt "$Prompt" `
       --preview "$preview" `
       --preview-window '50%' `
+      --preview-border 'rounded' `
       @commond_options
 
     if ($selected.Length -eq 0) {
@@ -102,8 +106,8 @@ function show_prs (
     }
 
     switch ($selected[0]) {
-      'ctrl-f' { return gh pr checkout $selected[1] }
-      'ctrl-s' { return select_filter }
+      'ctrl-f' { return select_filter }
+      'ctrl-s' { return gh pr checkout $selected[1] }
       'ctrl-d' { return gh pr view $selected[1] }
       default { return $selected[1] }
     }

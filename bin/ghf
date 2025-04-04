@@ -20,7 +20,7 @@ commond_options=(
   --bind 'alt-d:deselect-all'
   --cycle
   --ansi
-  --input-border
+  --input-border=rounded
   --no-multi
   --accept-nth '{1}'
 )
@@ -56,8 +56,8 @@ prompt_cmds=(
 select_filter () {
   local filter
   filter="$(printf '%s\n' "${filters[@]}" | fzf \
+    --header 'esc: No filter' \
     --no-multi \
-    --input-border \
     --cycle \
     --with-nth '2..' \
     "${commond_options[@]}"
@@ -75,16 +75,20 @@ select_filter () {
 show_prs () {
   local cmd="${1:-gh pr list}"
   local prompt="${2:-Github PRs> }"
+  local pipe_cmd="$cmd | awk '\$0'"
 
   mapfile -t selected < <(GH_FORCE_TTY='100%' fzf \
-    --bind "start:reload:$cmd" \
+    --bind "start:reload:$pipe_cmd" \
     --bind 'ctrl-o:execute-silent:gh pr view {1} --web' \
     --header 'ctrl-f: Filter PRs | ctrl-o: Open in browser | ctrl-s: Checkout to PR | ctrl-d: Display PR' \
     --expect='ctrl-f,ctrl-s,ctrl-d' \
-    --header-lines '4' \
+    --header-border 'rounded' \
+    --header-lines '2' \
+    --header-lines-border 'bottom' \
     --prompt "$prompt" \
     --preview "$preview" \
     --preview-window '50%' \
+    --preview-border 'rounded' \
     "${commond_options[@]}"
   )
 
