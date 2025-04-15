@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+[[ -v debug ]] && set -x
+
+if ! git rev-parse HEAD &> /dev/null; then
+  exit 1
+fi
+
+branch="$(git branch --show-current)"
+origin="$(git remote -v | awk '{print $1}' | sed -n '1p')"
+
+git log "$origin/$branch..$branch" "$@"
