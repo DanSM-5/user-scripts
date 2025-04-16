@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 
-token="$*"
+[[ -v debug ]] && set -x
+
+if [ "$*" = '-' ]; then
+  token="$(cat)"
+else
+  token="$*"
+fi
+
 
 # Get second segment padded with 4 = signs
 awk -F '.' '{ print $2"====" }' <<< "$token" |
