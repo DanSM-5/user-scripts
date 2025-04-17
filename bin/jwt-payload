@@ -2,7 +2,9 @@
 
 [[ -v debug ]] && set -x
 
-if [ "$*" = '-' ]; then
+if [ ! -t 0 ] && [ "$#" -eq 0 ]; then
+  token="$(cat)"
+elif [ "$*" = '-' ]; then
   token="$(cat)"
 else
   token="$*"
