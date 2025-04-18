@@ -100,7 +100,7 @@
   "files.eol": "\n",
   "workbench.sideBar.location": "right",
   "search.followSymlinks": false,
-  "editor.smoothScrolling": false,
+  "editor.smoothScrolling": true,
   "editor.cursorSmoothCaretAnimation": "on",
   "editor.cursorBlinking": "phase",
   "editor.inlayHints.enabled": "on",
