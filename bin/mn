@@ -46,5 +46,4 @@ if [ -z "$program" ]; then
   exit 0
 fi
 
-"$editor" +"Man! $program | only"
-
+"$editor" +"Man $program | only"
