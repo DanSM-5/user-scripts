@@ -23,6 +23,11 @@ fi
 if [ -n "$1" ]; then
   program="$1"
 else
+  preview='
+    section="$(tr -d "(" <<< {2} | tr -d ")")"
+    man "$section" {1} | bat --language man --color=always --style=plain
+  '
+
   program="$("$MAN" -k . |
     fzf --prompt='Man> ' --no-multi \
       --ansi --cycle \
@@ -38,8 +43,10 @@ else
       --bind 'alt-d:deselect-all' \
       --bind 'alt-f:first' \
       --bind 'alt-l:last' \
-      --bind 'alt-c:clear-query' |
-    awk '{ print $1 }')"
+      --preview "$preview" \
+      --bind 'alt-c:clear-query' \
+      --accept-nth '{1}' \
+  )"
 fi
 
 if [ -z "$program" ]; then
