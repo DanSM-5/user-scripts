@@ -44,7 +44,7 @@ config.font_size = 16
 -- }
 
 -- Set fps higher for smoother animations
-config.max_fps = 75
+config.max_fps = 120
 
 config.color_scheme = 'OneHalfDark'
 config.window_background_opacity = 0.85
