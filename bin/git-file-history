@@ -361,6 +361,7 @@ mapfile -t commits < <(
     --min-height 20 --border \
     --preview "$preview_cmd" \
     --prompt 'File History> ' \
+    --with-shell 'bash -c' \
     "${fzf_args[@]}"
 )
 

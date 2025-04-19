@@ -284,6 +284,7 @@ mapfile -t commits < <(fzf \
     --preview "$fzf_preview" \
     --prompt 'GitSearch> ' \
     --query "$*" \
+    --with-shell 'bash -c' \
     "${fzf_args[@]}"
 )
 
