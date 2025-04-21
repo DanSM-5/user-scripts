@@ -48,6 +48,7 @@
   // "vscode-neovim.useWSL": true,
   "vscode-neovim.neovimExecutablePaths.linux": "~/.config/vscode-nvim/nvimw",
   "vscode-neovim.neovimExecutablePaths.win32": "nvim",
+  "vscode-neovim.NVIM_APPNAME": "vscode-nvim",
   "vscode-neovim.compositeKeys": {
     "jk": {
       "command": "vscode-neovim.escape"
@@ -96,10 +97,11 @@
   "window.zoomLevel": 3,
   "liveServer.settings.donotShowInfoMsg": true,
   "liveServer.settings.donotVerifyTags": true,
-  "search.useIgnoreFiles": false,
   "files.eol": "\n",
   "workbench.sideBar.location": "right",
+  "search.useIgnoreFiles": false,
   "search.followSymlinks": false,
+  "search.quickOpen.history.filterSortOrder": "recency",
   "editor.smoothScrolling": true,
   "editor.cursorSmoothCaretAnimation": "on",
   "editor.cursorBlinking": "phase",
