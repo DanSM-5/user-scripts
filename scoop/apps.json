@@ -3,44 +3,44 @@
         {
             "Name": "main",
             "Source": "https://github.com/ScoopInstaller/Main",
-            "Updated": "2024-11-17T07:31:56-05:00",
-            "Manifests": 1347
+            "Updated": "2025-04-22T17:40:55-04:00",
+            "Manifests": 1387
         },
         {
             "Name": "extras",
             "Source": "https://github.com/ScoopInstaller/Extras",
-            "Updated": "2024-11-17T07:33:40-05:00",
-            "Manifests": 2099
+            "Updated": "2025-04-22T16:29:11-04:00",
+            "Manifests": 2152
         },
         {
             "Name": "versions",
             "Source": "https://github.com/ScoopInstaller/Versions",
-            "Updated": "2024-11-17T07:53:04-05:00",
-            "Manifests": 470
+            "Updated": "2025-04-22T17:20:26-04:00",
+            "Manifests": 490
         },
         {
             "Name": "sysinternals",
             "Source": "https://github.com/niheaven/scoop-sysinternals",
-            "Updated": "2024-07-23T12:37:20-04:00",
+            "Updated": "2025-02-13T20:55:14-05:00",
             "Manifests": 75
         },
         {
             "Name": "nonportable",
             "Source": "https://github.com/ScoopInstaller/Nonportable",
-            "Updated": "2024-11-16T21:12:00-05:00",
+            "Updated": "2025-04-22T16:37:36-04:00",
             "Manifests": 127
         },
         {
             "Name": "java",
             "Source": "https://github.com/ScoopInstaller/Java",
-            "Updated": "2024-11-14T15:19:49-05:00",
-            "Manifests": 294
+            "Updated": "2025-04-22T08:38:48-04:00",
+            "Manifests": 299
         },
         {
             "Name": "hymkor",
             "Source": "https://github.com/hymkor/scoop-bucket",
-            "Updated": "2024-11-12T06:42:43-05:00",
-            "Manifests": 51
+            "Updated": "2025-03-21T18:40:15-04:00",
+            "Manifests": 53
         }
     ],
     "apps": [
@@ -57,6 +57,13 @@
             "Version": "35.0.2",
             "Updated": "2024-10-26T20:45:21.9483375-04:00",
             "Source": "main"
+        },
+        {
+            "Name": "age",
+            "Version": "1.2.1",
+            "Source": "extras",
+            "Updated": "2025-01-20T00:56:30.7961153-05:00",
+            "Info": ""
         },
         {
             "Name": "android-sdk",
@@ -78,6 +85,13 @@
             "Version": "1.37.0-1",
             "Updated": "2024-10-09T22:35:08.3594644-04:00",
             "Source": "main"
+        },
+        {
+            "Name": "ast-grep",
+            "Version": "0.37.0",
+            "Source": "main",
+            "Updated": "2025-04-22T18:24:35.2443895-04:00",
+            "Info": ""
         },
         {
             "Name": "AutoHotKey",
@@ -197,6 +211,13 @@
             "Version": "0.1.0",
             "Updated": "2024-05-25T00:58:03.5851339-04:00",
             "Source": "main"
+        },
+        {
+            "Name": "doggo",
+            "Version": "1.0.5",
+            "Source": "main",
+            "Updated": "2025-04-02T19:21:18.3214534-04:00",
+            "Info": ""
         },
         {
             "Name": "dua",
@@ -360,6 +381,13 @@
             "Source": "main"
         },
         {
+            "Name": "less",
+            "Version": "668",
+            "Source": "main",
+            "Updated": "2025-01-26T22:37:24.2197525-05:00",
+            "Info": ""
+        },
+        {
             "Name": "lf",
             "Info": "",
             "Version": "r33",
@@ -386,6 +414,13 @@
             "Version": "4.4.1",
             "Updated": "2023-03-21T19:04:13.2186686-04:00",
             "Source": "main"
+        },
+        {
+            "Name": "mandoc",
+            "Version": "1.13.1",
+            "Source": "main",
+            "Updated": "2025-04-18T17:48:45.1934597-04:00",
+            "Info": ""
         },
         {
             "Name": "micro",
@@ -430,6 +465,13 @@
             "Source": "main"
         },
         {
+            "Name": "onefetch",
+            "Version": "2.24.0",
+            "Source": "extras",
+            "Updated": "2025-04-22T18:27:29.3446146-04:00",
+            "Info": ""
+        },
+        {
             "Name": "openjdk11",
             "Info": "",
             "Version": "11.0.2-9",
@@ -444,11 +486,25 @@
             "Source": "java"
         },
         {
+            "Name": "pandoc",
+            "Version": "3.6.4",
+            "Source": "main",
+            "Updated": "2025-03-26T17:58:05.4290755-04:00",
+            "Info": ""
+        },
+        {
             "Name": "pasteboard",
             "Info": "",
             "Version": "1.2.0",
             "Updated": "2022-07-16T00:42:22.7448374-04:00",
             "Source": "extras"
+        },
+        {
+            "Name": "poppler",
+            "Version": "24.08.0-0",
+            "Source": "main",
+            "Updated": "2025-02-17T12:45:22.1084692-05:00",
+            "Info": ""
         },
         {
             "Name": "ppsspp",
@@ -477,6 +533,13 @@
             "Version": "1.68.1",
             "Updated": "2024-10-09T19:03:18.0199638-04:00",
             "Source": "main"
+        },
+        {
+            "Name": "ripgrep",
+            "Version": "14.1.1",
+            "Source": "main",
+            "Updated": "2025-02-17T12:45:25.9245802-05:00",
+            "Info": ""
         },
         {
             "Name": "rustup",
@@ -556,11 +619,32 @@
             "Source": "main"
         },
         {
+            "Name": "tree-sitter",
+            "Version": "0.25.3",
+            "Source": "main",
+            "Updated": "2025-03-26T17:58:49.9256003-04:00",
+            "Info": ""
+        },
+        {
             "Name": "unrar",
             "Info": "",
             "Version": "7.01",
             "Updated": "2024-07-06T14:52:52.7347935-04:00",
             "Source": "main"
+        },
+        {
+            "Name": "util-linux-ng",
+            "Version": "2.14.1",
+            "Source": "extras",
+            "Updated": "2025-04-18T18:09:08.8938327-04:00",
+            "Info": ""
+        },
+        {
+            "Name": "uv",
+            "Version": "0.6.16",
+            "Source": "main",
+            "Updated": "2025-04-22T18:32:26.6584056-04:00",
+            "Info": ""
         },
         {
             "Name": "viddy",
@@ -596,6 +680,13 @@
             "Version": "1.21.4",
             "Updated": "2023-05-13T15:13:39.3961165-04:00",
             "Source": "main"
+        },
+        {
+            "Name": "win32yank",
+            "Version": "0.1.1",
+            "Source": "main",
+            "Updated": "2025-02-15T15:21:35.8224107-05:00",
+            "Info": ""
         },
         {
             "Name": "xidel",
