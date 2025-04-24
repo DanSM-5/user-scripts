@@ -53,7 +53,16 @@ function Download-PagesTldp () {
 }
 
 function Download-PagesLinux () {
-  git clone --depth 1 'http://git.kernel.org/pub/scm/docs/man-pages/man-pages' "$manpages_dir/man-pages"
+  $repo_url = 'http://git.kernel.org/pub/scm/docs/man-pages/man-pages'
+  $repo_dest = "$manpages_dir/man-pages"
+  git clone --depth 1 --no-checkout $repo_url $repo_dest
+
+  Push-Location -LiteralPath $repo_dest
+
+  git sparse-checkout set --cone 'man'
+  git checkout
+
+  Pop-Location
 }
 
 Prepare-Files
