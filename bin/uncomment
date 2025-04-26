@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# Script to unify comment utilities due to different architectures
+#
+# Environment variables:
+# - CMT_STR: string to use when commenting lines
+#
+# Args:
+# $1: string to use when commenting lines. Has priority over CMT_STR
+
+if [ "$OS" = 'Windows_NT' ] || [ "$OSTYPE" = 'msys' ]; then
+  exec uncomment "$@"
+elif [[ "$OSTYPE" =~ darwin* ]]; then
+  exec uncomment_darwin "$@"
+else
+  exec uncomment_linux "$@"
+fi

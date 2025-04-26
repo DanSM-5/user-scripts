@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# Script to unify comment utilities due to different architectures
+#
+# Environment variables:
+# - CMT_STR: string to use when commenting lines
+# - CMT_EMPTY: ignore empty lines (left uncommented)
+# - CMT_LOWMEMORY: Prevent loading lines into memory,
+#   however comment string is only apply at the start of the line
+#
+# Args:
+# $1: string to use when commenting lines. Has priority over CMT_STR
+
+if [ "$OS" = 'Windows_NT' ] || [ "$OSTYPE" = 'msys' ]; then
+  exec comment "$@"
+elif [[ "$OSTYPE" =~ darwin* ]]; then
+  exec comment_darwin "$@"
+else
+  exec comment_linux "$@"
+fi
