@@ -18,17 +18,61 @@ programs=(
   'uncomment'
 )
 
-mkdir -p "$script_location/bin"
+if [ -z "$script_location" ]; then
+  printf 'Cannot identify the build script location\n' >&2
+  exit 1
+fi
+
+out_bin="${script_location:?Error creating bin directory}/bin"
+
+if [ -d "$out_bin" ]; then
+  rm --recursive "$out_bin"
+fi
+
+mkdir -p "$out_bin"
+
+build_flags=()
+
+# Do not include if `dev` environment variable is set
+if ! [[ -v dev ]]; then
+  build_flags+=(
+    -ldflags
+    "-s -w"
+    -trimpath
+  )
+fi
 
 for program in "${programs[@]}"; do
   # Build for Linux amd64
-  GOOS=linux GOARCH=amd64 go build -o "$script_location/bin/${program}_linux" "$script_location/$program/$program.go"
+  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build "${build_flags[@]}" -o "$out_bin/${program}_linux" "$script_location/$program/$program.go"
 
   # Build for Windows amd64
-  GOOS=windows GOARCH=amd64 go build -o "$script_location/bin/${program}.exe" "$script_location/$program/$program.go"
+  CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build "${build_flags[@]}" -o "$out_bin/${program}.exe" "$script_location/$program/$program.go"
 
   # Build for macOS amd64
-  GOOS=darwin GOARCH=arm64 go build -o "$script_location/bin/${program}_darwin" "$script_location/$program/$program.go"
+  if [[ -v buildmac ]]; then
+    arch="${MACARCH:-}"
+    if [ -z "$arch" ]; then
+      if [[ "$(uname -a)" =~ x86_64.* ]]; then
+        arch='amd64'
+      else
+        arch='arm64'
+      fi
+    fi
+
+    CGO_ENABLED=0 GOOS=darwin GOARCH="$arch" go build "${build_flags[@]}" -o "$out_bin/${program}_darwin" "$script_location/$program/$program.go"
+  fi
+
+  if ! [[ -v dev ]]; then
+    if ! command -v upx &>/dev/null; then
+      printf '%s' "Cannot optimize '$program'. No upx program found."
+      continue
+    fi
+
+    upx --best --lzma "$out_bin/${program}_linux"
+    upx --best --lzma "$out_bin/${program}.exe"
+    # upx --best --lzma "$out_bin/${program}_darwin"
+  fi
 done
 
-echo 'Build complete. Binaries are in the "bin" directory.'
+printf '%s\n' 'Build complete. Binaries are in the "bin" directory.'
