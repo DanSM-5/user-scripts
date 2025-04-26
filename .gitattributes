@@ -1,3 +1,11 @@
 
 # Set eol LF
 * text eol=lf
+
+# Comment binaries
+comment.exe      binary
+comment_linux    binary
+comment_darwin   binary
+uncomment.exe    binary
+uncomment_linux  binary
+uncomment_darwin binary
