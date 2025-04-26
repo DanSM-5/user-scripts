@@ -29,3 +29,7 @@ mov-cli/osaka_cache
 
 # go scripts
 go/comment_utils/bin
+
+# binary files
+bin/comment_darwin
+bin/uncomment_darwin
