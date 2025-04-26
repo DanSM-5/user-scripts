@@ -27,3 +27,5 @@ lf/tags
 mov-cli/.env
 mov-cli/osaka_cache
 
+# go scripts
+go/comment_utils/bin
