@@ -12,7 +12,7 @@
 # $1: string to use when commenting lines. Has priority over CMT_STR
 
 if [ "$OS" = 'Windows_NT' ] || [ "$OSTYPE" = 'msys' ]; then
-  exec comment "$@"
+  exec comment.exe "$@"
 elif [[ "$OSTYPE" =~ darwin* ]]; then
   exec comment_darwin "$@"
 else

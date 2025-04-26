@@ -9,7 +9,7 @@
 # $1: string to use when commenting lines. Has priority over CMT_STR
 
 if [ "$OS" = 'Windows_NT' ] || [ "$OSTYPE" = 'msys' ]; then
-  exec uncomment "$@"
+  exec uncomment.exe "$@"
 elif [[ "$OSTYPE" =~ darwin* ]]; then
   exec uncomment_darwin "$@"
 else
