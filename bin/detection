@@ -8,6 +8,23 @@
 # to align with the variable definition on other shells so programs that expect environment
 # variables like (n)vim behave correctly.
 
+# Other values that can be used to detect os
+
+# OS                 | $OSTYPE
+# Linux              | linux-gnu
+# CYGWIN             | cygwin
+# MSYS/Git bash      | msys
+# Bash on Windows 10 | linux-gnu
+# OpenBSD            | openbsd*
+# FreeBSD            | FreeBSD
+# NetBSD             | netbsd
+# Mac OS             | darwin*
+# iOS                | darwin9
+# Solaris            | solaris*
+# Android (termux)   | linux-android
+# Android            | linux-gnu
+# Haiku OS           | haiku
+
 IS_WSL=false
 IS_WSL1=false
 IS_WSL2=false
