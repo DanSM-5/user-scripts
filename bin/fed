@@ -72,6 +72,7 @@ history_file="$history_location/fuzzy-edit"
 mkdir -p "$history_location"
 
 FED_RG_ARGS="${FED_RG_ARGS:-}"
+FED_FD_ARGS="${FED_FD_ARGS:-}"
 FED_FZF_ARGS="${FED_FZF_ARGS:-}"
 for farg in $FED_FZF_ARGS; do
   fzf_args+=("$farg")
@@ -85,7 +86,7 @@ if ! [ -d "$location" ]; then
 fi
 
 # files command assumes fd
-files_cmd="fds --color=always -L -tf '$pattern'"
+files_cmd="fds --color=always -L --type file $FED_FD_ARGS '$pattern'"
 
 # Set grep command
 # if command -v 'rg' &>/dev/null; then

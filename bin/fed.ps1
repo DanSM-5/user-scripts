@@ -72,6 +72,7 @@ New-Item -Path $history_location -ItemType Directory -ErrorAction SilentlyContin
 
 $FED_RG_ARGS = if ($env:FED_RG_ARGS) { $env:FED_RG_ARGS } else { '' }
 $FED_FZF_ARGS = if ($env:FED_FZF_ARGS) { $env:FED_FZF_ARGS } else { '' }
+$FED_FD_ARGS = if ($env:FED_FD_ARGS) { $env:FED_FD_ARGS } else { '' }
 
 # If location is not a directory
 # set it as the pattern and search from the home directory
@@ -86,7 +87,7 @@ if ("$location" -like '~*') {
 }
 
 # files command assumes fd
-$files_cmd = "fds --color=always --path-separator '/' -L -tf '$pattern'"
+$files_cmd = "fds --color=always --path-separator '/' -L --type file $FED_FD_ARGS '$pattern'"
 
 # Set grep command
 # if (Get-Command -Name 'rg' -All) {
