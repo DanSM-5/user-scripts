@@ -139,7 +139,7 @@ For multiple key codes use `read -r` and exit by pressing enter:
 read -r
 ```
 
-## Handle logn and short flags
+## Handle long and short flags
 
 Before running through `getopts`, translate out convenient long-versions
 
@@ -166,3 +166,17 @@ Before running through `getopts`, translate out convenient long-versions
 [...]
 ```
 
+## Trim whitespace using built-ins
+
+[Ref: stackoverflow](https://stackoverflow.com/a/3352015)
+
+```bash
+trim() {
+  local var="$*"
+  # remove leading whitespace characters
+  var="${var#"${var%%[![:space:]]*}"}"
+  # remove trailing whitespace characters
+  var="${var%"${var##*[![:space:]]}"}"
+  printf '%s' "$var"
+}
+```
