@@ -4,7 +4,9 @@ node_modules
 plugged
 tizen-studio
 Library
-scoop
+scoop/apps/*
+scoop/shims/*
+scoop/buckets/*
 vimfiles
 aws
 nvim
@@ -46,7 +48,7 @@ __pycache__
 .local/lib/*
 cache
 browser-data
-go
+go/pkg/mod/*
 nodejs
 podman
 PlayOnLinux*
