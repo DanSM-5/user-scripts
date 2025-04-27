@@ -180,3 +180,30 @@ trim() {
   printf '%s' "$var"
 }
 ```
+
+## Built-ins
+
+- [Expansions](https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html)
+- [Patter matching](https://www.gnu.org/software/bash/manual/html_node/Pattern-Matching.html)
+
+### Remove from the start #
+
+Remove "match" from `var`
+
+```bash
+# Shortest match (#)
+var="${var#match}"
+# Longest match (##)
+vat="${var##match}"
+```
+
+### Remove from the end %
+
+Remove "match" from `var`
+
+```bash
+# Shortest match (%)
+var="${var%match}"
+# Longest match (%%)
+vat="${var%%match}"
+```
