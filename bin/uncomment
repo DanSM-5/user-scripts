@@ -10,8 +10,23 @@
 
 if [ "$OS" = 'Windows_NT' ] || [ "$OSTYPE" = 'msys' ]; then
   exec uncomment.exe "$@"
-elif [[ "$OSTYPE" =~ darwin* ]]; then
+  # Only replaced if there is a compiled binary
+elif [[ "$OSTYPE" =~ darwin* ]] && command -v uncomment_darwin &> /dev/null; then
   exec uncomment_darwin "$@"
-else
+  # Must be exactly linux-gnu because binary won't work in
+  # systems without the gnu libraries
+elif [ "$OSTYPE" = "linux-gnu" ]; then
   exec uncomment_linux "$@"
 fi
+
+cmt_str="${1:-"${CMT_STR:-#}"}"
+
+while IFS= read -r line; do
+  # Gets the whitespace from the beginning of the line if any
+  padding="${line%%[![:space:]]*}"
+  # First non-blank character and rest
+  trimmed="${line##"$padding"}"
+  uncommented="${trimmed##"${cmt_str}"}"
+  uncommented="${uncommented# }" # Remove optional extra space after comment mark if available
+  printf '%s\n' "${padding}${uncommented}"
+done

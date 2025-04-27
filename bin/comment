@@ -13,8 +13,17 @@
 
 if [ "$OS" = 'Windows_NT' ] || [ "$OSTYPE" = 'msys' ]; then
   exec comment.exe "$@"
-elif [[ "$OSTYPE" =~ darwin* ]]; then
+  # Only replaced if there is a compiled binary
+elif [[ "$OSTYPE" =~ darwin* ]] && command -v comment_darwin &>/dev/null; then
   exec comment_darwin "$@"
-else
+  # Must be exactly linux-gnu because binary won't work in
+  # systems without the gnu libraries
+elif [ "$OSTYPE" = "linux-gnu" ]; then
   exec comment_linux "$@"
 fi
+
+cmt_str="${1:-"${CMT_STR:-#}"}"
+
+while IFS= read -r line; do
+  printf '%s\n' "$cmt_str $line"
+done
