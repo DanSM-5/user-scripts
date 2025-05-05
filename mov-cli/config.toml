@@ -14,9 +14,11 @@
 # pipx inject  mov-cli beautifulsoup4
 # pipx inject  mov-cli yt-dlp
 # pipx inject  mov-cli mov-cli-youtube
+# pipx inject  mov-cli mov-cli-files
+
+# Deprecated
 # pipx inject  mov-cli otaku-watcher
 # pipx inject  mov-cli film-central
-# pipx inject  mov-cli mov-cli-files
 
 [mov-cli]
 version = 1
@@ -37,7 +39,8 @@ youtube = "mov-cli-youtube"
 # mov-cli -s youtube nyan cat
 # mov-cli -s youtube nyan cat -- --audio # audio only
 
-anime = "otaku-watcher"
+# anime = "otaku-watcher"
+anime = "otaku-watcher-contrib"
 # Usage:
 # mov-cli -s anime lycoris recoil
 
