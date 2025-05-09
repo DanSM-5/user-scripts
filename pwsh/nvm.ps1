@@ -1,15 +1,34 @@
 #!/usr/bin/env pwsh
 
 if ($IsWindows) {
-  # Check if there the only argument is use or install
-  # Otherwise, forward arguments to real nvm for windows
-  if (($args[0] -eq 'use' -or $args[0] -eq 'install') -and ($null -eq $args[1])) {
-    $nvm_version = Get-Content "$PWD/.nvmrc"
-    & "$env:NVM_HOME\nvm.exe" $args[0] $nvm_version
-  } else {
-    & "$env:NVM_HOME\nvm.exe" $args
+  # Check if there is a single argument is use
+  # Otherwise, forward arguments to real nvm
+  $nvmrc_present = Test-Path "$PWD/.nvmrc" -ea 0
+  $second_argument_null = $null -eq $args[1]
+
+  if ($nvmrc_present -and $second_argument_null) {
+    $subcommand = $args[0]
+    switch ($subcommand) {
+      'use' {
+        $nvm_version = Get-Content "$PWD/.nvmrc"
+        & "$env:NVM_HOME\nvm.exe" use $nvm_version
+        exit
+      }
+      { $_ -in 'install', 'i' } {
+        $nvm_version = Get-Content "$PWD/.nvmrc"
+        & "$env:NVM_HOME\nvm.exe" install $nvm_version
+        exit
+      }
+      Default {}
+    }
   }
+
+  & "$env:NVM_HOME\nvm.exe" $args
 } else {
-  Write-Output "Not yet implemented"
+  $command = '
+    export NVM_DIR="$HOME/.nvm";
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh";
+    [ -s "$NVM_DIR/nvm.sh" ] && ' + "nvm $args"
+  bash -c $command
 }
 
