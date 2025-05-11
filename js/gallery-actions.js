@@ -146,7 +146,13 @@ Array.from(
   .map((span, i) => setTimeout(() => span.click(), i * 2 * 1000))
 
 /**
- * @typedef {{ getElements: () => HTMLElement[]; getNextPage: () => HTMLElement | null | undefined; signal?: { aborted: boolean }; delay?: number }} PaginatedClickProps
+ * @typedef {{
+ *   getElements: () => HTMLElement[];
+ *   getNextPage: () => HTMLElement | null | undefined;
+ *   signal?: { aborted: boolean; reason?: string; };
+ *   delay?: number; nextPageStartDelay?: number;
+ *   skipErrors?: boolean;
+ * }} PaginatedClickProps
  */
 
 /**
@@ -158,62 +164,100 @@ Array.from(
 const paginatedClickProcess = ({
   getElements = () => [],
   getNextPage = () => null,
-  signal = { aborted: false },
+  signal = { aborted: false, reason: '[Unknown]' },
   delay = 2000,
+  nextPageStartDelay = 3000,
+  skipErrors = true,
 }) => {
   /**
    * @type {{ promise: Promise<void>; reject: typeof Promise.reject<void>; resolve: typeof Promise.resolve<void> }}
    */
   // @ts-ignore
   const pending = Promise.withResolvers()
-  const clickElement = (/** @type {{ click: () => void; }} */ element, /** @type {number} */ index) => {
-    return new Promise((resolve, reject) => {
+
+  /**
+   * Clinks element and resolves after the specified delay
+   * @param {{ click: () => void; }} element Object with a click function
+   * @returns {Promise<void>} Resolved promise when the required delay time has been elapsed
+   */
+  const clickElement = (element) => {
+    return new Promise((/** @type {(value?: never) => void} */resolve, reject) => {
       setTimeout(() => {
         if (signal.aborted) {
-          // @ts-ignore
+          // @ts-expect-error Using cause argument in error constructor
           pending.reject(new Error('Process aborted', { cause: signal.reason }));
           reject();
           return;
         }
 
         element.click();
-        // @ts-ignore
         resolve();
-      }, index * delay);
+      }, delay);
     });
   };
 
-  const onAllElements = () => Promise.all(
-    getElements()
-      .map(clickElement),
-  );
+  // Definition change to ensure next like depends on previous
+  // and not just the pre-calculated time for the given element
+  // It should also be more memory efficient as it avoids creating
+  // a lot of promises at once.
+  // const onAllElements = () => Promise.all(
+  //   getElements()
+  //     .map(clickElement),
+  // );
 
-  const moveNextPage = (/** @type {{ (): Promise<any[]>; (): Promise<any>; }} */ callPageProcess) => {
+  const onAllElements = async () => {
+    const elements = getElements();
+    const length = elements.length;
+
+    for (let i = 0; i < length; i++) {
+      const element = elements[i];
+
+      try {
+        await clickElement(element);
+      } catch (error) {
+        console.error(`Item ${i} caused an error:`, element, error);
+        // If not skipping errors, throw to stop here.
+        if (skipErrors === false) {
+          // @ts-expect-error Using cause argument in error constructor
+          throw new Error(`Error clicking item ${i}`, { cause: error })
+        }
+      }
+
+    }
+  };
+
+  const processPage = (/** @type {{ (): Promise<any>; (): Promise<any>; }} */ callPageProcess) => {
     return callPageProcess().then(() => {
       /**
-       * @type {HTMLButtonElement}
+       * @type {HTMLButtonElement | null | undefined}
        */
-      // @ts-ignore
+      // @ts-expect-error Use HTMLElement as a HTMLButtonElement
       const nextPageBtn = getNextPage()
       if (!nextPageBtn) {
         pending.resolve();
         return;
       }
+
       setTimeout(() => {
+        // Go to next page
         nextPageBtn.click();
+
+        // Wait `nextPageStartDelay` ms before starting again
         setTimeout(() => {
-          moveNextPage(callPageProcess);
-        }, delay);
+          processPage(callPageProcess);
+        }, nextPageStartDelay);
+        // We consider clicking the next page button needs the same delay
+        // as clicking on an item itself.
       }, delay);
     })
     .catch(e => {
-      console.warn('Ended cycle');
+      console.warn('Ended cycle unexpectedly');
       // @ts-ignore
       pending.reject(new Error('Cannot continue paginated process:' , { cause: e }))
     });
   };
 
-  moveNextPage(onAllElements);
+  processPage(onAllElements);
   return pending.promise
 };
 
