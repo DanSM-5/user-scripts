@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import functools
 import re
+from tkinter import Tk
 
 """
     Open links in the default browser of the current system.
@@ -109,6 +110,7 @@ parser.add_argument('-p', '--path', action = 'store', default = 'links.txt', hel
 parser.add_argument('-d', '--delay', action = 'store', default = 1, help = 'Delay in seconds to use for opening links.', type = int)
 parser.add_argument('-b', '--browser', action = 'store', default = '', help = 'Name or path of browser to use')
 parser.add_argument('-s', '--separator', action = 'store', default = '\n', help = 'Separator for link in the file. Line break is the default.')
+parser.add_argument('-c', '--clipboard', action = argparse.BooleanOptionalAction, default = False, help = 'Get links from clipboard')
 parser.add_argument('--debug', action = argparse.BooleanOptionalAction, default = False, help = 'Add additional logs in the console for debug.')
 parser.add_argument('infile', nargs='?', type = argparse.FileType('rb'), default = None, help = 'File to read. Use [-] to read from stdin. WARNING: empty stdin will hang the script.')
 
@@ -259,12 +261,33 @@ class Iterator:
 
         for iterator in iterators:
             if isinstance(iterator, str):
-                if os.path.exists(iterator):
+                if iterator == 'clipboard':
+                    self.iterators.append(self.getFromClipboard())
+                elif os.path.exists(iterator):
                     self.iterators.append(self.creatFileHandlerGenerator(iterator))
                 else:
-                    self.iterators.append((line for line in iterator.split(separator)))
+                    self.iterators.append(iterator.strip().split(separator))
             else:
                 self.iterators.append(iterator)
+
+        self.mainIterator = iter(self.yieldNext())
+
+    def getFromClipboard(self):
+        # Requires win32clipboard package
+        # import win32clipboard
+        # set clipboard data
+        # win32clipboard.OpenClipboard()
+        # win32clipboard.EmptyClipboard()
+        # win32clipboard.SetClipboardText('testing 123')
+        # win32clipboard.CloseClipboard()
+
+        # get clipboard data
+        # win32clipboard.OpenClipboard()
+        # data = win32clipboard.GetClipboardData()
+        # win32clipboard.CloseClipboard()
+        # return data
+        clipboard_content = Tk().clipboard_get()
+        return clipboard_content.strip().split(separator)
 
     def creatFileHandlerGenerator(self, path):
         with open(path, 'rb') as fileHandler:
@@ -291,7 +314,7 @@ class Iterator:
 
     def next(self):
         try:
-            return next(self.yieldNext())
+            return next(self.mainIterator)
         except StopIteration:
             return None
 
@@ -378,6 +401,9 @@ def main():
 
     if args.infile:
         allLinks.append(args.infile)
+
+    if args.clipboard:
+        allLinks.append('clipboard')
 
     if len(allLinks):
         iterator = Iterator(allLinks)
