@@ -101,10 +101,17 @@ $file = $selected[0]
 # Man file
 $file = "$manpages_dir/$file" -replace '\\', '/'
 
+$tempFile = New-TemporaryFile
+
 # Build and display
 try {
-  Get-Content -LiteralPath $file | mandoc -man 2> $null | col -bx | bat --color=always --style=plain --language man
+  Get-Content -LiteralPath $file | mandoc -man 2> $null | col -bx > $tempFile.FullName
+  bat --color=always --style=plain --language man $tempFile.FullName
 } catch {
   Get-Content -LiteralPath $file | bat --color=always --style=plain
+} finally {
+  if (Test-Path -LiteralPath $tempFile.FullName -PathType Leaf -ErrorAction SilentlyContinue) {
+    Remove-Item -LiteralPath $tempFile.FullName -ErrorAction SilentlyContinue
+  }
 }
 
