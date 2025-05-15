@@ -36,7 +36,7 @@ if (!(Test-Path -LiteralPath $manpages_dir -PathType Container -ErrorAction Sile
 }
 
 # $cwd = $PWD.Path
-Push-Location -LiteralPath $manpages_dir
+Push-Location -LiteralPath $manpages_dir *> $null
 
 $selected = ''
 
@@ -46,10 +46,10 @@ try {
 {}
 '@
     `$file = `$file.Trim().Trim(`"'`").Trim('`"')
-    Get-Content `"$manpages_dir/`$file`" |
+    Get-Content -LiteralPath `"$manpages_dir/`$file`" |
       mandoc -man 2> `$null | col -bx |
       bat --color=always --style=plain --language man 2> `$null ||
-    Get-Content `"$manpages_dir/`$file`" | bat --color=always --style=plain
+    Get-Content -LiteralPath `"$manpages_dir/`$file`" | bat --color=always --style=plain
   "
 
   $selected = fd --color=always `
@@ -76,7 +76,7 @@ try {
       --bind 'alt-c:clear-query'
 
 } finally {
-  Pop-Location
+  Pop-Location *> $null
 }
 
 if (!$selected) {
