@@ -53,6 +53,7 @@ try {
   "
 
   $selected = fd --color=always `
+      --follow `
       --type=file '.' --path-separator '/' `
       --exclude '*.mk' `
       --exclude '*.sh' --exclude 'README*' |

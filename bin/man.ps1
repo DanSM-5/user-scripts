@@ -58,6 +58,7 @@ try {
   "
 
   $selected = [string[]](fd --color=never `
+      --follow `
       --type=file --path-separator '/' `
       --exclude '*.mk' `
       --exclude '*.sh' --exclude 'README*' `
