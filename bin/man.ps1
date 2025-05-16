@@ -55,19 +55,19 @@ try {
     `$file = `$file.Trim().Trim(`"'`").Trim('`"')
     `$full_path = `"$manpages_dir/`$file`"
     if ((Get-Item -LiteralPath `$full_path).Extension -eq '.gz') {
-      function display_man () {
+      function get_man_content () {
         7z -so e `$full_path
       }
     } else {
-      function display_man () {
+      function get_man_content () {
         Get-Content -LiteralPath `$full_path
       }
     }
 
-    display_man |
+    get_man_content |
       mandoc -man 2> `$null | col -bx |
       bat --color=always --style=plain --language man 2> `$null ||
-    display_man | bat --color=always --style=plain
+    get_man_content | bat --color=always --style=plain
   "
 
   $selected = [string[]](fd --color=never `
