@@ -35,7 +35,6 @@ if (!(Test-Path -LiteralPath $manpages_dir -PathType Container -ErrorAction Sile
   exit 1
 }
 
-# $cwd = $PWD.Path
 Push-Location -LiteralPath $manpages_dir *> $null
 
 $selected = ''

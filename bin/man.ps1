@@ -78,7 +78,7 @@ try {
       $query)
 
   if ($selected.Length -eq 0) {
-    Write-Warning "No man page `"$query`" found" 
+    Write-Warning "No manual entry for $query"
     exit 1
   } elseif ($selected.Length -gt 1) {
     $selected = [string[]] ($selected | fzf --prompt='Man> ' --no-multi `
