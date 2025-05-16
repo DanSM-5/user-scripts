@@ -46,10 +46,21 @@ try {
 {}
 '@
     `$file = `$file.Trim().Trim(`"'`").Trim('`"')
-    Get-Content -LiteralPath `"$manpages_dir/`$file`" |
+    `$full_path = `"$manpages_dir/`$file`"
+    if ((Get-Item -LiteralPath `$full_path).Extension -eq '.gz') {
+      function display_man () {
+        7z -so e `$full_path
+      }
+    } else {
+      function display_man () {
+        Get-Content -LiteralPath `$full_path
+      }
+    }
+
+    display_man |
       mandoc -man 2> `$null | col -bx |
       bat --color=always --style=plain --language man 2> `$null ||
-    Get-Content -LiteralPath `"$manpages_dir/`$file`" | bat --color=always --style=plain
+    display_man | bat --color=always --style=plain
   "
 
   $selected = fd --color=always `
@@ -87,9 +98,21 @@ if (!$selected) {
 $file = "$manpages_dir/$selected" -replace '\\', '/'
 $tmp_file = New-TemporaryFile
 
+# Handle extract from gz file
+if ((Get-Item -LiteralPath $file).Extension -eq '.gz') {
+  # echo "7z -so e $file | mandoc -man 2> `$null | col -bx | bat --color=always --style plain --language man"
+  function get_man_content () {
+    7z -so e $file
+  }
+} else {
+  function get_man_content () {
+    Get-Content -LiteralPath $file
+  }
+}
+
 # Build and display
 try {
-  Get-Content -LiteralPath $file | mandoc -man 2> $null | col -bx | bat --color=always --style=plain --language man > $tmp_file.FullName
+  get_man_content | mandoc -man 2> $null | col -bx | bat --color=always --style=plain --language man > $tmp_file.FullName
   nvim "+silent Man!" $tmp_file.FullName
 } finally {
   Remove-Item -LiteralPath $tmp_file.FullName

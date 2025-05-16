@@ -45,16 +45,29 @@ if (!$query) {
   exit 1
 }
 
+# tar -xgf $user_config_cache/manpages/usr_share_man/man1/bash.1.gz | mandoc -man 2> `$null | col -bx | bat --color=always --style=plain --language man
+
 try {
   $preview = "
     `$file = @'
 {}
 '@
     `$file = `$file.Trim().Trim(`"'`").Trim('`"')
-    Get-Content -LiteralPath `"$manpages_dir/`$file`" |
+    `$full_path = `"$manpages_dir/`$file`"
+    if ((Get-Item -LiteralPath `$full_path).Extension -eq '.gz') {
+      function display_man () {
+        7z -so e `$full_path
+      }
+    } else {
+      function display_man () {
+        Get-Content -LiteralPath `$full_path
+      }
+    }
+
+    display_man |
       mandoc -man 2> `$null | col -bx |
       bat --color=always --style=plain --language man 2> `$null ||
-    Get-Content -LiteralPath `"$manpages_dir/`$file`" | bat --color=always --style=plain
+    display_man | bat --color=always --style=plain
   "
 
   $selected = [string[]](fd --color=never `
@@ -103,12 +116,24 @@ $file = "$manpages_dir/$file" -replace '\\', '/'
 
 $tempFile = New-TemporaryFile
 
+# Handle extract from gz file
+if ((Get-Item -LiteralPath $file).Extension -eq '.gz') {
+  # echo "7z -so e $file | mandoc -man 2> `$null | col -bx | bat --color=always --style plain --language man"
+  function get_man_content () {
+    7z -so e $file
+  }
+} else {
+  function get_man_content () {
+    Get-Content -LiteralPath $file
+  }
+}
+
 # Build and display
 try {
-  Get-Content -LiteralPath $file | mandoc -man 2> $null | col -bx > $tempFile.FullName
+  get_man_content | mandoc -man 2> $null | col -bx > $tempFile.FullName
   bat --color=always --style=plain --language man $tempFile.FullName
 } catch {
-  Get-Content -LiteralPath $file | bat --color=always --style=plain
+  get_man_content | bat --color=always --style=plain
 } finally {
   if (Test-Path -LiteralPath $tempFile.FullName -PathType Leaf -ErrorAction SilentlyContinue) {
     Remove-Item -LiteralPath $tempFile.FullName -ErrorAction SilentlyContinue
