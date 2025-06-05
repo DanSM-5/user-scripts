@@ -8,7 +8,7 @@
 
 // Sample link and like buttons
 // <div width="184" height="184" class="sc-a57c16e6-0 fLGndj">
-//   <a class="sc-a57c16e6-16 dGiDgy sc-fqkvVR eGWauK" data-gtm-value="129807266" data-gtm-user-id="3576344" href="/en/artworks/129807266">
+//   <a class="sc-a57c16e6-16 dGiDgy sc-fqkvVR fJFKsi" data-gtm-value="129807266" data-gtm-user-id="3576344" href="/en/artworks/129807266">
 //     <div class="sc-e85d81bc-0 eLoxRg">
 //       <div radius="4" class="sc-a57c16e6-9 fDDgQt">
 //         <img src="https://i.pximg.net/c/250x250_80_a2/custom-thumb/img/2025/04/28/22/18/59/129807266_p0_custom1200.jpg" alt="EpicSeven, epic7, yufine(epic7) / Exclusive: Abyssal Yufine" class="sc-a57c16e6-10 iaqWlq" style="object-fit: cover; object-position: center center;">
@@ -37,7 +37,7 @@
 //   <div class="sc-5a760b36-4 btqmcy">
 //     <div class="">
 //       <button type="button" class="sc-e48c39c9-0 ialGvh">
-//         <svg viewBox="0 0 32 32" width="32" height="32" class="sc-4258e52e-1 wQCIS">
+//         <svg viewBox="0 0 32 32" width="32" height="32" class="sc-4258e52e-1 lbkCkj">
 //           <path d="M21,5.5 C24.8659932,5.5 28,8.63400675 28,12.5 C28,18.2694439 24.2975093,23.1517313 17.2206059,27.1100183C16.4622493,27.5342993 15.5379984,27.5343235 14.779626,27.110148 C7.70250208,23.1517462 4,18.2694529 4,12.5C4,8.63400691 7.13400681,5.5 11,5.5 C12.829814,5.5 14.6210123,6.4144028 16,7.8282366C17.3789877,6.4144028 19.170186,5.5 21,5.5 Z"></path>
 //           <path d="M16,11.3317089 C15.0857201,9.28334665 13.0491506,7.5 11,7.5C8.23857625,7.5 6,9.73857647 6,12.5 C6,17.4386065 9.2519779,21.7268174 15.7559337,25.3646328C15.9076021,25.4494645 16.092439,25.4494644 16.2441073,25.3646326 C22.7480325,21.7268037 26,17.4385986 26,12.5C26,9.73857625 23.7614237,7.5 21,7.5 C18.9508494,7.5 16.9142799,9.28334665 16,11.3317089 Z" class="sc-4258e52e-0 ktvYyV"></path>
 //         </svg>
@@ -52,14 +52,14 @@
 // Pixiv - Add likes (non liked)
 Array.from(
     /* Pixiv - Add likes (non liked) */
-    document.querySelectorAll('.gAARvC')
+    document.querySelectorAll('.hapWHH')
 )
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 1000))
 
 Array.from(
     /* Pixiv - Add likes (non liked) */
-    document.querySelectorAll('.gAARvC')
+    document.querySelectorAll('.hapWHH')
 )
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 2 * 1000))
@@ -67,14 +67,14 @@ Array.from(
 // Pixiv - Remove likes from items
 Array.from(
     /* Pixiv - Remove likes from items */
-    document.querySelectorAll('.wQCIS')
+    document.querySelectorAll('.lbkCkj')
 )
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 1000))
 
 Array.from(
      /* Pixiv - Remove likes from items */
-    document.querySelectorAll('.wQCIS')
+    document.querySelectorAll('.lbkCkj')
 )
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 2 * 1000))
@@ -82,14 +82,14 @@ Array.from(
 // Pixiv - Get all urls in page
 Array.from(
     /* Pixiv - Get all urls in apge */
-    document.querySelectorAll('li a.eGWauK')
+    document.querySelectorAll('li a.fJFKsi')
 // @ts-ignore
 ).reduce((links, /** @type {HTMLAnchorElement} */ a) => `${links}\n${a.href}`, '')
 
 // Pixiv - Get all url from unliked items
 Array.from(
     /* Pixiv - Get all url from unliked items */
-    document.querySelectorAll('li a.eGWauK:has(+ div .gAARvC)')
+    document.querySelectorAll('li a.fJFKsi:has(+ div .hapWHH)')
 // @ts-ignore
 ).reduce((links, /** @type {HTMLAnchorElement} */ a) => `${links}\n${a.href}`, '')
 
@@ -104,7 +104,7 @@ Array.from(
 // Pixiv - Get all url from liked items
 Array.from(
     /* Pixiv - Get all url from liked items */
-    document.querySelectorAll('li a.eGWauK:has(+ div .wQCIS)')
+    document.querySelectorAll('li a.fJFKsi:has(+ div .lbkCkj)')
 // @ts-ignore
 ).reduce((links, a) => `${links}\n${a.href}`, '')
 
@@ -266,12 +266,12 @@ paginatedClickProcess({
   // @ts-ignore
   getElements: () => Array.from(
     /* Pixiv - Add likes (non liked) */
-    document.querySelectorAll('.gAARvC')
+    document.querySelectorAll('.hapWHH')
   )
   // @ts-ignore
   .map((/** @type {HTMLElement} */ el) => el.parentElement),
-  getNextPage: () => (/** @type {HTMLElement} */ (document.querySelectorAll('.sc-ddbdb82a-1.jPzasX:not(.gMZEpK) + a:not([hidden])')?.[0]))
-});
+  getNextPage: () => (/** @type {HTMLElement} */ (document.querySelectorAll('.sc-27a0ff07-0.bbkQMy button:not(.dcmkry) + .sc-27a0ff07-2.jGoxAA:not(.iXwGwx)')?.[0]))
+}).then(() => console.log('End'));
 
 
 //: }}} :---------------------------------------------------------------------------
