@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+[[ -v debug ]] && set -x
+
+git jump diff
