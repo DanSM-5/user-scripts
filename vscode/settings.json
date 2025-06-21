@@ -184,5 +184,10 @@
   },
   "github.copilot.advanced": {
     "webSearch": false
-  }
+  },
+
+  // rg-source
+  "rg-source.caseSensitive": false,
+  "rg-source.prefixLen": 3,
+  "rg-source.rgPath": "rg"
 }

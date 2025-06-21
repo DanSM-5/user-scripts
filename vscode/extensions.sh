@@ -39,3 +39,4 @@ thejustinwalsh.textproto-grammer
 tomrijndorp.find-it-faster
 vscode-icons-team.vscode-icons
 yoavbls.pretty-ts-errors
+niuiic.rg-source
