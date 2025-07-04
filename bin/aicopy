@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+
+# Allow complex regex globs
+shopt -s extglob
+
+exclude_args=()
+fd_args=()
+
+# Args parsing
+# Ref: https://stackoverflow.com/a/14203146
+# shellcheck disable=SC2221 disable=SC2222
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -[eE]|-?(-)[eE]xclude)
+      exclude_args+=("--exclude '$2'")
+      shift # past argument
+      shift # past value
+      ;;
+    -[iI]|-?(-)[iI]gnore)
+      fd_args+=('-I') # fd --no-ignore
+      shift # past argument
+      ;;
+    -[aA]|-?(-)[aA]ll)
+      fd_args+=('-H') # fd --hidden
+      shift # past argument
+      ;;
+    -[hH]|-?(-)[hH]elp)
+      showHelp
+      exit 0
+      ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # Positional args are considered urls to download
+      shift # past argument
+      ;;
+  esac
+done
+
+# Restore positional arguments
+set -- "${POSITIONAL_ARGS[@]}"
+
+help_cat_cmd='cat'
+if command -v 'bat' &>/dev/null; then
+  help_cat_cmd='bat --color=always --language help --style=plain'
+fi
+
+help_cmd="
+  $help_cat_cmd <<< '
+  Preview window keys:
+    ctrl-^: Toggle preview
+    ctrl-/: Toggle preview position
+    ctrl-s: Toggle sort
+    shift-up: Preview up
+    shift-down: Preview down
+    alt-up: Preview page up
+    alt-down: Preview page down
+
+  Preview keys:
+    ctrl-d: Preview all the text
+    ctrl-f: Preview paths of selected files as relative to cwd
+    ctrl-g: Preview paths of selected files as absolute paths
+
+  Utility keys:
+    ctrl-e: Copy text of selected files
+    ctrl-r: Copy paths of selected files as relative to cwd
+    ctrl-e: Copy paths of selected files as absolute paths
+
+  Cursor keys:
+    alt-a: Select all
+    alt-d: Deselect all
+    alt-f: Go first
+    alt-l: Go last
+    alt-c: Clear query
+  '
+"
+
+placeholder='{+f}'
+if [ "$OS" = 'Windows_NT' ]; then
+  placeholder='"{+f}"'
+fi
+
+
+# Find clipboard utility
+copy='true'
+if [ "$OS" = 'Windows_NT' ]; then
+  # Gitbash
+  copy="clip.exe"
+elif [ "$OSTYPE" = 'darwin' ]; then
+  copy="pbcopy"
+# Assume linux if above didn't match
+elif [ -n "$WAYLAND_DISPLAY" ] && command -v 'wl-copy' &>/dev/null; then
+  copy="wl-copy --foreground --type text/plain"
+elif [ -n "$DISPLAY" ] && command -v 'xsel' &>/dev/null; then
+  copy="xsel -i -b"
+elif [ -n "$DISPLAY" ] && command -v 'xclip' &>/dev/null; then
+  copy="xclip -i -selection clipboard"
+fi
+
+
+# preview commands
+preview_content="$(printf 'cat $(<%s)' "$placeholder")"
+preview_relative="$(printf '
+  for file in $(cat %s); do
+    realpath -s --relative-to="." "$file"
+  done
+' "$placeholder")"
+preview_absolute="$(printf '
+  for file in $(cat %s); do
+    realpath "$file"
+  done
+' "$placeholder")"
+
+# copy commands
+copy_content="$(printf 'cat $(<%s) | %s' "$placeholder" "$copy")"
+copy_relative="$(printf '
+  resolved=()
+  for file in $(cat %s); do
+    resolved+=("$(realpath -s --relative-to="." "$file")");
+  done
+  %s
+' "$placeholder" "printf '%s\n' \"\${resolved[@]}\" | $copy")"
+copy_absolute="$(printf '
+  resolved=();
+  for file in $(cat %s); do;
+    resolved+=("$(realpath "$file")")
+  done;
+  %s
+' "$placeholder" "printf '%s\n' \"\${resolved[@]}\" | $copy")"
+
+fd --type file "${fd_args[@]}" "${exclude_args[@]}" |
+  fzf --preview "$preview_content" \
+    --ghost 'Type in your query' \
+    --preview-label ' Files Content ' \
+    --bind "ctrl-d:bg-transform-preview-label(echo ' Files Content ')+change-preview:$preview_content" \
+    --bind "ctrl-f:bg-transform-preview-label(echo ' Relative Paths ')+change-preview:$preview_relative" \
+    --bind "ctrl-g:bg-transform-preview-label(echo ' Absolute Paths ')+change-preview:$preview_absolute" \
+    --bind "ctrl-e:execute-silent($copy_content)+bell" \
+    --bind "ctrl-r:execute-silent($copy_relative)+bell" \
+    --bind "ctrl-t:execute-silent($copy_absolute)+bell" \
+    --bind "alt-h:preview:$help_cmd" \
+    --input-border \
+    --header-border \
+    --footer-border \
+    --list-border \
+    --header 'Select files to copy | alt-h for help' \
+    --footer 'Change Preview: ctrl-d | ctrl-f | ctrl-g' \
+    --bind 'result:bg-transform-list-label:
+      if [[ -z $FZF_QUERY ]]; then
+        echo " $FZF_MATCH_COUNT items "
+      else
+        echo " $FZF_MATCH_COUNT matches for [$FZF_QUERY] "
+      fi
+    ' \
+    --bind 'alt-a:select-all' \
+    --bind 'alt-c:clear-query' \
+    --bind 'alt-d:deselect-all' \
+    --bind 'alt-f:first' \
+    --bind 'alt-l:last' \
+    --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+    --bind 'ctrl-^:toggle-preview' \
+    --bind 'ctrl-s:toggle-sort' \
+    --bind 'shift-up:preview-up,shift-down:preview-down' \
+    --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+    --preview-window 'right,50%,wrap' \
+    --multi --ansi --cycle
