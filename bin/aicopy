@@ -1,5 +1,48 @@
 #!/usr/bin/env bash
 
+showHelp () {
+  printf "%s\n" "
+    Copy helper for multiple file contents or paths
+
+    Synopsis:
+      \$ aicopy [flags]
+
+    Description:
+      Copy helper script that can copy the content of multiple selected files at once
+      or their paths as relative or absolute to CWD
+
+    Usage:
+      Call the aicopy command. Select the files that you want to copy.
+      Use ctrl-e to copy the content.
+      Use ctrl-r to copy relative paths.
+      Use ctrl-t to copy absolute paths.
+      Use ctrl-d to show selected files contents.
+      Use ctrl-f to show selected files relative paths.
+      Use ctrl-g to show selected files absolute paths.
+
+    Dependencies:
+      - fzf (0.63.0)
+      - fd
+
+    Flags:
+
+      -h, --help             > Print this message.
+
+      -e, --exclude          > List of exclude items. Can be specify multiple times.
+                               See \`--exclude\` flag of fd command
+
+      -i, --ignore           > List ignored files.
+                               See \`--no-ignore\` flag of fd command
+
+      -a, --all              > List hidden files.
+                               See \`--hidden\` flag of fd command
+
+    Arguments:
+
+      Remaining arguments are treated as the initial query for search.
+  "
+}
+
 # Allow complex regex globs
 shopt -s extglob
 
@@ -66,7 +109,7 @@ help_cmd="
   Utility keys:
     ctrl-e: Copy text of selected files
     ctrl-r: Copy paths of selected files as relative to cwd
-    ctrl-e: Copy paths of selected files as absolute paths
+    ctrl-t: Copy paths of selected files as absolute paths
 
   Cursor keys:
     alt-a: Select all
@@ -165,4 +208,5 @@ fd --type file "${fd_args[@]}" "${exclude_args[@]}" |
     --bind 'shift-up:preview-up,shift-down:preview-down' \
     --bind 'ctrl-/:change-preview-window(down|hidden|)' \
     --preview-window 'right,50%,wrap' \
+    --query "${*}" \
     --multi --ansi --cycle

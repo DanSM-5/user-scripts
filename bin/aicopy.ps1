@@ -73,7 +73,8 @@ function showHelp {
       > aicopy [flags]
 
     Description:
-      Copy helper script that can copy the content of multiple selected files at once or their paths as relative or absolute to CWD
+      Copy helper script that can copy the content of multiple selected files at once
+      or their paths as relative or absolute to CWD
 
     Usage:
       Call the aicopy command. Select the files that you want to copy.
@@ -90,16 +91,16 @@ function showHelp {
 
     Flags:
 
-      -Help [switch]               > Print this message.
+      -Help [switch]         > Print this message.
 
-      -Exclude [string[]]          > List of exclude items.
-                                     See `--exclude` flag of fd command
+      -Exclude [string[]]    > List of exclude items.
+                               See `--exclude` flag of fd command
 
-      -Ignore [switch]             > List ignored files.
-                                     See `--no-ignore` flag of fd command
+      -Ignore [switch]       > List ignored files.
+                               See `--no-ignore` flag of fd command
 
-      -All [switch]                > List hidden files.
-                                     See `--hidden` flag of fd command
+      -All [switch]          > List hidden files.
+                               See `--hidden` flag of fd command
 
     Arguments:
 
