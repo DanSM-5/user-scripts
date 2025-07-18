@@ -1,6 +1,6 @@
 import {
   Dispatch,
-  MutableRefObject,
+  RefObject,
   SetStateAction,
   useCallback,
   useRef,
@@ -10,14 +10,14 @@ import {
 export function useStateRef<T = undefined>(): [
   state: T | undefined,
   setState: Dispatch<SetStateAction<T | undefined>>,
-  ref: Readonly<MutableRefObject<T | undefined>>,
+  ref: RefObject<T | undefined>,
 ];
 export function useStateRef<T>(
   initialValue: T
 ): [
     state: T,
     setState: Dispatch<SetStateAction<T>>,
-    ref: Readonly<MutableRefObject<T>>,
+    ref: RefObject<T>,
   ];
 export function useStateRef<T>(initialValue?: T) {
   const [state, setState] = useState<T>(
@@ -48,5 +48,5 @@ export function useStateRef<T>(initialValue?: T) {
     setState(setRefArg);
   }, []);
 
-  return [state, setStateRef, ref as Readonly<typeof ref>];
+  return [state, setStateRef, ref as RefObject<T>];
 }
