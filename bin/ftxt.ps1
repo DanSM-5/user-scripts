@@ -79,9 +79,9 @@ function open_vim ([string[]] $selections) {
     $line = $items[1]
 
     if ($line) {
-      "$editor $script:editorOptions $file +$line" | Invoke-Expression
+      "$editor $script:editorOptions '$file' +$line" | Invoke-Expression
     } else {
-      "$editor $script:editorOptions $file" | Invoke-Expression
+      "$editor $script:editorOptions '$file'" | Invoke-Expression
     }
   } else {
     $temp_qf = New-TemporaryFile
