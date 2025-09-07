@@ -1,63 +1,56 @@
 // Place your key bindings in this file to override the defaults
 [
+  // Editor key shortcuts to select and edit match (ctrl-d)
   {
     "key": "ctrl+u",
     "when": "editorTextFocus && neovim.init && neovim.mode == 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'",
-    "command": "cursorUndo",
+    "command": "cursorUndo"
   },
   {
     "key": "ctrl+d",
     "when": "editorTextFocus && neovim.init && neovim.mode == 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'",
-    "command": "editor.action.addSelectionToNextFindMatch",
+    "command": "editor.action.addSelectionToNextFindMatch"
   },
   {
     "key": "ctrl+shift+d",
     "when": "editorTextFocus && neovim.init && neovim.mode == 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'",
-    "command": "editor.action.addSelectionToPreviousFindMatch",
+    "command": "editor.action.addSelectionToPreviousFindMatch"
   },
   {
     "key": "ctrl+k ctrl+d",
     "when": "editorTextFocus && neovim.init && neovim.mode == 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'",
-    "command": "editor.action.moveSelectionToNextFindMatch",
+    "command": "editor.action.moveSelectionToNextFindMatch"
   },
   {
     "key": "ctrl+k ctrl+shift+d",
     "when": "editorTextFocus && neovim.init && neovim.mode == 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'",
-    "command": "editor.action.moveSelectionToPreviousFindMatch",
+    "command": "editor.action.moveSelectionToPreviousFindMatch"
   },
+
+  // Copy/paste keymaps
   {
     "key": "ctrl+shift+v",
     "when": "neovim.init && neovim.mode == insert && editorTextFocus",
-    "command": "editor.action.clipboardPasteAction",
+    "command": "editor.action.clipboardPasteAction"
   },
   {
     "key": "ctrl+shift+c",
     "when": "neovim.init && neovim.mode == insert && editorTextFocus",
-    "command": "editor.action.clipboardCopyAction",
+    "command": "editor.action.clipboardCopyAction"
   },
-  // {
-  //   "command": "vscode-neovim.compositeEscape1",
-  //   "key": "j",
-  //   "when": "neovim.mode == insert && editorTextFocus",
-  //   "args": "j",
-  // },
-  // {
-  //   "command": "vscode-neovim.compositeEscape2",
-  //   "key": "k",
-  //   "when": "neovim.mode == insert && editorTextFocus",
-  //   "args": "k",
-  // },
+
+  // Vscode UI
   {
     "command": "workbench.action.toggleActivityBarVisibility",
-    "key": "ctrl+alt+shift+h",
+    "key": "ctrl+alt+shift+h"
   },
   {
     "command": "workbench.action.toggleSidebarVisibility",
-    "key": "ctrl+alt+h",
+    "key": "ctrl+alt+h"
   },
   {
     "key": "ctrl+b",
-    "command": "-workbench.action.toggleSidebarVisibility",
+    "command": "workbench.action.toggleSidebarVisibility"
   },
   {
     "key": "ctrl+shift+j",
@@ -93,6 +86,7 @@
     "command": "workbench.action.quickOpenSelectNext",
     "when": "inQuickOpen && neovim.wildMenuVisible || inQuickOpen && neovim.mode != 'cmdline'"
   },
+
   // Find it faster
   {
     "key": "shift+alt+j",
@@ -110,7 +104,8 @@
     "key": "shift+alt+u",
     "command": "find-it-faster.findWithinFilesWithType"
   },
-  // vscode-nvim passthrough
+
+  // Window resize
   {
     "command": "vscode-neovim.send",
     // the key sequence to activate the binding
@@ -118,7 +113,7 @@
     // don't activate during insert mode
     "when": "editorTextFocus && neovim.mode != insert",
     // the input to send to Neovim
-    "args": "<A-.>",
+    "args": "<A-.>"
   },
   {
     "command": "vscode-neovim.send",
@@ -127,7 +122,7 @@
     // don't activate during insert mode
     "when": "editorTextFocus && neovim.mode != insert",
     // the input to send to Neovim
-    "args": "<A-,>",
+    "args": "<A-,>"
   },
   {
     "command": "vscode-neovim.send",
@@ -136,7 +131,7 @@
     // don't activate during insert mode
     "when": "editorTextFocus && neovim.mode != insert",
     // the input to send to Neovim
-    "args": "<A-s>",
+    "args": "<A-s>"
   },
   {
     "command": "vscode-neovim.send",
@@ -145,7 +140,7 @@
     // don't activate during insert mode
     "when": "editorTextFocus && neovim.mode != insert",
     // the input to send to Neovim
-    "args": "<A-t>",
+    "args": "<A-t>"
   },
 
   // Move between windows
@@ -156,7 +151,7 @@
     // don't activate during insert mode
     "when": "editorTextFocus && neovim.mode != insert",
     // the input to send to Neovim
-    "args": "<A-h>",
+    "args": "<A-h>"
   },
   {
     "command": "vscode-neovim.send",
@@ -165,7 +160,7 @@
     // don't activate during insert mode
     "when": "editorTextFocus && neovim.mode != insert",
     // the input to send to Neovim
-    "args": "<A-j>",
+    "args": "<A-j>"
   },
   {
     "command": "vscode-neovim.send",
@@ -174,7 +169,7 @@
     // don't activate during insert mode
     "when": "editorTextFocus && neovim.mode != insert",
     // the input to send to Neovim
-    "args": "<A-k>",
+    "args": "<A-k>"
   },
   {
     "command": "vscode-neovim.send",
@@ -183,10 +178,14 @@
     // don't activate during insert mode
     "when": "editorTextFocus && neovim.mode != insert",
     // the input to send to Neovim
-    "args": "<A-l>",
+    "args": "<A-l>"
   },
 
   // Change to the previous edited buffer
+  {
+    "key": "ctrl+6",
+    "command": "-workbench.action.focusSixthEditorGroup"
+  },
   {
     "key": "ctrl+6",
     "command": "workbench.action.quickOpenPreviousRecentlyUsedEditorInGroup",
@@ -198,6 +197,7 @@
     "when": "inEditorsPicker && inQuickOpen"
   },
 
+  // Defaults disable
   {
     "key": "ctrl+alt+j",
     "command": "-liveshare.join",
@@ -209,14 +209,15 @@
     "when": "editorTextFocus && github.copilot.activated && !commentEditorFocused && !inInteractiveInput && !interactiveEditorFocused"
   },
 
+  // Trigger completion
   {
     "key": "ctrl+e",
-    "command": "-workbench.action.quickOpen",
+    "command": "-workbench.action.quickOpen"
   },
   {
     "key": "ctrl+e",
     "command": "hideSuggestWidget",
-    "when": "neovim.mode == 'insert' && suggestWidgetVisible && textInputFocus",
+    "when": "neovim.mode == 'insert' && suggestWidgetVisible && textInputFocus"
     // Copilot
     // "command": "editor.action.inlineSuggest.hide",
     // "when": "editorTextFocus && (inlineEditIsVisible || inlineSuggestionVisible)",
@@ -232,13 +233,14 @@
     "when": "neovim.mode == 'insert' && editorHasCompletionItemProvider && textInputFocus && !editorReadonly && !suggestWidgetVisible"
   },
 
+  // Hide hover window if visible
   {
     "key": "q",
     "command": "editor.action.hideHover",
-    "when": "editorHoverFocused",
+    "when": "editorHoverFocused"
   },
 
-  // alt-y and alt-e
+  // alt-y and alt-e to be handled by nvim
   {
     "command": "vscode-neovim.send",
     // the key sequence to activate the binding
@@ -246,7 +248,7 @@
     // don't activate during insert mode
     "when": "editorTextFocus && (neovim.mode == 'normal')",
     // the input to send to Neovim
-    "args": "<A-y>",
+    "args": "<A-y>"
   },
   {
     "command": "vscode-neovim.send",
@@ -255,7 +257,7 @@
     // don't activate during insert mode
     "when": "editorTextFocus && (neovim.mode == 'normal')",
     // the input to send to Neovim
-    "args": "<A-e>",
+    "args": "<A-e>"
   },
 
   // Enable signature help in insert mode
@@ -269,4 +271,74 @@
     "when": "editorHasSignatureHelpProvider && editorTextFocus"
   },
 
+  // Commands for scroll in neovim and preserve
+  // visual selection
+  {
+    "key": "ctrl+b",
+    "command": "runCommands",
+    "args": {
+      "commands": [
+        { "command": "vscode-neovim.send", "args": "<C-b>" },
+        { "command": "editorScroll", "args": { "to": "up", "by": "page" } }
+      ]
+    },
+    "when": "editorTextFocus && neovim.init && neovim.mode != 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'"
+  },
+  {
+    "key": "ctrl+u",
+    "command": "runCommands",
+    "args": {
+      "commands": [
+        { "command": "vscode-neovim.send", "args": "<C-u>" },
+        { "command": "editorScroll", "args": { "to": "up", "by": "halfPage" } }
+      ]
+    },
+    "when": "editorTextFocus && neovim.init && neovim.mode != 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'"
+  },
+  {
+    "key": "ctrl+d",
+    "command": "runCommands",
+    "args": {
+      "commands": [
+        { "command": "vscode-neovim.send", "args": "<C-d>" },
+        { "command": "editorScroll", "args": { "to": "down", "by": "halfPage" } }
+      ]
+    },
+    "when": "editorTextFocus && neovim.init && neovim.mode != 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'"
+  },
+  {
+    "key": "ctrl+f",
+    "command": "runCommands",
+    "args": {
+      "commands": [
+        { "command": "vscode-neovim.send", "args": "<C-f>" },
+        { "command": "editorScroll", "args": { "to": "down", "by": "page" } }
+      ]
+    },
+    "when": "editorTextFocus && neovim.init && neovim.mode != 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'"
+  }
+
+  // Uncomment shift-up/shift-down scroll if not controlled by neovim
+  // {
+  //   "key": "shift-up",
+  //   "command": "runCommands",
+  //   "args": {
+  //     "commands": [
+  //       { "command": "vscode-neovim.send", "args": "<C-u>" },
+  //       { "command": "editorScroll", "args": { "to": "up", "by": "halfPage" } }
+  //     ]
+  //   },
+  //   "when": "editorTextFocus && neovim.init && neovim.mode != 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'"
+  // },
+  // {
+  //   "key": "shift+down",
+  //   "command": "runCommands",
+  //   "args": {
+  //     "commands": [
+  //       { "command": "vscode-neovim.send", "args": "<C-d>" },
+  //       { "command": "editorScroll", "args": { "to": "down", "by": "halfPage" } }
+  //     ]
+  //   },
+  //   "when": "editorTextFocus && neovim.init && neovim.mode != 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'"
+  // }
 ]
