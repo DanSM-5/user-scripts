@@ -71,24 +71,26 @@ for ($i = 0; $i -lt $args.length; $i++) {
 # which causes New-TemporaryFile to fail.
 # This script is intended to run with Windows Powershell so
 # the alternative is to call the windows API directly.
-try {
-  $std_out = New-TemporaryFile
-}
-catch {
-  $std_out = Get-Item ([System.IO.Path]::GetTempFilename())
-}
+# try {
+#   $std_out = New-TemporaryFile
+# }
+# catch {
+#   $std_out = Get-Item ([System.IO.Path]::GetTempFilename())
+# }
 
-# Use Start-Process to execute the command
-$proc = Start-Process -FilePath "$gitenv" -ArgumentList @(
-  $GITBASH_ENVIRONMENT
-  "$APPENDED_ENVIRONMENT lf.exe $COMMAND_ARGS"
-) -NoNewWindow -PassThru -RedirectStandardOutput $std_out.FullName
+# # Use Start-Process to execute the command
+# $proc = Start-Process -FilePath "$gitenv" -ArgumentList @(
+#   $GITBASH_ENVIRONMENT
+#   "$APPENDED_ENVIRONMENT lf.exe $COMMAND_ARGS"
+# ) -NoNewWindow -PassThru -RedirectStandardOutput $std_out.FullName
 
-# Wait for lf to exit
-$proc.WaitForExit()
+# # Wait for lf to exit
+# $proc.WaitForExit()
 
-# Clean process reference
-$proc = $null
+# # Clean process reference
+# $proc = $null
 
-Get-Content $std_out
+# Get-Content $std_out
 
+# Change call by direct execution to fix sixel image preview on window
+& "$gitenv" @GITBASH_ENVIRONMENT "PATH=`"/mingw64/bin:/usr/local/bin:/usr/bin:/bin:`$PATH`" lf.exe $COMMAND_ARGS"
