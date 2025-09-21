@@ -28,3 +28,6 @@ chcp %_codepage% > NUL 2>&1
 
 endlocal
 
+REM Prevent lf caching the result so that the
+REM previous image is cleared by the laoding message
+exit 1
