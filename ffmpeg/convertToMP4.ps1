@@ -13,7 +13,7 @@ Param(
 
 # NOTE: To send video in whatsapp it has to be libx264 and aac
 
-if (!(Test-Path -Path "$file" -PathType Leaf -ErrorAction SilentlyContinue) {
+if (!(Test-Path -Path "$file" -PathType Leaf -ErrorAction SilentlyContinue)) {
   Write-Error "No file $file"
   exit
 }
