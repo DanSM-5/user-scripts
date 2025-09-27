@@ -21,7 +21,8 @@ set "PREVIEW_CORDY=%5"
 set "PREVIEW_IMAGE_SIZE=%2x%3"
 
 REM Need to use -File instead of -Command or parsing of multple spaced names is unreliable
-pwsh -NoLogo -NonInteractive -NoProfile -File %user_scripts_path%\bin\lf_preview.ps1 %1 || echo "Powershell parsing failure"
+REM pwsh -NoLogo -NonInteractive -NoProfile -File %user_scripts_path%\bin\lf_preview.ps1 %1 || echo "Powershell parsing failure"
+pwsh -NoLogo -NonInteractive -NoProfile -File %user_conf_path%\utils\fzf-preview.ps1 %1 || echo "Powershell parsing failure"
 
 REM Restore console codepage
 chcp %_codepage% > NUL 2>&1
