@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+# TODO: Remember difference between ".." and "..." in both git log and git diff
+# https://stackoverflow.com/questions/462974/what-are-the-differences-between-double-dot-and-triple-dot-in-git-com
+# https://stackoverflow.com/questions/7251477/what-are-the-differences-between-double-dot-and-triple-dot-in-git-dif
+
+# Show diff against previous commits
+# With no arguments, it will always show the previous commit contents
+# > gprev
+# With a single argument, it will show the changes until the number of commits back
+# > gprev 5
+# With two argument, it will show the changes from first to second commit
+# > gprev 2 5
+# You can use branch names or hashes instead of numbers but you should prefer
+# using `git diff` directly in such a case
+base=''
+ref=''
+expr=''
+
+if [ "$#" -eq 0 ]; then
+  base=HEAD^
+  ref=HEAD
+elif [ "$#" -eq 1 ]; then
+  if [[ "$*" =~ ^[^.]+[.][.]{1,2}[^.]+$ ]]; then
+    expr="$*"
+  else
+    base="${1:-HEAD~1}"
+    ref="HEAD"
+  fi
+
+elif [ "$#" -gt 1 ]; then
+  ref="$1"
+  base="$2"
+fi
+
+if [ -z "$expr" ] && [ -z "$base" ] && [ -z "$ref" ]; then
+  printf 'Invalid arguments: %s' "$*"
+  exit 1
+fi
+
+if [[ "$base" =~ ^[0-9]+$ ]]; then
+  base="HEAD~$base"
+fi
+if [[ "$ref" =~ ^[0-9]+$ ]]; then
+  ref="HEAD~$ref"
+fi
+
+expr="${expr:-"$base...$ref"}"
+
+if command -v delta &> /dev/null; then
+  git diff "$expr" | delta
+else
+  git diff "$expr"
+fi
