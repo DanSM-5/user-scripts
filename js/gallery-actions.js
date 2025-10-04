@@ -82,14 +82,14 @@ Array.from(
 // Pixiv - Get all urls in page
 Array.from(
     /* Pixiv - Get all urls in apge */
-    document.querySelectorAll('li a.fJFKsi')
+    document.querySelectorAll('li a.XiaPU')
 // @ts-ignore
 ).reduce((links, /** @type {HTMLAnchorElement} */ a) => `${links}\n${a.href}`, '')
 
 // Pixiv - Get all url from unliked items
 Array.from(
     /* Pixiv - Get all url from unliked items */
-    document.querySelectorAll('li a.fJFKsi:has(+ div .hapWHH)')
+    document.querySelectorAll('li a.XiaPU:has(+ div .hapWHH)')
 // @ts-ignore
 ).reduce((links, /** @type {HTMLAnchorElement} */ a) => `${links}\n${a.href}`, '')
 
@@ -104,7 +104,7 @@ Array.from(
 // Pixiv - Get all url from liked items
 Array.from(
     /* Pixiv - Get all url from liked items */
-    document.querySelectorAll('li a.fJFKsi:has(+ div .lbkCkj)')
+    document.querySelectorAll('li a.XiaPU:has(+ div .lbkCkj)')
 // @ts-ignore
 ).reduce((links, a) => `${links}\n${a.href}`, '')
 
