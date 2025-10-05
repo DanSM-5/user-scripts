@@ -316,7 +316,7 @@
       ]
     },
     "when": "editorTextFocus && neovim.init && neovim.mode != 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'"
-  }
+  },
 
   // Uncomment shift-up/shift-down scroll if not controlled by neovim
   // {
@@ -341,4 +341,23 @@
   //   },
   //   "when": "editorTextFocus && neovim.init && neovim.mode != 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'"
   // }
+
+  // Moved to vscode to be able to jump from windows
+  // not controlled by the nvim buffers
+  {
+    "key": "alt+h",
+    "command": "workbench.action.navigateLeft"
+  },
+  {
+    "key": "alt+j",
+    "command": "workbench.action.navigateDown"
+  },
+  {
+    "key": "alt+k",
+    "command": "workbench.action.navigateUp"
+  },
+  {
+    "key": "alt+l",
+    "command": "workbench.action.navigateRight"
+  }
 ]
