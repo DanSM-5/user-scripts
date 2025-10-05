@@ -189,5 +189,132 @@
   // rg-source
   "rg-source.caseSensitive": false,
   "rg-source.prefixLen": 3,
-  "rg-source.rgPath": "rg"
+  "rg-source.rgPath": "rg",
+
+  // Todo highlight
+  "todohighlight.isEnable": true,
+  // Include directories with .*/ (hidden)
+  // "todohighlight.include": [
+  //   "**/.*/**/*.txt",
+  // ],
+  "todohighlight.include": [
+    "**/*.js",
+    "**/*.jsx",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.html",
+    "**/*.css",
+    "**/*.scss",
+    "**/*.php",
+    "**/*.rb",
+    "**/*.txt",
+    "**/*.mdown",
+    "**/*.md",
+    "**/*.lua",
+    "**/*.sh",
+    "**/*.vim",
+    "**/*.bash",
+    "**/*.ps1"
+  ],
+  "todohighlight.keywords": [
+    {
+      "text": "TODO:",
+      "color": "#000",
+      "diagnosticSeverity": "information",
+      "backgroundColor": "#61afef",
+      "overviewRulerColor": "#61afef",
+      "before": {
+        "contentText": " "
+      }
+    },
+    {
+      "text": "FIX:",
+      "color": "#000",
+      "diagnosticSeverity": "error",
+      "backgroundColor": "#e06c75",
+      "overviewRulerColor": "#e06c75",
+      "before": {
+        "contentText": " "
+      },
+      "regex": {
+        "pattern": "\\b(BUG|FIX|FIXME|ISSUE):"
+      }
+    },
+    {
+      "text": "PERF:",
+      "color": "#000",
+      "diagnosticSeverity": "warning",
+      "backgroundColor": "#e06c75",
+      "overviewRulerColor": "#e06c75",
+      "before": {
+        "contentText": " "
+      },
+      "regex": {
+        "pattern": "\\b(FIXIT|PERF|OPTIM):"
+      }
+    },
+    {
+      "text": "TEST:",
+      "color": "#000",
+      "diagnosticSeverity": "information",
+      "backgroundColor": "#e06c75",
+      "overviewRulerColor": "#e06c75",
+      "before": {
+        "contentText": " "
+      },
+      "regex": {
+        "pattern": "\\b(TEST|TESTING|PASSED|FAILED):"
+      }
+    },
+    {
+      "text": "PERFORMANCE:",
+      "color": "#000",
+      "diagnosticSeverity": "warning",
+      "backgroundColor": "#e06c75",
+      "overviewRulerColor": "#e06c75",
+      "before": {
+        "contentText": " "
+      },
+      "regex": {
+        "pattern": "\\b(OPTIMIZE|PERFORMANCE):"
+      }
+    },
+    {
+      "text": "WARNING:",
+      "color": "#000",
+      "diagnosticSeverity": "warning",
+      "backgroundColor": "#e5c07b",
+      "overviewRulerColor": "#e5c07b",
+      "before": {
+        "contentText": " "
+      },
+      "regex": {
+        "pattern": "\\b(WARN|WARNING|XXX):"
+      }
+    },
+    {
+      "text": "HACK:",
+      "color": "#000",
+      "diagnosticSeverity": "warning",
+      "backgroundColor": "#e5c07b",
+      "overviewRulerColor": "#e5c07b",
+      "before": {
+        "contentText": " "
+      }
+    },
+    {
+      "text": "INFO:",
+      "color": "#000",
+      "diagnosticSeverity": "information",
+      "backgroundColor": "#56b6c2",
+      "overviewRulerColor": "#56b7c2",
+      "before": {
+        "contentText": " "
+      },
+      "regex": {
+        "pattern": "\\b(INFO|NOTE):"
+      }
+    }
+  ]
+
 }
