@@ -143,43 +143,43 @@
     "args": "<A-t>"
   },
 
-  // Move between windows
-  {
-    "command": "vscode-neovim.send",
-    // the key sequence to activate the binding
-    "key": "alt+h",
-    // don't activate during insert mode
-    "when": "editorTextFocus && neovim.mode != insert",
-    // the input to send to Neovim
-    "args": "<A-h>"
-  },
-  {
-    "command": "vscode-neovim.send",
-    // the key sequence to activate the binding
-    "key": "alt+j",
-    // don't activate during insert mode
-    "when": "editorTextFocus && neovim.mode != insert",
-    // the input to send to Neovim
-    "args": "<A-j>"
-  },
-  {
-    "command": "vscode-neovim.send",
-    // the key sequence to activate the binding
-    "key": "alt+k",
-    // don't activate during insert mode
-    "when": "editorTextFocus && neovim.mode != insert",
-    // the input to send to Neovim
-    "args": "<A-k>"
-  },
-  {
-    "command": "vscode-neovim.send",
-    // the key sequence to activate the binding
-    "key": "alt+l",
-    // don't activate during insert mode
-    "when": "editorTextFocus && neovim.mode != insert",
-    // the input to send to Neovim
-    "args": "<A-l>"
-  },
+  // // Move between windows
+  // {
+  //   "command": "vscode-neovim.send",
+  //   // the key sequence to activate the binding
+  //   "key": "alt+h",
+  //   // don't activate during insert mode
+  //   "when": "editorTextFocus && neovim.mode != insert",
+  //   // the input to send to Neovim
+  //   "args": "<A-h>"
+  // },
+  // {
+  //   "command": "vscode-neovim.send",
+  //   // the key sequence to activate the binding
+  //   "key": "alt+j",
+  //   // don't activate during insert mode
+  //   "when": "editorTextFocus && neovim.mode != insert",
+  //   // the input to send to Neovim
+  //   "args": "<A-j>"
+  // },
+  // {
+  //   "command": "vscode-neovim.send",
+  //   // the key sequence to activate the binding
+  //   "key": "alt+k",
+  //   // don't activate during insert mode
+  //   "when": "editorTextFocus && neovim.mode != insert",
+  //   // the input to send to Neovim
+  //   "args": "<A-k>"
+  // },
+  // {
+  //   "command": "vscode-neovim.send",
+  //   // the key sequence to activate the binding
+  //   "key": "alt+l",
+  //   // don't activate during insert mode
+  //   "when": "editorTextFocus && neovim.mode != insert",
+  //   // the input to send to Neovim
+  //   "args": "<A-l>"
+  // },
 
   // Change to the previous edited buffer
   {
