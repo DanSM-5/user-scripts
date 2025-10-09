@@ -181,6 +181,26 @@
   //   "args": "<A-l>"
   // },
 
+  // Map jumps to alt keys
+  {
+    "command": "vscode-neovim.send",
+    // the key sequence to activate the binding
+    "key": "alt+i",
+    // don't activate during insert mode
+    "when": "editorTextFocus && neovim.mode != insert",
+    // the input to send to Neovim
+    "args": "<A-i>"
+  },
+  {
+    "command": "vscode-neovim.send",
+    // the key sequence to activate the binding
+    "key": "alt+o",
+    // don't activate during insert mode
+    "when": "editorTextFocus && neovim.mode != insert",
+    // the input to send to Neovim
+    "args": "<A-o>"
+  },
+
   // Change to the previous edited buffer
   {
     "key": "ctrl+6",
