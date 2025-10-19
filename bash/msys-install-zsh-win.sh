@@ -53,7 +53,7 @@ curl "${curl_ops[@]}" "$tarball_url"
 # Extract zsh archive. Name could vary but the end should remain the same, so use glob
 tar --zstd -xvf *x86_64.pkg.tar.zst --directory "$temp_zsh_dir/zsh"
 # Copy files. Using gsudo to elevate and rclone to copy only new files (and because I don't know better... sorry).
-gsudo rclone -v -u ./zsh "$gitbash_dir"
+gsudo rclone -v -u "$temp_zsh_dir/zsh" "$gitbash_dir"
 popd
 
 printf "%s\n" "Testing if it works..."
