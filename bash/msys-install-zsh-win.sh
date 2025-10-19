@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+[[ -d debug ]] && set -x
+
 if ! command -v zstd &>/dev/null; then
   printf "%s\n" "Missing zstd package to extract '.tar.zst'"
   printf "%s\n" "Hint: scoop install zstd"
