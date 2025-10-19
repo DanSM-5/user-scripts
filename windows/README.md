@@ -7,6 +7,12 @@ Show system information in powershell
 Get-CimInstance Win32_OperatingSystem | Select-Object  Caption, InstallDate, ServicePackMajorVersion, OSArchitecture, BootDevice,  BuildNumber, CSName | Format-List
 ```
 
+## Important paths
+
+- `shell:AppsFolder`: List applications from windows store.
+- `%AppData%\Microsoft\Windows\Start Menu`: Applications to be listed in start menu.
+- `%AppData%\Microsoft\Windows\Start Menu\Programs\Startup`: Applications that should run on startup.
+
 ## Install without online account
 
 1. Do not conenct to the internet (unplug ethernet)
