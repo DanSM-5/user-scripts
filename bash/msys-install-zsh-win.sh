@@ -47,14 +47,17 @@ trap cleanup EXIT
 
 # Yes, another zsh nested directory
 mkdir -p "$temp_zsh_dir/zsh"
-pushd "$temp_zsh_dir"
+pushd "$temp_zsh_dir" || exit
 # Download zsh
 curl "${curl_ops[@]}" "$tarball_url"
 # Extract zsh archive. Name could vary but the end should remain the same, so use glob
 tar --zstd -xvf *x86_64.pkg.tar.zst --directory "$temp_zsh_dir/zsh"
+popd || exit
+
+pushd "$temp_zsh_dir/zsh" || exit
 # Copy files. Using gsudo to elevate and rclone to copy only new files (and because I don't know better... sorry).
-gsudo rclone -v -u "$temp_zsh_dir/zsh" "$gitbash_dir"
-popd
+gsudo rclone -v -u "./" "$gitbash_dir"
+popd || exit
 
 printf "%s\n" "Testing if it works..."
 printf "%s\n" "$(which zsh)"
