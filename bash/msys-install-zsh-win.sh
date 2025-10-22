@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-[[ -d debug ]] && set -x
+[[ -v debug ]] && set -x
 
 if ! command -v zstd &>/dev/null; then
   printf "%s\n" "Missing zstd package to extract '.tar.zst'"
