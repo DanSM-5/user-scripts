@@ -7,44 +7,112 @@
 //: PIXIV {{{ :---------------------------------------------------------------------
 
 // Sample link and like buttons
-// <div width="184" height="184" class="sc-a57c16e6-0 fLGndj">
-//   <a class="sc-a57c16e6-16 dGiDgy sc-fqkvVR fJFKsi" data-gtm-value="129807266" data-gtm-user-id="3576344" href="/en/artworks/129807266">
-//     <div class="sc-e85d81bc-0 eLoxRg">
-//       <div radius="4" class="sc-a57c16e6-9 fDDgQt">
-//         <img src="https://i.pximg.net/c/250x250_80_a2/custom-thumb/img/2025/04/28/22/18/59/129807266_p0_custom1200.jpg" alt="EpicSeven, epic7, yufine(epic7) / Exclusive: Abyssal Yufine" class="sc-a57c16e6-10 iaqWlq" style="object-fit: cover; object-position: center center;">
-//       </div>
-//     </div>
-//     <div class="sc-a57c16e6-12 kMflgS">
-//       <div class="sc-a57c16e6-13 hLJzFN">
-//         <div class="sc-a57c16e6-15 gCATCR">
-//           <div class="sc-297744c7-0 fPWvQd">R-18</div>
+// <ul class="sc-e83d358-1 gIHHFW"> 
+//   <li size="1" offset="0" class="sc-e83d358-2 sc-e83d358-3 sc-64e0b1a1-1 ijXKlM jrXECC"> 
+//     <div class="sc-38ec486e-5 gCNcAW">
+//       <div class="sc-38ec486e-3 ckvtHT"> 
+//         <div width="184" height="184" class="sc-b01c604f-0 dwXrvb">
+//           <a class="sc-b01c604f-16 ednnFK sc-fqkvVR hdEsnq" data-gtm-value="126677909" data-gtm-user-id="101223078" href="/en/artworks/126677909">
+//             <div class="sc-4822cddd-0 eCgTWT">
+//               <div radius="4" class="sc-b01c604f-9 eTVpcd">
+//               <img alt="Fate/Apocrypha / Poll form! (Link in description) / January 29th, 2025" class="sc-b01c604f-10 elxbqC" src="https://i.pximg.net/c/250x250_80_a2/img-master/img/2025/01/29/08/06/33/126677909_p0_square1200.jpg" style="object-fit: cover; object-position: center center;">
+//             </div>
+//             </div>
+//               <div class="sc-b01c604f-12 kqssly">
+//               <div class="sc-b01c604f-13 grTVtx">
+//             </div>
+//               <div class="sc-b01c604f-5 iZTwAm">
+//                 <div class="sc-a686e337-0 cKmWeE">
+//                   <span class="sc-a686e337-1 etbaSX">
+//                     <span class="sc-64133715-0 jVVkFN">
+//                     <svg viewBox="0 0 9 10" size="9" class="sc-64133715-1 etuVrj">
+//                       <path d="M8,3 C8.55228475,3 9,3.44771525 9,4 L9,9 C9,9.55228475 8.55228475,10 8,10 L3,10 C2.44771525,10 2,9.55228475 2,9 L6,9 C7.1045695,9 8,8.1045695 8,7 L8,3 Z M1,1 L6,1 C6.55228475,1 7,1.44771525 7,2 L7,7 C7,7.55228475 6.55228475,8 6,8 L1,8 C0.44771525,8 0,7.55228475 0,7 L0,2 C0,1.44771525 0.44771525,1 1,1 Z" transform=""></path>
+//                     </svg>
+//                     </span>
+//                   </span>
+//                   <span>3</span>
+//                 </div>
+//               </div>
+//             </div>
+//           </a>
+//         <div class="sc-38ec486e-4 flotNu">
+//         <div class="">
+//           <button type="button" class="sc-782b0553-0 hMoHjj">
+//             <svg viewBox="0 0 32 32" width="32" height="32" class="sc-976c77a4-1 fWFQGs">
+//               <path d="M21,5.5 C24.8659932,5.5 28,8.63400675 28,12.5 C28,18.2694439 24.2975093,23.1517313 17.2206059,27.1100183 C16.4622493,27.5342993 15.5379984,27.5343235 14.779626,27.110148 C7.70250208,23.1517462 4,18.2694529 4,12.5 C4,8.63400691 7.13400681,5.5 11,5.5 C12.829814,5.5 14.6210123,6.4144028 16,7.8282366 C17.3789877,6.4144028 19.170186,5.5 21,5.5 Z"></path>
+//               <path d="M16,11.3317089 C15.0857201,9.28334665 13.0491506,7.5 11,7.5 C8.23857625,7.5 6,9.73857647 6,12.5 C6,17.4386065 9.2519779,21.7268174 15.7559337,25.3646328 C15.9076021,25.4494645 16.092439,25.4494644 16.2441073,25.3646326 C22.7480325,21.7268037 26,17.4385986 26,12.5 C26,9.73857625 23.7614237,7.5 21,7.5 C18.9508494,7.5 16.9142799,9.28334665 16,11.3317089 Z" class="sc-976c77a4-0 dZTXdH"></path>
+//             </svg>
+//           </button>
+//         </div>
 //         </div>
 //       </div>
-//       <div class="sc-a57c16e6-5 OiTjW">
-//         <div class="sc-b5e6ab10-0 hfQbJx">
-//           <span class="sc-b5e6ab10-1 dEqZum">
-//             <span class="sc-c13d4f40-0 dXSgZe">
-//               <svg viewBox="0 0 9 10" size="9" class="sc-c13d4f40-1 bKxYLA">
-//                 <path d="M8,3 C8.55228475,3 9,3.44771525 9,4 L9,9 C9,9.55228475 8.55228475,10 8,10 L3,10C2.44771525,10 2,9.55228475 2,9 L6,9 C7.1045695,9 8,8.1045695 8,7 L8,3 Z M1,1 L6,1C6.55228475,1 7,1.44771525 7,2 L7,7 C7,7.55228475 6.55228475,8 6,8 L1,8 C0.44771525,80,7.55228475 0,7 L0,2 C0,1.44771525 0.44771525,1 1,1 Z" transform=""></path>
-//               </svg>
-//             </span>
-//           </span>
-//           <span>11</span>
-//         </div>
-//       </div>
 //     </div>
-//   </a>
-//   <div class="sc-5a760b36-4 btqmcy">
+//     <div class="sc-38ec486e-1 fLOa-DD">
+//     <a class="sc-38ec486e-6 jRtZSE" href="/en/artworks/126677909">Poll form! (Link in description)
+//     </a>
+//     </div>
+//     </div>
+//     </li>
+//     <li size="1" offset="0" class="sc-e83d358-2 sc-e83d358-3 sc-64e0b1a1-1 ijXKlM jrXECC">
+//     <div class="sc-38ec486e-5 gCNcAW">
+//     <div class="sc-38ec486e-3 ckvtHT">
+//     <div width="184" height="184" class="sc-b01c604f-0 dwXrvb">
+//     <a class="sc-b01c604f-16 ednnFK sc-fqkvVR hdEsnq" data-gtm-value="126676061" data-gtm-user-id="101223078" href="/en/artworks/126676061">
+//     <div class="sc-4822cddd-0 eCgTWT">
+//     <div radius="4" class="sc-b01c604f-9 eTVpcd">
+//     <img alt="Size Contest (crossover) / January 29th, 2025" class="sc-b01c604f-10 elxbqC" src="https://i.pximg.net/c/250x250_80_a2/img-master/img/2025/01/29/05/48/57/126676061_p0_square1200.jpg" style="object-fit: cover; object-position: center center;">
+//     </div>
+//     </div>
+//     <div class="sc-b01c604f-12 kqssly">
+//     <div class="sc-b01c604f-13 grTVtx">
+//     </div>
+//     <div class="sc-b01c604f-5 iZTwAm">
+//     <div class="sc-a686e337-0 cKmWeE">
+//     <span class="sc-a686e337-1 etbaSX">
+//     <span class="sc-64133715-0 jVVkFN">
+//     <svg viewBox="0 0 9 10" size="9" class="sc-64133715-1 etuVrj">
+//     <path d="M8,3 C8.55228475,3 9,3.44771525 9,4 L9,9 C9,9.55228475 8.55228475,10 8,10 L3,10
+//       C2.44771525,10 2,9.55228475 2,9 L6,9 C7.1045695,9 8,8.1045695 8,7 L8,3 Z M1,1 L6,1
+//       C6.55228475,1 7,1.44771525 7,2 L7,7 C7,7.55228475 6.55228475,8 6,8 L1,8 C0.44771525,8
+//       0,7.55228475 0,7 L0,2 C0,1.44771525 0.44771525,1 1,1 Z" transform="">
+//     </path>
+//     </svg>
+//     </span>
+//     </span>
+//     <span>3
+//     </span>
+//     </div>
+//     </div>
+//     </div>
+//     </a>
+//     <div class="sc-38ec486e-4 flotNu">
 //     <div class="">
-//       <button type="button" class="sc-e48c39c9-0 ialGvh">
-//         <svg viewBox="0 0 32 32" width="32" height="32" class="sc-4258e52e-1 lbkCkj">
-//           <path d="M21,5.5 C24.8659932,5.5 28,8.63400675 28,12.5 C28,18.2694439 24.2975093,23.1517313 17.2206059,27.1100183C16.4622493,27.5342993 15.5379984,27.5343235 14.779626,27.110148 C7.70250208,23.1517462 4,18.2694529 4,12.5C4,8.63400691 7.13400681,5.5 11,5.5 C12.829814,5.5 14.6210123,6.4144028 16,7.8282366C17.3789877,6.4144028 19.170186,5.5 21,5.5 Z"></path>
-//           <path d="M16,11.3317089 C15.0857201,9.28334665 13.0491506,7.5 11,7.5C8.23857625,7.5 6,9.73857647 6,12.5 C6,17.4386065 9.2519779,21.7268174 15.7559337,25.3646328C15.9076021,25.4494645 16.092439,25.4494644 16.2441073,25.3646326 C22.7480325,21.7268037 26,17.4385986 26,12.5C26,9.73857625 23.7614237,7.5 21,7.5 C18.9508494,7.5 16.9142799,9.28334665 16,11.3317089 Z" class="sc-4258e52e-0 ktvYyV"></path>
-//         </svg>
-//       </button>
+//     <button type="button" class="sc-782b0553-0 hMoHjj">
+//     <svg viewBox="0 0 32 32" width="32" height="32" class="sc-976c77a4-1 bVNeCg">
+//     <path d="
+//         M21,5.5 C24.8659932,5.5 28,8.63400675 28,12.5 C28,18.2694439 24.2975093,23.1517313 17.2206059,27.1100183
+//         C16.4622493,27.5342993 15.5379984,27.5343235 14.779626,27.110148 C7.70250208,23.1517462 4,18.2694529 4,12.5
+//         C4,8.63400691 7.13400681,5.5 11,5.5 C12.829814,5.5 14.6210123,6.4144028 16,7.8282366
+//         C17.3789877,6.4144028 19.170186,5.5 21,5.5 Z">
+//     </path>
+//     <path d="M16,11.3317089 C15.0857201,9.28334665 13.0491506,7.5 11,7.5
+//           C8.23857625,7.5 6,9.73857647 6,12.5 C6,17.4386065 9.2519779,21.7268174 15.7559337,25.3646328
+//           C15.9076021,25.4494645 16.092439,25.4494644 16.2441073,25.3646326 C22.7480325,21.7268037 26,17.4385986 26,12.5
+//           C26,9.73857625 23.7614237,7.5 21,7.5 C18.9508494,7.5 16.9142799,9.28334665 16,11.3317089 Z" class="sc-976c77a4-0 dZTXdH">
+//     </path>
+//     </svg>
+//     </button>
 //     </div>
-//   </div>
-// </div>
+//     </div>
+//     </div>
+//     </div>
+//     <div class="sc-38ec486e-1 fLOa-DD">
+//     <a class="sc-38ec486e-6 jRtZSE" href="/en/artworks/126676061">Size Contest (crossover)
+//     </a>
+//     </div>
+//     </div>
+//   </li>
+// </ul>
 
 
 // NOTICE: version with 1 or 2 seconds is to avoid spamming too much pixiv's servers
@@ -52,14 +120,14 @@
 // Pixiv - Add likes (non liked)
 Array.from(
     /* Pixiv - Add likes (non liked) */
-    document.querySelectorAll('.hapWHH')
+    document.querySelectorAll('.fWFQGs')
 )
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 1000))
 
 Array.from(
     /* Pixiv - Add likes (non liked) */
-    document.querySelectorAll('.hapWHH')
+    document.querySelectorAll('.fWFQGs')
 )
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 2 * 1000))
@@ -67,14 +135,14 @@ Array.from(
 // Pixiv - Remove likes from items
 Array.from(
     /* Pixiv - Remove likes from items */
-    document.querySelectorAll('.lbkCkj')
+    document.querySelectorAll('.bVNeCg')
 )
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 1000))
 
 Array.from(
      /* Pixiv - Remove likes from items */
-    document.querySelectorAll('.lbkCkj')
+    document.querySelectorAll('.bVNeCg')
 )
   .map(el => el.parentElement)
   .map((el, i) => setTimeout( () => el?.click(), i * 2 * 1000))
@@ -82,14 +150,14 @@ Array.from(
 // Pixiv - Get all urls in page
 Array.from(
     /* Pixiv - Get all urls in apge */
-    document.querySelectorAll('li a.XiaPU')
+    document.querySelectorAll('li a.ednnFK')
 // @ts-ignore
 ).reduce((links, /** @type {HTMLAnchorElement} */ a) => `${links}\n${a.href}`, '')
 
 // Pixiv - Get all url from unliked items
 Array.from(
     /* Pixiv - Get all url from unliked items */
-    document.querySelectorAll('li a.XiaPU:has(+ div .hapWHH)')
+    document.querySelectorAll('li a.ednnFK:has(+ div .fWFQGs)')
 // @ts-ignore
 ).reduce((links, /** @type {HTMLAnchorElement} */ a) => `${links}\n${a.href}`, '')
 
@@ -104,7 +172,7 @@ Array.from(
 // Pixiv - Get all url from liked items
 Array.from(
     /* Pixiv - Get all url from liked items */
-    document.querySelectorAll('li a.XiaPU:has(+ div .lbkCkj)')
+    document.querySelectorAll('li a.ednnFK:has(+ div .bVNeCg)')
 // @ts-ignore
 ).reduce((links, a) => `${links}\n${a.href}`, '')
 
@@ -266,11 +334,11 @@ paginatedClickProcess({
   // @ts-ignore
   getElements: () => Array.from(
     /* Pixiv - Add likes (non liked) */
-    document.querySelectorAll('.hapWHH')
+    document.querySelectorAll('.fWFQGs')
   )
   // @ts-ignore
   .map((/** @type {HTMLElement} */ el) => el.parentElement),
-  getNextPage: () => (/** @type {HTMLElement} */ (document.querySelectorAll('.sc-27a0ff07-0.bbkQMy button:not(.dcmkry) + .sc-27a0ff07-2.jGoxAA:not(.iXwGwx)')?.[0]))
+  getNextPage: () => (/** @type {HTMLElement} */ (document.querySelectorAll('.sc-facdf6d-0.cujffJ button:not(.dcmkry) + .sc-facdf6d-2.hGMPlP:not(.giMfei)')?.[0]))
 }).then(() => console.log('End'));
 
 
