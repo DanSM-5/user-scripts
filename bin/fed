@@ -162,6 +162,7 @@ done < <(fzf \
     --bind "change:reload:$grep_cmd" \
     --bind "ctrl-r:unbind(ctrl-r)+change-prompt(Search> )+disable-search+reload($grep_cmd)+rebind(change,ctrl-f)+change-preview($preview_grep)+refresh-preview" \
     --delimiter : \
+    --accept-nth=1 \
     --header "Search in: $location" \
     --history="$history_file" \
     --input-border \
@@ -172,7 +173,6 @@ done < <(fzf \
     --prompt 'Select> ' \
     --with-shell 'bash -c' \
     "${fzf_args[@]}" |
-  cut --delimiter : -f1 |
   sort -u)
 
 # shellcheck disable=SC2128
