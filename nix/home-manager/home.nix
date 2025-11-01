@@ -40,9 +40,11 @@
     bat
     btop
     # bun
+    codesnap
     chafa
     # carapace
     delta
+    dive
     # dog
     dua
     erdtree
@@ -83,18 +85,9 @@
     # pipx
     # ps
     # poppler
-    poppler_utils
+    poppler-utils
     # procs
     # python3
-    # python3Full
-    # (python3Full.withPackages (ps: with ps; [
-    #   greenlet
-    #   msgpack
-    #   neovim
-    #   pip
-    #   pynvim
-    #   setuptools
-    # ]))
     # rclip
     rclone
     # rsync
