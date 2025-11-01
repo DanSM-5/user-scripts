@@ -97,11 +97,11 @@
     "command": "find-it-faster.findFilesWithType"
   },
   {
-    "key": "shift+alt+u",
-    "command": "find-it-faster.findWithinFilesWithType"
+    "key": "ctrl+shift+u",
+    "command": "find-it-faster.findWithinFiles"
   },
   {
-    "key": "shift+alt+u",
+    "key": "alt+shift+u",
     "command": "find-it-faster.findWithinFilesWithType"
   },
 
