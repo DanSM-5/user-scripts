@@ -6,11 +6,20 @@ local act = wezterm.action
 local config = wezterm.config_builder()
 
 local opener = 'xdg-open'
+local is_windows = false
+local is_linux = false
+local is_mac = false
 
-if os.getenv('IS_WINDOWS') == 'true' then
-  opener = 'start'
-elseif os.getenv('IS_MAC') == 'true' then
-  opener = 'open'
+do
+  if wezterm.target_triple:find('linux') ~= nil then
+    is_linux = true
+  elseif wezterm.target_triple:find('darwin') ~= nil then
+    opener = 'open'
+    is_mac = true
+  else
+    opener = 'start'
+    is_windows = true
+  end
 end
 
 -- Font
@@ -95,7 +104,7 @@ if wezterm.gui then
     {
       key = ',',
       mods = 'WIN',
-      action = wezterm.action.SpawnCommandInNewTab({
+      action = act.SpawnCommandInNewTab({
         cwd = wezterm.home_dir,
         args = { 'nvim', wezterm.config_file },
       }),
@@ -128,10 +137,49 @@ if wezterm.gui then
     {
       event = { Up = { streak = 1, button = 'Left' } },
       mods = 'CTRL',
-      action = wezterm.action.OpenLinkAtMouseCursor,
+      action = act.OpenLinkAtMouseCursor,
     },
   }
 
+  if is_mac then
+    config.keys[#config.keys+1] = {
+      key = 'V', mods = 'CTRL|SHIFT', action = act.PasteFrom('Clipboard')
+    }
+
+    -- NOTE: do nothing but makes me feel better
+    config.keys[#config.keys+1] = {
+      key = 'RightArrow',
+      mods = 'CTRL',
+      action = act.CopyMode('MoveForwardWord')
+    }
+    config.keys[#config.keys+1] = {
+      key = 'LeftArrow',
+      mods = 'CTRL',
+      action = act.CopyMode('MoveBackwardWord')
+    }
+
+    -- NOTE: ctrl-shift-c works but wont clear selection
+
+    config.keys[#config.keys+1] = {
+      key = 'C',
+      mods = 'CTRL|SHIFT',
+      -- action = act.multiple({
+      --   -- act.CopyTo('ClipboardAndPrimarySelection'),
+      --   act.ClearSelection,
+      -- }),
+      action = wezterm.action_callback(function(window, pane)
+        local has_selection = window:get_selection_text_for_pane(pane) ~= ''
+        if has_selection then
+          window:perform_action(act.CopyTo('ClipboardAndPrimarySelection'), pane)
+          wezterm.time.call_after(0.01, function()
+            window:perform_action(act.ClearSelection, pane)
+          end)
+        -- else
+        --   window:perform_action(act.SendKey({ key = 'c', mods = 'CTRL' }), pane)
+        end
+      end),
+    }
+  end
 end
 
 if os.getenv('IS_STEAMDECK') == 'true' then
