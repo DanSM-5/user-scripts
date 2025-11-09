@@ -338,7 +338,8 @@ paginatedClickProcess({
   )
   // @ts-ignore
   .map((/** @type {HTMLElement} */ el) => el.parentElement),
-  getNextPage: () => (/** @type {HTMLElement} */ (document.querySelectorAll('.sc-facdf6d-0.cujffJ button:not(.dcmkry) + .sc-facdf6d-2.hGMPlP:not(.giMfei)')?.[0]))
+  // not condition is important. There may be two buttons. Elipsis (...) and current page.
+  getNextPage: () => (/** @type {HTMLElement} */ (document.querySelectorAll('.sc-facdf6d-0.cujffJ button:not(.dcmkry) + .sc-facdf6d-2.hGMPlP:not(.dcmkry)')?.[0]))
 }).then(() => console.log('End'));
 
 
