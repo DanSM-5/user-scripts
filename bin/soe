@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+# Detect if input is interactive or piped
+if [ -t 0 ]; then
+  exit
+fi
+
+temp="$(mktemp)"
+cleanup () {
+  if [ -f "$temp" ]; then
+    rm -r -f "$temp"
+  fi
+}
+
+trap cleanup EXIT
+
+while IFS= read -r line; do
+  printf '%s\n' "$line" >> "$temp"
+done
+
+nvim "$temp"
+
+cat "$temp"
