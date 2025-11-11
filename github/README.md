@@ -31,3 +31,24 @@ Ref: https://learn.microsoft.com/en-us/contribute/content/markdown-reference#ale
 > Github markdown syntax for firectives is not portable to other markdown systems which will create a blockquote
 > In those scenarios use `:::` block.
 
+# Checkout to PRs refs
+
+## HEAD
+
+```bash
+git fetch origin pull/'<PR_NUMBER>'/HEAD:'<LOCAL_BRANCH_NAME>'
+git checkout '<LOCAL_BRANCH_NAME>'
+
+# sample
+git fetch origin pull/10/HEAD:github-10
+```
+
+## Merge
+
+```bash
+git fetch origin pull/'<PR_NUMBER>'/merge:'<LOCAL_BRANCH_NAME>'
+git checkout '<LOCAL_BRANCH_NAME>'
+
+# sample
+git fetch origin pull/10/merge:github-10-merge
+```
