@@ -36,11 +36,11 @@ Ref: https://learn.microsoft.com/en-us/contribute/content/markdown-reference#ale
 ## HEAD
 
 ```bash
-git fetch origin pull/'<PR_NUMBER>'/HEAD:'<LOCAL_BRANCH_NAME>'
+git fetch origin pull/'<PR_NUMBER>'/head:'<LOCAL_BRANCH_NAME>'
 git checkout '<LOCAL_BRANCH_NAME>'
 
 # sample
-git fetch origin pull/10/HEAD:github-10
+git fetch origin pull/10/head:github-10
 ```
 
 ## Merge
