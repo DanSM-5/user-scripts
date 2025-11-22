@@ -154,7 +154,7 @@ if [ "$IS_ONLINE" = true ]; then
     --output "${segment}.%(ext)s" \
     --force-overwrites \
     -f "mp4" \
-    $ytdlp_args \
+    "${ytdlp_args[@]}" \
     "$url"
     # --remux-video "mp4"
 else
@@ -170,7 +170,7 @@ if [ "$include_subtitles" = true ] && has_subtitles "$filename"; then
   SUB_FILTER=",subtitles='$(sed -re "s/:/\\\\:/" <<< "${filename}")':si=0"
 fi
 
-if ! [ -f "$Filename" ]; then
+if ! [ -f "$filename" ]; then
   printf "%s" "Online file was not downloaded: $Filename" >&2
   exit 1
 fi

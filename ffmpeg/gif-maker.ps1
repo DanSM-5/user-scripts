@@ -52,8 +52,8 @@ $EnvTable = @{
 }
 
 if (Test-Path -Path "$HOME/.config/gif-maker.env" -ErrorAction SilentlyContinue) {
-  $GifEnv = Get-Content "$HOME/.config/gif-maker.env" | ConvertFrom-StringData
-  $GifEnv.GetEnumerator() | % {
+  $GifEnv = Get-Content -Raw "$HOME/.config/gif-maker.env" | ConvertFrom-StringData
+  $GifEnv.GetEnumerator() | ForEach-Object {
     if ($EnvTable[$_.Name]) {
       $EnvTable[$_.Name] = $_.Value
     }
