@@ -17,22 +17,22 @@ Param (
 $codepage = 0
 
 try {
+  # Codepage backup
+  $codepage = ($(chcp) -split ' ')[3]
+
   # Ref: https://stackoverflow.com/questions/49476326/displaying-unicode-in-powershell
   # Save the current settings and temporarily switch to UTF-8.
-  # $oldOutputEncoding = $OutputEncoding;
-  # $oldConsoleEncoding = [Console]::OutputEncoding
-  # $OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.Utf8Encoding
-
-  # NOTE: Changing to codepage approach to prevent issues from cli programs that
-  # change codepage but fail to restore it properly
-  $codepage = ($(chcp) -split ' ')[3]
+  $oldOutputEncoding = $OutputEncoding;
+  $oldConsoleEncoding = [Console]::OutputEncoding
+  $OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.Utf8Encoding
+  chcp 65001 *> $null
 
   # Execute block with utf-8 encoding
   return & $block
 } finally {
   # Restore the previous settings.
-  # $OutputEncoding = $oldOutputEncoding;
-  # [Console]::OutputEncoding = $oldConsoleEncoding
+  $OutputEncoding = $oldOutputEncoding;
+  [Console]::OutputEncoding = $oldConsoleEncoding
   chcp $codepage *> $null
 }
 
