@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+[[ -v debug ]] && set -x
+
+print_err () {
+  printf '\e[31m%s\e[0m\n' "$*" 1>&2
+}
+
+# prefix to separate different type of notes
+prefix="${1:-"${AGE_KEY_PREFIX:-}"}"
+
+if [ -z "$prefix" ]; then
+  print_err 'Prefix variable AGE_KEY_PREFIX not set and not provided and argument for prefix'
+  exit 1
+fi
+
+# Set prj folder
+prj="${prj:-"${HOME/prj}"}"
+key="$prj/keys/${prefix}_txt_files.txt"
+ndir="$prj/txt"
+if [ "$OS" = 'Windows_NT' ]; then
+  tmp="$TEMP/notes/$prefix"
+else
+  tmp="/tmp/notes/$prefix"
+fi
+notes="$tmp/notes.tar.gz.age"
+
+clean_dir () {
+  if [ -d "$1" ]; then
+    rm -rf "$1"
+  fi
+}
+
+if ! [ -f "$key" ]; then
+  print_err 'Key file not found'
+  exit 1
+fi
+
+public_key="$(awk -F': ' 'NR==2 { print $2 }' "$key")"
+
+if [ -z "$public_key" ]; then
+  print_err 'Could not extract public key'
+  exit 1
+fi
+
+cleanup () {
+  clean_dir "$tmp"
+}
+
+trap cleanup EXIT
+
+# Clean previous if exist
+clean_dir "$tmp"
+
+# Create directory if it doesn't exist
+mkdir -p "$tmp"
+
+# tar Create, Verbose, gZip
+tar -cvz --directory "$ndir" . | age -r "$public_key" -o "$notes"
+
+# Upload files
+rclone -v -u -l copy "$notes" "pwdb:notes/$prefix"
+

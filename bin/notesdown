@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+
+[[ -v debug ]] && set -x
+
+print_err () {
+  printf '\e[31m%s\e[0m\n' "$*" 1>&2
+}
+
+print_warn () {
+  printf "\e[33m%s\e[0m\n" "$*"
+}
+
+# prefix to separate different type of notes
+prefix="${1:-"${AGE_KEY_PREFIX:-}"}"
+
+if [ -z "$prefix" ]; then
+  print_err 'Prefix variable AGE_KEY_PREFIX not set and not provided and argument for prefix'
+  exit 1
+fi
+
+# Set prj folder
+prj="${prj:-"${HOME/prj}"}"
+key="$prj/keys/${prefix}_txt_files.txt"
+ndir="$prj/txt"
+if [ "$OS" = 'Windows_NT' ]; then
+  tmp="$TEMP/notes/$prefix"
+else
+  tmp="/tmp/notes/$prefix"
+fi
+notes="$tmp/notes.tar.gz.age"
+
+clean_dir () {
+  if [ -d "$1" ]; then
+    rm -rf "$1"
+  fi
+}
+
+if [ -f "$key" ]; then
+  print_err 'Key file not found'
+  exit 1
+fi
+
+cleanup () {
+  clean_dir "$tmp"
+}
+
+trap cleanup EXIT
+
+# Clean previous if exist
+clean_dir "$tmp"
+mkdir -p "$tmp"
+
+# Download encrypted file
+rclone -v -u -l copy "pwdb:notes/$prefix" "$tmp"
+
+if ! [ -f "$notes" ]; then
+  print_err 'notes file could not be downloaded'
+  exit 1
+fi
+
+if [ -d "$ndir" ]; then
+  print_warn 'txt directory exist, overriding with new'
+  new_date="$(date +%Y-%m-%dT%H@%M@%S.000Z)"
+  backup="${ndir}_${new_date}"
+  set -e
+  mv "$ndir" "$backup"
+  set +e
+  print_warn "backup: $backup"
+fi
+
+# Create directory if it doesn't exist
+mkdir -p "$ndir"
+
+# Decript files
+age --decrypt -i "$key" "$notes" | tar -xvz -C "$ndir"
