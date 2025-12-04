@@ -10,6 +10,11 @@ print_warn () {
   printf "\e[33m%s\e[0m\n" "$*"
 }
 
+if ! command -v 'age' &> /dev/null; then
+  print_err 'age command not found'
+  exit 1
+fi
+
 # prefix to separate different type of notes
 prefix="${1:-"${AGE_KEY_PREFIX:-}"}"
 

@@ -1,5 +1,10 @@
 #!/usr/bin/env pwsh
 
+if (!(Get-Command -Name 'age' -ErrorAction SilentlyContinue)) {
+  Write-Error 'age command not found'
+  exit 1
+}
+
 # prefix to separate different type of notes
 $prefix = if ($args[0]) { $args[0] } elseif ($env:AGE_KEY_PREFIX) { $env:AGE_KEY_PREFIX } else { $null }
 
