@@ -61,10 +61,17 @@
   "terminal.integrated.fontFamily": "CaskaydiaCove Nerd Font",
   "terminal.integrated.fontLigatures": true,
   "emmet.useInlineCompletions": true,
+  // wsl
+  // "workbench.colorCustomizations": {
+  //   "statusBar.background": "#3b7fa9",
+  //   "statusBar.debuggingBackground": "#ee14f2b3",
+  //   "statusBar.foreground": "default"
+  // },
   "workbench.colorCustomizations": {
-    "statusBar.background" : "#833ea6",
-    "statusBar.noFolderBackground" : "#212121",
-    "statusBar.debuggingBackground": "#ee14f2b3"
+    "statusBar.background": "#41875e",
+    "statusBar.foreground": "default",
+    "statusBar.noFolderBackground": "#212121",
+    "statusBar.debuggingBackground": "#b26d19"
   },
   "editor.accessibilitySupport": "off",
   "vscode-neovim.neovimInitVimPaths.linux": "~/.config/vscode-nvim/init.lua",
