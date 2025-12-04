@@ -35,7 +35,7 @@ clean_dir () {
   fi
 }
 
-if [ -f "$key" ]; then
+if ! [ -f "$key" ]; then
   print_err 'Key file not found'
   exit 1
 fi
