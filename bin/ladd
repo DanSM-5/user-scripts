@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+user_conf_path="${user_conf_path:-"$HOME/.usr_conf"}"
+locations="$user_conf_path/prj/locations"
+new_location="${1:-.}"
+
+# Create if doesn't exist already
+if ! [ -f "$locations" ]; then
+  echo '#!/usr/bin/env bash' > "$locations"
+fi
+
+if [ -f "$new_location" ]; then
+  printf 'Only directories are allowed\n'
+  exit
+fi
+
+sed "s|$new_location|\$HOME|g"   
