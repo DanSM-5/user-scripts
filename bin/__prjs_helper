@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+
+# Debug
+[[ -v debug ]] && set -x
+
+directory_in="${2:-.}"
+user_conf_path="${user_conf_path:-"$HOME/.usr_conf"}"
+prj_files="$user_conf_path/prj"
+
+print_err () {
+  printf '\e[31m%s\e[0m\n' "$*" 1>&2
+}
+
+# print_warn () {
+#   printf "\e[33m%s\e[0m\n" "$*"
+# }
+
+get_shebang () {
+  printf '%s\n\n' "#!/usr/bin/env bash"
+}
+
+end_script () {
+  print_err "$1"
+  exit 1
+}
+
+case "$1" in
+  locations)
+    out_file="$prj_files/locations"
+    ;;
+  directories)
+    out_file="$prj_files/directories"
+    ;;
+  *)
+    end_script "Unrecognized type '$1'"
+    ;;
+esac
+
+add_entry () {
+  entry="$1"
+  replace="$2"
+
+  new_entry="$(sed "s|$HOME|$replace|" <<< "$entry")"
+
+  printf '%s\n' "Adding: $new_entry"
+  printf '%s\n' "$new_entry" >> "$out_file"
+}
+
+# Ensure dir exists
+mkdir -p "$prj_files"
+
+# Create file file if doesn't already
+if ! [ -f "$out_file" ]; then
+  get_shebang > "$out_file" || end_script "Error creating '$out_file'"
+fi
+
+# Prepare to add directory
+directory="$(realpath "$directory_in")"
+
+# If file, get its directory
+if [ -f "$directory" ]; then
+  directory="${directory%/*}"
+fi
+
+# Final check for directory
+if ! [ -d "$directory" ]; then
+  end_script "Cannot add directory: ${directory}"
+fi
+
+# Adding new entry in directories file
+add_entry "$directory" '$HOME'
+
+# On windows and WSL add a powershell equivalent
+# case "$(uname -a)" in
+#   MINGW*|MSYS*|CYGWIN*|*NT*|*WSL*|*[Mm]icrosoft*)
+#     add_entry "$directory" '$env:HOME'
+#     ;;
+# esac
+
+# Print file pre-sorted
+[[ -v debug ]] && cat "$out_file"
+
+# Sort entries
+{ get_shebang; tail -n +3 "$out_file" | sort -u; } | sponge "$out_file"
