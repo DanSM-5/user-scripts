@@ -25,7 +25,7 @@ install_packages () {
 }
 
 update_termux () {
-  pkg upgrade -y
+  yes | pkg upgrade
 
   # Check if yt-dlp exitst
   if ! command -v yt-dlp &> /dev/null; then
