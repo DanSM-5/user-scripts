@@ -7,6 +7,22 @@ install_ytdlp () {
   pipx install yt-dlp
 }
 
+check_dep () {
+  if ! command -v "$1" &> /dev/null; then
+    printf '%s installed\n' "$1"
+  else
+    printf '%s NOT installed\n' "$1"
+  fi
+}
+
+verify_programs () {
+  check_dep node
+  check_dep python
+  check_dep deno
+  chekc_dep ffmpeg
+  check_dep yt-dlp
+}
+
 install_dep () {
   if ! command -v "$1" &> /dev/null; then
     pkg install "$1" -y
@@ -43,6 +59,7 @@ update_termux () {
 setup_termux () {
   termux-setup-storage
   update_termux
+  verify_programs
 }
 
 # Update bashrc
