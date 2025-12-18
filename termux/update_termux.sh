@@ -8,7 +8,7 @@ install_ytdlp () {
 }
 
 check_dep () {
-  if ! command -v "$1" &> /dev/null; then
+  if command -v "$1" &> /dev/null; then
     printf '%s installed\n' "$1"
   else
     printf '%s NOT installed\n' "$1"
