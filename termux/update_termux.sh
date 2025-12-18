@@ -19,7 +19,7 @@ verify_programs () {
   check_dep node
   check_dep python
   check_dep deno
-  chekc_dep ffmpeg
+  check_dep ffmpeg
   check_dep yt-dlp
 }
 
