@@ -21,7 +21,7 @@
 
 .NOTES
   Cross platform script (windows powershell and pwsh).
-  Use `PREFERRED_EDITOR` or `EDITOR` environment variable to configure the text editor to use.
+  Use `PREFERRED_EDITOR` or `EDITOR` or `VISUAL` environment variable to configure the text editor to use.
   Use `TXT_LOCATION` to configure the path to the txt directory that will store the text files.
   Use it in conjunction with `ntxt` command to create or open text files.
 
@@ -32,7 +32,7 @@ $Query = if ($args) { @('--query', "$args") } else { @() }
 # Detect native path separator
 $dirsep = if ($IsWindows -or ($env:OS -eq 'Windows_NT')) { '\' } else { '/' }
 # Defaults to vim
-$editor = if ($env:PREFERRED_EDITOR) { $env:PREFERRED_EDITOR } elseif ($env:EDITOR) { $env:EDITOR } else { 'vim' }
+$editor = if ($env:PREFERRED_EDITOR) { $env:PREFERRED_EDITOR } elseif ($env:EDITOR) { $env:EDITOR } elseif ($env:VISUAL) { $env:VISUAL } else { 'vim' }
 # Defaults to $HOME/prj/txt
 $txt = if ($env:TXT_LOCATION) { $env:TXT_LOCATION } else { "${HOME}${dirsep}prj${dirsep}txt" }
 # Powershell command

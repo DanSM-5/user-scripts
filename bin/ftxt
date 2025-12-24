@@ -3,13 +3,13 @@
 [[ -v debug ]] && set -x
 
 # Directions:
-# - Use PREFERRED_EDITOR or EDITOR to set a your prefer editor program
+# - Use PREFERRED_EDITOR or EDITOR or VISUAL to set a your prefer editor program
 # - Use TXT_LOCATION to customize location of directory with text files
 
 # Called with arguments 
 query="$*"
 # Defaults to vim
-editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
+editor="${PREFERRED_EDITOR:-${EDITOR:-${VISUAL:-vim}}}"
 # Defaults to $HOME/prj/txt
 txt="${TXT_LOCATION:-$HOME/prj/txt}"
 
