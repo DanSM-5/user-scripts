@@ -24,3 +24,14 @@ To upload videos without issues:
 ```bash
 ffmpeg -i video.mp4 -vcodec libx264 -acodec aac out.mp4
 ```
+
+## Join video and audio
+
+### Simple
+
+Copy audio track from second input into existing tracks in first input
+
+```bash
+ffmpeg -i video.mp4 -i audio.mp4 -map 1:a -map 0 -c:v 'h264' -c:a 'aac' output.mp4
+```
+
