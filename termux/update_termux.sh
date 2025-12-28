@@ -47,7 +47,7 @@ update_termux () {
   # Check if yt-dlp exitst
   if ! command -v yt-dlp &> /dev/null; then
     install_ytdlp
-  # Check if yt-dlp is not broken
+    # Check if yt-dlp is not broken
   elif ! yt-dlp --version &> /dev/null; then
     install_ytdlp
   elif [ "$FORCE_YTDLP_UPDATE" = 1 ]; then
@@ -82,7 +82,7 @@ youtube () {
   pushd "\$output_dir" || exit
 
   # Download video
-  yt-dlp -S res,ext:mp4:m4a --recode mp4 "\$(termux-clipboard-get)"
+  yt-dlp --recode mp4 --remote-components ejs:github --windows-filenames "\$(termux-clipboard-get)"
 
   # Restore
   popd || exit
