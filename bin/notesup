@@ -28,7 +28,7 @@ if [ "$OS" = 'Windows_NT' ]; then
 else
   tmp="/tmp/notes/$prefix"
 fi
-notes="$tmp/notes.tar.gz.age"
+notes="$tmp/notes.tar.age"
 
 clean_dir () {
   if [ -d "$1" ]; then

@@ -18,7 +18,7 @@ $prj = if ($prj) { $prj } elseif ($env:prj) { $env:prj } else { "$HOME/prj" }
 $key = "$prj/keys/${prefix}_txt_files.txt".Replace('/', '\')
 $ndir = "$prj/txt"
 $tmp = if (($IsWindows) -or ($env:OS -eq 'Windows_NT')) { "$env:TEMP/notes/$prefix" } else { "/tmp/notes/$prefix" }
-$notes = "$tmp/notes.tar.gz.age".Replace('\', '/')
+$notes = "$tmp/notes.tar.age".Replace('\', '/')
 function clean_dir ([string] $dir) {
   if (Test-Path -LiteralPath $dir -PathType Container -ErrorAction SilentlyContinue) {
     Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
