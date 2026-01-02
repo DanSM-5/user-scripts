@@ -138,7 +138,7 @@ map \\fnr npm-run-fzf
 set previewer lf_preview
 # NOTE: cleaner script no needed at the moment
 # set cleaner lf_cleaner
-set sixel true
+# set sixel true
 
 set mouse true
 
