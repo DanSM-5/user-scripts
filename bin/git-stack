@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Show the difference between the selected branch and master branch
+# Show the difference between the selected branch and base branch
 # Stolen from: https://github.com/hankchanocd/git-stack/blob/97fd7ed7090635f4c38681fe8ddd539d2c355273/git-stack
 
 # Color scheme used exclusively in git-fuzzy-commit
@@ -77,7 +77,8 @@ fuzzy_select_branch () {
     exit 1
   fi
 
-  result=$(git branch --list |
+  result=$(git branch --list --remote |
+    awk '{ print $1 }' |
     fzf --reverse --height=40% --cycle
   )
   branch=$(echo "$result" |
@@ -91,7 +92,8 @@ fuzzy_select_branch () {
 ################ Help ################
 usage="usage: $(basename "$0") [<options>]
 
-Compare against master branch with fzf
+Compare current HEAD against selected branch with fzf.
+By default it used the master branch.
 
 where:
   -h  show this help text
