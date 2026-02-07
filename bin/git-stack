@@ -32,11 +32,14 @@ fi
 
 main () {
   # Check if it's a git repo
-  [[ $(git root 2>&1) == 'Not a git repo!' ]] && echo "Not a git repo!" && exit 1
+  if ! git rev-parse HEAD > /dev/null 2>&1; then
+    echo 'Not a git repo!'
+    exit 1
+  fi
 
   # Assign master to $branch if not defined yet
   local branch
-  [[ -z "$1" ]] && branch='master' || branch=$1
+  [[ -z "$1" ]] && branch='master' || branch="$1"
 
   git-stack () {
     glNoGraph () {
@@ -69,7 +72,10 @@ main () {
 
 fuzzy_select_branch () {
   # Check if it's a git repo
-  [[ $(git root 2>&1) == 'Not a git repo!' ]] && echo "Not a git repo!" && exit 1
+  if ! git rev-parse HEAD > /dev/null 2>&1; then
+    echo 'Not a git repo!'
+    exit 1
+  fi
 
   result=$(git branch --list |
     fzf --reverse --height=40% --cycle
@@ -79,7 +85,7 @@ fuzzy_select_branch () {
     xargs # Remove trailing whitespaces
   )
 
-  [[ -n "$branch" ]] && main $branch
+  [[ -n "$branch" ]] && main "$branch"
 }
 
 ################ Help ################
