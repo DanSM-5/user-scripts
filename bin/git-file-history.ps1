@@ -203,6 +203,12 @@ if ($File.Count -eq 0 -or !(Test-Path -PathType Leaf -LiteralPath $File[-1])) {
     }
   "
 
+  # Preview commits that changed the file
+  $commits_preview="
+    `$FILE = {1}
+    git log --color=always --oneline --decorate --follow -- `$FILE || true
+  "
+
   # Set grep command
   if (Get-Command -Name 'rg' -All) {
     $grep_command = "rg --with-filename --line-number --color=always $GFH_RG_ARGS {q}"
@@ -232,6 +238,10 @@ if ($File.Count -eq 0 -or !(Test-Path -PathType Leaf -LiteralPath $File[-1])) {
     shift-down: Preview down
     alt-up: Preview page up
     alt-down: Preview page down
+
+  Preview keys:
+    ctrl-d: Preview file content (default)
+    ctrl-g: Preview commits that changed the file
 
   Utility keys:
     alt-r: Reload fuzzy filter
@@ -264,6 +274,8 @@ if ($File.Count -eq 0 -or !(Test-Path -PathType Leaf -LiteralPath $File[-1])) {
       --bind "change:reload:$grep_command" `
       --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" `
       --bind "alt-h:preview:$help_cmd" `
+      --bind "ctrl-d:change-preview:$file_preview" `
+      --bind "ctrl-g:change-preview:$commits_preview" `
       --delimiter : `
       --header 'Help: alt-h | Select a file to search:' `
       --input-border `
@@ -320,7 +332,10 @@ if (Get-Command -Name 'delta' -All -ErrorAction SilentlyContinue) {
   $preview_all = $preview -f '{1}'
 }
 $preview_file = $preview -f "{1}:`"$($filename.Replace('\', '/'))`""
+# Preview graph up to current commit
 $preview_graph = 'git log --color=always --oneline --decorate --graph {1}'
+# Preview file names
+$preview_file_names = 'git show --color=always --name-only {1} || true'
 $help_cat_cmd = ''
 
 if (Get-Command -Name 'bat' -All -ErrorAction SilentlyContinue) {
@@ -345,12 +360,13 @@ Write-Output '
     ctrl-d: Preview patch on file (default)
     ctrl-f: Preview file at hash
     ctrl-g: Preview graph at hash
+    alt-g: Preview names of changed files in commit
 
   Utility keys:
     ctrl-y: Copy selected hash(es)
     ctrl-o: Exit and print selected hash(es) with \`git show\`
     ctrl-e: Exit and open selected hash(es) in editor
-    ctrl-r: Remove selected hash(es) from result
+    alt-x: Remove selected hash(es) from result
     alt-r: Reload history
 
   Cursor keys:
@@ -381,8 +397,9 @@ $source_command | Invoke-Expression | fzf `
   --bind "ctrl-d:change-preview:$preview_cmd" `
   --bind "ctrl-f:change-preview:$preview_file" `
   --bind "ctrl-g:change-preview:$preview_graph" `
+  --bind "alt-g:change-preview:$preview_file_names" `
   --bind "ctrl-y:execute-silent($copy)+bell" `
-  --bind 'ctrl-r:exclude-multi' `
+  --bind 'alt-x:exclude-multi' `
   --bind "alt-r:reload:$source_command" `
   --expect="ctrl-o,ctrl-e" `
   --bind "alt-h:preview:$help_cmd" `

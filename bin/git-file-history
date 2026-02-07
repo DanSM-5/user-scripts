@@ -160,6 +160,13 @@ if [ -z "$filename" ] || ! [ -f "$filename" ]; then
     fi
   "
 
+  # Preview commits that changed the file
+  commits_preview="
+    LINE={}
+    FILE=\$(awk -F: '{ print \$1 }' <<< \"\$LINE\")
+    git log --color=always --oneline --decorate --follow -- \"\$FILE\" || true
+  "
+
   # Set grep command
   if command -v 'rg' &>/dev/null; then
     grep_command="rg --with-filename --line-number --color=always $GFH_RG_ARGS {q}"
@@ -193,6 +200,10 @@ if [ -z "$filename" ] || ! [ -f "$filename" ]; then
     alt-up: Preview page up
     alt-down: Preview page down
 
+  Preview keys:
+    ctrl-d: Preview file content (default)
+    ctrl-g: Preview commits that changed the file
+
   Utility keys:
     alt-r: Reload fuzzy filter
     ctrl-r: Change search base on grep
@@ -223,6 +234,8 @@ if [ -z "$filename" ] || ! [ -f "$filename" ]; then
       --bind "change:reload:$grep_command" \
       --bind "ctrl-r:unbind(ctrl-r,alt-r)+change-prompt(Search> )+disable-search+reload($grep_command)+rebind(change,ctrl-f)" \
       --bind "alt-h:preview:$help_cmd" \
+      --bind "ctrl-d:change-preview:$file_preview" \
+      --bind "ctrl-g:change-preview:$commits_preview" \
       --delimiter : \
       --header 'Help: alt-h | Select a file to search:' \
       --input-border \
@@ -288,7 +301,10 @@ else
 fi
 # shellcheck disable=SC2059
 preview_file="$(printf "$preview" "{1}:\"$filename\"")"
+# Preview graph up to current commit
 preview_graph='git log --color=always --oneline --decorate --graph {1}'
+# Preview file names
+preview_file_names='git show --color=always --name-only {1} || true'
 help_cat_cmd='cat'
 
 if command -v 'bat' &>/dev/null; then
@@ -313,12 +329,13 @@ help_cmd="
     ctrl-d: Preview patch on file (default)
     ctrl-f: Preview file at hash
     ctrl-g: Preview graph at hash
+    alt-g: Preview names of changed files in commit
 
   Utility keys:
     ctrl-y: Copy selected hash(es)
     ctrl-o: Exit and print selected hash(es) with \`git show\`
     ctrl-e: Exit and open selected hash(es) in editor
-    ctrl-r: Remove selected hash(es) from result
+    alt-x: Remove selected hash(es) from result
     alt-r: Reload history
 
   Cursor keys:
@@ -349,8 +366,9 @@ mapfile -t commits < <(
     --bind "ctrl-d:change-preview:$preview_cmd" \
     --bind "ctrl-f:change-preview:$preview_file" \
     --bind "ctrl-g:change-preview:$preview_graph" \
+    --bind "alt-g:change-preview:$preview_file_names" \
     --bind "ctrl-y:execute-silent($copy)+bell" \
-    --bind 'ctrl-r:exclude-multi' \
+    --bind 'alt-x:exclude-multi' \
     --bind "alt-r:reload:$source_command" \
     --expect=ctrl-o,ctrl-e \
     --bind "alt-h:preview:$help_cmd" \

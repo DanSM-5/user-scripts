@@ -230,12 +230,15 @@ $source_command = $base_command -f "'$Query'"
 $reload_command = "$($base_command -f "{q}") || $trueCmd"
 
 # Setup preview
+# default preview patch
 $fzf_preview = 'git show --color=always {1} '
 if (Get-Command -Name delta -All -ErrorAction SilentlyContinue) {
   $fzf_preview="$fzf_preview | delta || $trueCmd"
 } else {
   $fzf_preview="$fzf_preview || $trueCmd"
 }
+# Preview file names
+$fzf_preview_names = 'git show --color=always --name-only {1} || true'
 
 # Ensure history location exists
 New-Item -Path $history_location -ItemType Directory -ErrorAction SilentlyContinue
@@ -290,6 +293,10 @@ Write-Output '
     alt-up: Preview page up
     alt-down: Preview page down
 
+  Preview keys:
+    ctrl-d: Preview patch of commit (default)
+    alt-g: Preview names of changed files in commit
+
   Modes keys:
     ctrl-r: Interactive git search based on mode
     ctrl-f: Fuzzy filtering current results
@@ -298,7 +305,8 @@ Write-Output '
     ctrl-y: Copy selected hash(es)
     ctrl-o: Exit and print selected hash(es) with \`git show\`
     ctrl-e: Exit and open selected hash(es) in editor
-    ctrl-d: Drop selected hash(es) from result
+    alt-x: Drop selected hash(es) from result
+    alt-r: Reload search
 
   Cursor keys:
     alt-a: Select all
@@ -330,9 +338,12 @@ $source_command | Invoke-Expression | fzf `
     --bind "change:reload:$reload_command" `
     --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)" `
     --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)" `
+    --bind "ctrl-d:change-preview:$fzf_preview" `
+    --bind "alt-g:change-preview:$fzf_preview_names" `
     --bind "ctrl-y:execute-silent($copy)+bell" `
     --expect 'ctrl-o,ctrl-e' `
-    --bind 'ctrl-d:exclude-multi' `
+    --bind 'alt-x:exclude-multi' `
+    --bind "alt-r:reload:$source_command" `
     --bind "alt-h:preview:$help_cmd" `
     --disabled `
     --header "Mode: $cmd_mode | alt-h: Help" `
