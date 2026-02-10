@@ -20,7 +20,8 @@
         "color": "#ffffff",
         "#font_family": "CaskaydiaCove Nerd Font",
         "font_family": "Pacifico"
-      }
+      },
+      "radius": 20
     },
     "code_config": {
       "font_family": "CaskaydiaCove Nerd Font",
