@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+
+# Usage: git branches-between <newest-ref> <oldest-ref>
+
+POSITIONAL_ARGS=()
+showHelp () {
+  printf '%s\n' "
+    Git search branches between commits
+    
+    Synopsis:
+      \$ git branches-between [flags] <newest-ref> <oldest-ref>
+
+    Description:
+      List all branches (in alphabetical order) that exists between
+      two refs.
+      With no arguments it compares between master..HEAD
+      With a single argument it compares between master..<newest-ref>
+
+    Usage:
+      git branches-between HEAD master
+
+    Flags:
+      -h, --help                   > Print this message.
+  "
+}
+
+# Allow complex regex globs
+shopt -s extglob
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -[hH]|-?(-)[hH]elp)
+      showHelp
+      exit 0
+      ;;
+    -*|--*)
+      echo "Unknown option $1"
+      showHelp
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # Positional args are considered urls to download
+      shift # past argument
+      ;;
+  esac
+done
+
+# Restore positional arguments
+set -- "${POSITIONAL_ARGS[@]}"
+
+if [ $# -eq 0 ]; then
+  newest="HEAD"
+  oldest="master"
+elif [ $# -eq 1 ]; then
+  newest="HEAD" # Use head as newest
+  oldest="${1:-master}"
+else
+  newest="${1:-HEAD}"
+  oldest="${2:-master}"
+fi
+
+# Use process substitution to read commits
+while read -r commit; do
+  git branch --contains "$commit" | sed 's/^[* ]//'
+done < <(git rev-list "$oldest..$newest") | sort -u
