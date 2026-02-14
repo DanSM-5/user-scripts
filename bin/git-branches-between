@@ -61,5 +61,5 @@ fi
 
 # Use process substitution to read commits
 while read -r commit; do
-  git branch --contains "$commit" | sed 's/^[* ]//'
+  git branch --contains "$commit" | sed 's/^[*+ ]//'
 done < <(git rev-list "$oldest..$newest") | sort -u

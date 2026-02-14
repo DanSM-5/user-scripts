@@ -49,18 +49,18 @@ Param(
   # Value of FirstRef
   [string[]] $FirstRef = $null,
   # Value of SecondRef
-  [string[]] $SecondRef = $null
+  [string[]] $SecondRef = $null,
   # Show help
-  [Switch] $Help = $false,
+  [Switch] $Help = $false
 )
 
 $newestRef = ''
 $oldestRef =  ''
 
-if ($FirstRef -eq $null -and $SecondRef -eq $null) {
+if ($null -eq $FirstRef -and $null -eq $SecondRef) {
   $newestRef = 'HEAD'
   $oldestRef = 'master'
-} elseif ($FirstRef) {
+} elseif ($null -eq $SecondRef) {
   $newestRef = 'HEAD'
   $oldestRef = $FirstRef
 } else {
@@ -68,9 +68,21 @@ if ($FirstRef -eq $null -and $SecondRef -eq $null) {
   $oldestRef = $SecondRef
 }
 
-[string[]]$commits = git rev-list "$oldest..$newest"
+[string[]]$commits = git rev-list "${oldestRef}..${newestRef}"
+
+if ($commits.Count -eq 0) {
+  exit
+}
+
+# TODO: Check if performance can increase using a HashSet
+# $SetList = [System.Collections.Generic.HashSet[string]]@()
+# foreach ($commit in $commits) {
+#   $parsed = ((git branch --contains "$commit") -replace '^[*+ ] ', '')
+#   $null = $SetList.Add($parsed)
+# }
+# $SetList
 
 $commits | ForEach-Object {
   $commit = $_
-  (git branch --contains "$commit") -replace '^[* ] ', ''
+  (git branch --contains "$commit") -replace '^[*+ ] ', ''
 } | Sort-Object -Unique
