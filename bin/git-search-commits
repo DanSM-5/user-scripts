@@ -166,7 +166,7 @@ fi
 
 # Intentional usage of variable in first position of printf
 # shellcheck disable=SC2059
-source_command="$(printf "$base_command" "'$*'")"
+source_command="$(printf "$base_command" "'$*'") || true"
 # shellcheck disable=SC2059
 reload_command="$(printf "$base_command" '{q}') || true"
 
