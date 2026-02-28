@@ -76,7 +76,7 @@ mapfile -t selected < <(fd --color=always \
     --bind 'alt-d:deselect-all' \
     --bind 'alt-f:first' \
     --bind 'alt-l:last' \
-    --preview-window '65%,wrap' \
+    --preview-window '65%,wrap-word' \
     --preview "$preview" \
     --with-shell 'bash -c' \
     --bind 'alt-c:clear-query' \

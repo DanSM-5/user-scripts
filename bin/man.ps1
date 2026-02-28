@@ -95,7 +95,7 @@ try {
       --bind 'alt-d:deselect-all' `
       --bind 'alt-f:first' `
       --bind 'alt-l:last' `
-      --preview-window '65%,wrap' `
+      --preview-window '65%,wrap-word' `
       --preview "$preview" `
       --with-shell 'pwsh -NoLogo -NonInteractive -NoProfile -Command' `
       --bind 'alt-c:clear-query')

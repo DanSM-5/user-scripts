@@ -231,7 +231,7 @@ fd --type file @fd_args @exclude_args |
     --bind 'ctrl-s:toggle-sort' `
     --bind 'shift-up:preview-up,shift-down:preview-down' `
     --bind 'ctrl-/:change-preview-window(down|hidden|)' `
-    --preview-window 'right,50%,wrap' `
+    --preview-window 'right,50%,wrap-word' `
     --query $Query `
     --multi --ansi --cycle `
     --with-shell "$pwsh -NoLogo -NonInteractive -NoProfile -Command"

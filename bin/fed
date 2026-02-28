@@ -40,7 +40,7 @@ set -- "${POSITIONAL_ARGS[@]}"
 if [ "$fullscreen" = 'true' ]; then
   fzf_args=(
     '--bind' 'ctrl-/:change-preview-window(right|hidden|)'
-    '--preview-window' '+{2}-/2,top,60%,wrap'
+    '--preview-window' '+{2}-/2,top,60%,wrap-word'
   )
 
   if [ "$OS" = 'Windows_NT' ]; then
@@ -54,7 +54,7 @@ else
   fzf_args=(
     '--height' '80%'
     '--bind' 'ctrl-/:change-preview-window(down|hidden|)'
-    '--preview-window' '+{2}-/2,right,60%,wrap'
+    '--preview-window' '+{2}-/2,right,60%,wrap-word'
   )
 fi
 
