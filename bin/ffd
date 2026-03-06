@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+
+# (f)zf (f)d
+# Program to search for files interactively with fd and fzf
+
+[[ -v debug ]] && set -x
+
+user_conf_path="${user_conf_path:-"$HOME/.usr_conf"}"
+preview_cmd=""
+
+if [ -f "$user_conf_path/utils/fzf-preview.sh" ]; then
+  preview_cmd="$user_conf_path/utils/fzf-preview.sh {}"
+else
+  # Fallback preview
+  preview_cmd='
+    focused={}
+    if [ -f "$focused" ]; then
+      bat --color=always --style="numbers,header,changes" "$focused" 2> /dev/null ||
+        printf "%s\n" "Cannot preview file" 
+    elif [ -f "$focused" ]; then
+      # Detect if on git reposiry. If so, print last commit information
+      pushd "$focused" &> /dev/null
+      if (git rev-parse HEAD > /dev/null 2>&1); then
+        git log --color=always -1 2> /dev/null
+        printf "\n"
+      fi
+      popd &> /dev/null
+
+      erd --layout inverted --color force --level 3 --suppress-size -I -- "$focused" 2> /dev/null ||
+        eza -A --tree --level=3 --color=always --icons=always --dereference "$focused" 2> /dev/null ||
+        ls -AFL --color=always "$focused" 2> /dev/null ||
+        printf "%s\n" "Cannot preview directory"
+    else
+      printf "%s\n" "Unknown item: $focused"
+    fi
+  '
+fi
+
+FFD_FZF_ARGS="${FFD_FZF_ARGS:-}"
+FFD_FD_ARGS="${FFD_FD_ARGS:-}"
+FD_PREFIX="${FFD_PREFIX_COMMAND:-fd --hidden --no-ignore --exclude .git --exclude node_modules --color=always}"
+FD_PREFIX="$FD_PREFIX $FFD_FD_ARGS "
+RELOAD="reload:$FD_PREFIX {q} || :"
+
+fzf_args=()
+for farg in $FFD_FZF_ARGS; do
+  fzf_args+=("$farg")
+done
+
+fzf \
+  --header '╱ CTRL-R (fd mode) ╱ CTRL-F (fzf mode) ╱' \
+  --disabled --ansi --multi \
+  --cycle \
+  --input-border \
+  --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+  --bind 'ctrl-s:toggle-sort' \
+  --bind 'alt-f:first' \
+  --bind 'alt-l:last' \
+  --bind 'alt-c:clear-query' \
+  --bind 'alt-a:select-all' \
+  --bind 'alt-d:deselect-all' \
+  --bind "ctrl-^:toggle-preview" \
+  --bind "ctrl-l:toggle-preview" \
+  --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+  --bind "start:$RELOAD" \
+  --bind "change:$RELOAD" \
+  --bind "ctrl-r:unbind(ctrl-r)+change-prompt(1. 🔎 fd> )+disable-search+reload($FD_PREFIX {q} || :)+rebind(change,ctrl-f)" \
+  --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(2. ✅ fzf> )+enable-search+clear-query+rebind(ctrl-r)" \
+  --prompt '1. 🔎 fd> ' \
+  --delimiter : \
+  --preview "$preview_cmd" \
+  --preview-window '+{2}-/2,right,60%,wrap-word' \
+  --query "$*" \
+  "${fzf_args[@]}"
+
