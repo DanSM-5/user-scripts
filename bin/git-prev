@@ -47,7 +47,7 @@ fi
 
 expr="${expr:-"$base...$ref"}"
 
-if command -v delta &> /dev/null; then
+if command -v delta &> /dev/null && [ -t 1 ]; then
   git diff "$expr" | delta
 else
   git diff "$expr"
