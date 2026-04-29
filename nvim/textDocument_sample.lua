@@ -26,7 +26,7 @@ local function select_fzf(entries)
 end
 
 
----Select an item using vim.is.select
+---Select an item using vim.ui.select
 ---@param entries lsp.CompletionItem[]
 local function select_vim_ui(entries)
   vim.ui.select(entries, {
@@ -41,9 +41,14 @@ local function select_vim_ui(entries)
   end)
 end
 
-local function get_snippets()
+local function insert_snippet()
   local buf = vim.api.nvim_get_current_buf()
-  vim.lsp.buf_request_all(buf, 'textDocument/completion', vim.lsp.util.make_position_params(0, 'utf-16'), function(results)
+  local method = vim.lsp.protocol.Methods.textDocument_completion -- 'textDocument/completion'
+  local client = assert(vim.lsp.get_clients({ bufnr = buf, method = method })[1], 'no attached client with "textDocument/completion" support')
+  local encoding = client.offset_encoding
+  local params = vim.lsp.util.make_position_params(0, encoding)
+
+  vim.lsp.buf_request_all(buf, method, params, function(results)
     ---@type lsp.CompletionItem[]
     local entries = vim.iter(vim.tbl_values(results))
       :filter(function (res)
@@ -57,9 +62,7 @@ local function get_snippets()
       :flatten(1)
       :filter(function(c)
         ---@cast c lsp.CompletionItem
-        if c.kind ~= 15 then return false end
-
-        return true
+        return c.kind == 15 -- snippet kind. see lsp.CompletionItemKind
       end)
       :totable()
 
@@ -67,5 +70,6 @@ local function get_snippets()
     -- select_vim_ui(entries)
   end)
 end
-vim.api.nvim_create_user_command('Test', get_snippets, { bang = true, force = true })
 
+vim.api.nvim_create_user_command('Test', insert_snippet, { bang = true, force = true })
+-- :Test
