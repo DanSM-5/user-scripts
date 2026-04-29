@@ -9,7 +9,9 @@ scoop/shims/*
 scoop/buckets/*
 vimfiles
 aws
-nvim
+.config/nvim
+.local/share/nvim
+share/nvim
 .vscode-server
 .vscode-server-server
 .git
