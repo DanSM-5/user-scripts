@@ -288,7 +288,7 @@ main () {
 "
   fi
 
-  local linesRaw=($(gather_urls))
+  mapfile -t linesRaw < <(gather_urls)
 
   # If no urls where provided, open a buffer
   if [ -z "${linesRaw[*]}" ]; then
@@ -319,7 +319,7 @@ main () {
 
   printf "%s\n" "Start processing with $download_command..."
 
-  local lines=($(filter_urls linesRaw))
+  mapfile -t lines < <(filter_urls linesRaw)
 
   if [ "$use_parallel" = true ]; then
     # TODO: To be implemented
