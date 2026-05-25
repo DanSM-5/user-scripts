@@ -223,7 +223,9 @@ gather_urls () {
     cat "$file"
   fi
 
-  printf "%s\n" "${args_urls[@]}"
+  if [ "${#args_urls}" -ne 0 ]; then
+    printf "%s\n" "${args_urls[@]}"
+  fi
 
   if [ "$clipboard" = true ]; then
     # NOTE: Pipe into awk is important to break a single string
@@ -233,7 +235,9 @@ gather_urls () {
     clip-paste | awk '{print}'
   fi
 
-  printf "%s\n" "${remaining_urls[@]}"
+  if [ "${#remaining_urls}" -ne 0 ]; then
+    printf "%s\n" "${remaining_urls[@]}"
+  fi
 }
 
 filter_urls () {
@@ -291,7 +295,7 @@ main () {
   mapfile -t linesRaw < <(gather_urls)
 
   # If no urls where provided, open a buffer
-  if [ -z "${linesRaw[*]}" ]; then
+  if [ "${#linesRaw[@]}" -eq 0 ]; then
     # Open buffer to get strings
     printf "%s\n" "Opening temporary file... Waiting for file to be closed!"
     tempFile="$(mktemp)"
