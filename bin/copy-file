@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+
+# Cross platform "copy file(s) to clipboard" helper.
+#
+# Unlike clip-copy (which copies text content), this copies the FILE OBJECT
+# itself onto the system clipboard so it can be pasted into a file manager
+# (Explorer, Finder, Nautilus, Dolphin, ...). Directories are supported too.
+#
+# Usage:
+#   copy-file /path/to/file
+#   copy-file /path/to/directory
+#   echo /path/to/file | copy-file
+#
+# Platforms & native utilities used:
+#   Windows / WSL / Git Bash : powershell.exe Set-Clipboard -LiteralPath (CF_HDROP)
+#   macOS                    : osascript "set the clipboard to POSIX file"
+#   Linux (Wayland)          : wl-copy  (text/uri-list or x-special/gnome-copied-files)
+#   Linux (X11)              : xclip    (text/uri-list or x-special/gnome-copied-files)
+#
+# Dependencies:
+#   Linux: wl-clipboard (wl-copy) on Wayland, or xclip on X11.
+
+# About the IS_* variables: see the `detection` script. They are normally
+# exported by the user's shell profile, but we source `detection` from our own
+# directory as a fallback so the script also works when run standalone.
+if [ -z "$IS_WINDOWS" ] && [ -z "$IS_LINUX" ] && [ -z "$IS_MAC" ]; then
+  SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+  if [ -f "$SCRIPT_DIR/detection" ]; then
+    # shellcheck disable=SC1091
+    . "$SCRIPT_DIR/detection"
+  fi
+fi
+
+usage() {
+  printf 'Usage: %s <path>\n       <path> | %s\n' "$(basename -- "$0")" "$(basename -- "$0")" >&2
+}
+
+# 1. Resolve the input path from the first positional argument or from stdin.
+if [ "$#" -ge 1 ]; then
+  input=$1
+elif [ ! -t 0 ]; then
+  IFS= read -r input
+else
+  usage
+  exit 1
+fi
+
+if [ -z "$input" ]; then
+  echo "copy-file: no path provided" >&2
+  usage
+  exit 1
+fi
+
+if [ ! -e "$input" ]; then
+  echo "copy-file: no such file or directory: $input" >&2
+  exit 1
+fi
+
+# Resolve to an absolute path (handles files and directories).
+abs=$(realpath -- "$input" 2>/dev/null) ||
+  abs=$(readlink -f -- "$input" 2>/dev/null) ||
+  abs=$(CDPATH= cd -- "$(dirname -- "$input")" && printf '%s/%s' "$(pwd)" "$(basename -- "$input")")
+
+# Percent-encode a path for use inside a file:// URI (RFC 3986, keep "/").
+url_encode() {
+  old_lc_all=${LC_ALL-}
+  LC_ALL=C
+  s=$1
+  out=
+  while [ -n "$s" ]; do
+    c=${s%"${s#?}"}
+    s=${s#?}
+    case "$c" in
+      [a-zA-Z0-9/._~-]) out="$out$c" ;;
+      *) out="$out$(printf '%%%02X' "'$c")" ;;
+    esac
+  done
+  printf '%s' "$out"
+  LC_ALL=$old_lc_all
+}
+
+# Copy file URI(s) to a Linux clipboard target. GNOME-family file managers read
+# x-special/gnome-copied-files; everything else gets the freedesktop standard
+# text/uri-list. Both wl-copy and xclip set a single target per invocation.
+linux_copy_file() {
+  uri="file://$(url_encode "$abs")"
+
+  case "$XDG_CURRENT_DESKTOP" in
+    *GNOME* | *Unity* | *Cinnamon* | *MATE* | *Pantheon* | *Budgie*)
+      target="x-special/gnome-copied-files"
+      payload=$(printf 'copy\n%s' "$uri")
+      ;;
+    *)
+      target="text/uri-list"
+      payload=$uri
+      ;;
+  esac
+
+  if [ -n "$WAYLAND_DISPLAY" ] && command -v wl-copy >/dev/null 2>&1; then
+    printf '%s' "$payload" | wl-copy --type "$target"
+  elif [ -n "$DISPLAY" ] && command -v xclip >/dev/null 2>&1; then
+    printf '%s' "$payload" | xclip -i -selection clipboard -t "$target"
+  else
+    echo "copy-file: need wl-copy (Wayland) or xclip (X11) to copy files on Linux" >&2
+    return 1
+  fi
+}
+
+# 2. Dispatch to the native utility for the detected platform.
+if [ "$IS_WSL" = true ] || [ "$IS_GITBASH" = true ]; then
+  # Translate the unix path to a Windows path, then let Windows PowerShell put
+  # the file object on the clipboard (CF_HDROP, paste-able in Explorer).
+  if [ "$IS_WSL" = true ]; then
+    win=$(wslpath -w -- "$abs")
+  else
+    win=$(cygpath -w -- "$abs")
+  fi
+  # Escape single quotes for the single-quoted PowerShell string literal.
+  ps_path=$(printf '%s' "$win" | sed "s/'/''/g")
+  powershell.exe -NoProfile -NonInteractive -Command "Set-Clipboard -LiteralPath '$ps_path'"
+
+elif [ "$IS_WINDOWS" = true ]; then
+  # Native Windows shell (rare for this script). Use PowerShell directly.
+  ps_path=$(printf '%s' "$abs" | sed "s/'/''/g")
+  powershell.exe -NoProfile -NonInteractive -Command "Set-Clipboard -LiteralPath '$ps_path'"
+
+elif [ "$IS_MAC" = true ]; then
+  # Escape backslashes and double quotes for the AppleScript string literal.
+  esc=$(printf '%s' "$abs" | sed 's/\\/\\\\/g; s/"/\\"/g')
+  osascript -e "set the clipboard to POSIX file \"$esc\""
+
+elif [ "$IS_LINUX" = true ]; then
+  linux_copy_file
+
+else
+  echo "copy-file: unsupported platform" >&2
+  exit 1
+fi
