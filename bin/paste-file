@@ -1,0 +1,253 @@
+#!/usr/bin/env bash
+
+# Cross platform "paste file(s) from clipboard" helper.
+#
+# The inverse of copy-file: it reads the FILE OBJECT(S) currently on the system
+# clipboard (as put there by copy-file or by a file manager) and writes them to
+# disk. Files and directories are supported.
+#
+# Destination (optional, from the first positional argument or from stdin):
+#   - none / a directory : files are written into that directory (default: CWD),
+#                          keeping their original names.
+#   - a filename whose parent directory exists : the single clipboard file is
+#                          written under that name.
+#   - a target that already exists : you are warned and asked to confirm before
+#                          overwriting (use -f/--force to skip the prompt).
+#
+# Usage:
+#   paste-file                 # paste into the current directory
+#   paste-file ~/Downloads     # paste into a directory
+#   paste-file ./renamed.txt   # paste the single clipboard file under a new name
+#   echo ~/Downloads | paste-file
+#
+# Platforms & native utilities used:
+#   Windows / WSL / Git Bash : powershell.exe [Windows.Forms.Clipboard]::GetFileDropList()
+#   macOS                    : osascript (NSPasteboard file URLs)
+#   Linux (Wayland)          : wl-paste  (x-special/gnome-copied-files or text/uri-list)
+#   Linux (X11)              : xclip     (x-special/gnome-copied-files or text/uri-list)
+#
+# Dependencies:
+#   Linux: wl-clipboard (wl-paste) on Wayland, or xclip on X11.
+
+# About the IS_* variables: see the `detection` script. They are normally
+# exported by the user's shell profile, but we source `detection` from our own
+# directory as a fallback so the script also works when run standalone.
+if [ -z "$IS_WINDOWS" ] && [ -z "$IS_LINUX" ] && [ -z "$IS_MAC" ]; then
+  SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+  if [ -f "$SCRIPT_DIR/detection" ]; then
+    # shellcheck disable=SC1091
+    . "$SCRIPT_DIR/detection"
+  fi
+fi
+
+PROG=$(basename -- "$0")
+
+usage() {
+  printf 'Usage: %s [-f|--force] [<destination>]\n       <destination> | %s [-f|--force]\n' "$PROG" "$PROG" >&2
+}
+
+# Percent-decode a path coming from a file:// URI. Works byte-wise so UTF-8
+# multibyte sequences (e.g. %C3%A9) are reassembled correctly.
+url_decode() {
+  local s=$1
+  printf '%b' "${s//%/\\x}"
+}
+
+# --- clipboard readers: each prints one local, absolute path per line ---------
+
+windows_clipboard_files() {
+  # Windows PowerShell 5.1 runs STA, so the WinForms clipboard API is usable
+  # directly here. We then translate each Windows path back to a unix path.
+  powershell.exe -NoProfile -NonInteractive -Command \
+    'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Clipboard]::GetFileDropList() | ForEach-Object { $_ }' 2>/dev/null |
+    while IFS= read -r winpath; do
+      winpath=${winpath%$'\r'}
+      [ -z "$winpath" ] && continue
+      if [ "$IS_GITBASH" = true ]; then
+        cygpath -u -- "$winpath"
+      else
+        wslpath -u -- "$winpath"
+      fi
+    done
+}
+
+mac_clipboard_files() {
+  # Read file URLs from the general pasteboard via JavaScript for Automation.
+  osascript -l JavaScript 2>/dev/null <<'JXA'
+ObjC.import('AppKit');
+var pb = $.NSPasteboard.generalPasteboard;
+var urls = pb.readObjectsForClassesOptions($.NSArray.arrayWithObject($.NSURL), $());
+var out = [];
+if (urls && urls.count > 0) {
+  for (var i = 0; i < urls.count; i++) {
+    var u = urls.objectAtIndex(i);
+    if (u.isFileURL) { out.push(ObjC.unwrap(u.path)); }
+  }
+}
+out.join("\n");
+JXA
+}
+
+linux_clipboard_payload() {
+  # Echo the raw clipboard payload of the best available file target.
+  if [ -n "$WAYLAND_DISPLAY" ] && command -v wl-paste >/dev/null 2>&1; then
+    local types
+    types=$(wl-paste --list-types 2>/dev/null)
+    if printf '%s\n' "$types" | grep -qx 'x-special/gnome-copied-files'; then
+      wl-paste --no-newline --type x-special/gnome-copied-files 2>/dev/null
+    elif printf '%s\n' "$types" | grep -qx 'text/uri-list'; then
+      wl-paste --no-newline --type text/uri-list 2>/dev/null
+    fi
+  elif [ -n "$DISPLAY" ] && command -v xclip >/dev/null 2>&1; then
+    local targets
+    targets=$(xclip -selection clipboard -o -t TARGETS 2>/dev/null)
+    if printf '%s\n' "$targets" | grep -qx 'x-special/gnome-copied-files'; then
+      xclip -selection clipboard -o -t x-special/gnome-copied-files 2>/dev/null
+    elif printf '%s\n' "$targets" | grep -qx 'text/uri-list'; then
+      xclip -selection clipboard -o -t text/uri-list 2>/dev/null
+    fi
+  fi
+}
+
+linux_clipboard_files() {
+  # Keep only file:// URIs (skipping the gnome "copy"/"cut" verb and comments),
+  # strip the scheme + optional host, then percent-decode to a local path.
+  linux_clipboard_payload | while IFS= read -r line; do
+    line=${line%$'\r'}
+    case "$line" in
+      file://*) ;;
+      *) continue ;;
+    esac
+    local path=${line#file://}
+    case "$path" in
+      /*) ;;                  # file:///path -> /path
+      *) path=/${path#*/} ;;  # file://host/path -> /path
+    esac
+    url_decode "$path"
+    printf '\n'
+  done
+}
+
+get_clipboard_files() {
+  if [ "$IS_WSL" = true ] || [ "$IS_GITBASH" = true ]; then
+    windows_clipboard_files
+  elif [ "$IS_MAC" = true ]; then
+    mac_clipboard_files
+  elif [ "$IS_LINUX" = true ]; then
+    linux_clipboard_files
+  else
+    echo "$PROG: unsupported platform" >&2
+    return 1
+  fi
+}
+
+# --- argument parsing ---------------------------------------------------------
+
+FORCE=false
+dest=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -f | --force) FORCE=true; shift ;;
+    -h | --help) usage; exit 0 ;;
+    --) shift; break ;;
+    -*) echo "$PROG: unknown option: $1" >&2; usage; exit 1 ;;
+    *) break ;;
+  esac
+done
+[ "$#" -ge 1 ] && dest=$1
+
+# Destination may also arrive on stdin when not given as an argument.
+if [ -z "$dest" ] && [ ! -t 0 ]; then
+  IFS= read -r dest || true
+fi
+# Default to the current working directory.
+[ -z "$dest" ] && dest="."
+
+# --- gather clipboard files ---------------------------------------------------
+
+sources=()
+while IFS= read -r line; do
+  [ -n "$line" ] && sources+=("$line")
+done < <(get_clipboard_files)
+
+if [ "${#sources[@]}" -eq 0 ]; then
+  echo "$PROG: no files on the clipboard" >&2
+  exit 1
+fi
+
+# --- resolve destination mode -------------------------------------------------
+
+if [ -d "$dest" ]; then
+  mode=dir
+else
+  parent=$(dirname -- "$dest")
+  if [ -d "$parent" ]; then
+    mode=file
+  else
+    echo "$PROG: destination directory does not exist: $parent" >&2
+    exit 1
+  fi
+fi
+
+if [ "$mode" = file ] && [ "${#sources[@]}" -gt 1 ]; then
+  echo "$PROG: clipboard holds ${#sources[@]} files but a single filename destination was given: $dest" >&2
+  echo "$PROG: pass a directory instead to paste them all." >&2
+  exit 1
+fi
+
+# Ask before clobbering an existing target. Read from the controlling terminal
+# because stdin may have been consumed by the destination path.
+confirm_overwrite() {
+  local target=$1 ans
+  [ "$FORCE" = true ] && return 0
+  # Open the controlling terminal on fd 3; if that fails there is no tty to
+  # prompt on, so skip rather than clobber.
+  if { exec 3<>/dev/tty; } 2>/dev/null; then
+    printf '%s: "%s" already exists. Overwrite? [y/N] ' "$PROG" "$target" >&3
+    IFS= read -r ans <&3
+    exec 3>&-
+    case "$ans" in
+      [yY] | [yY][eE][sS]) return 0 ;;
+      *) return 1 ;;
+    esac
+  fi
+  printf '%s: "%s" already exists; skipping (no terminal to confirm, use -f to force)\n' "$PROG" "$target" >&2
+  return 1
+}
+
+# --- copy ---------------------------------------------------------------------
+
+status=0
+for src in "${sources[@]}"; do
+  if [ ! -e "$src" ]; then
+    echo "$PROG: clipboard source no longer exists: $src" >&2
+    status=1
+    continue
+  fi
+
+  if [ "$mode" = dir ]; then
+    target="$dest/$(basename -- "$src")"
+  else
+    target="$dest"
+  fi
+
+  if [ -e "$target" ] && [ "$src" -ef "$target" ]; then
+    echo "$PROG: source and destination are the same file, skipping: $target" >&2
+    continue
+  fi
+
+  if [ -e "$target" ]; then
+    confirm_overwrite "$target" || { echo "$PROG: skipped $target" >&2; continue; }
+    # For an existing directory target, remove it first so the source does not
+    # get nested inside it.
+    [ -d "$target" ] && rm -rf -- "$target"
+  fi
+
+  if [ -d "$src" ]; then
+    cp -R -- "$src" "$target" || status=1
+  else
+    cp -- "$src" "$target" || status=1
+  fi
+done
+
+exit "$status"
