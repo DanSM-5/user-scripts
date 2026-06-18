@@ -1,0 +1,228 @@
+#!/usr/bin/env bash
+
+# Show the files changed between HEAD and a target branch with fzf.
+# Shell counterpart of the vim 'fzfgit#compare_files' function.
+
+[[ -v debug ]] && set -x
+
+showHelp () {
+  printf '%s\n' "
+    Compare the files changed between HEAD and a target branch
+
+    Synopsis:
+      \$ git-compare-files [flags] [target-branch]
+
+    Description:
+      List the files that differ between the current branch and a target
+      branch (the repository's default branch when none is given), computed
+      from their merge base. The preview shows each file's patch.
+
+    Usage:
+      git-compare-files                 # compare against the default branch
+      git-compare-files feat/my-branch  # compare against a branch
+      git-compare-files origin/main     # remote refs are fine
+      git-compare-files -f              # fuzzy select the branch first
+
+    Keys:
+      enter    Print the selected file path(s) (default)
+      ctrl-o   Print the diff of the selected file(s)
+      ctrl-e   Edit the selected file(s) in \$EDITOR
+      ctrl-r   Open the selected file(s) diff in \$EDITOR
+      ctrl-f   Show the file diff fullscreen through a pager (loop)
+      ctrl-y   Copy the selected file path(s) to the clipboard
+
+    Dependencies:
+      - git
+      - fzf
+      - delta (optional)
+      - less  (optional, for ctrl-f)
+
+      Linux only. One of the below for clipboard functionality.
+      - wl-copy
+      - xclip
+      - xsel
+
+    Flags:
+      -h, --help                   > Print this message.
+      -f, --fzf                    > Fuzzy select the comparison branch.
+
+    Arguments:
+      Target branch to compare against.
+  "
+}
+
+# Allow complex regex globs
+shopt -s extglob
+
+select_branch=false
+
+# Args parsing
+# shellcheck disable=SC2221 disable=SC2222
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -[hH]|-?(-)[hH]elp)
+      showHelp
+      exit 0
+      ;;
+    -[fF]|-?(-)[fF]zf)
+      select_branch=true
+      shift # past argument
+      ;;
+    -*|--*)
+      echo "Unknown option $1" >&2
+      exit 1
+      ;;
+    *)
+      target="$1"
+      shift # past argument
+      ;;
+  esac
+done
+
+# Check if it's a git repo
+if ! git rev-parse HEAD > /dev/null 2>&1; then
+  echo 'Not a git repo!' >&2
+  exit 1
+fi
+
+# Run from the repository root so paths from 'git diff' resolve for editing
+toplevel="$(git rev-parse --show-toplevel)"
+cd "$toplevel" || exit 1
+
+# Resolve the repository default branch (e.g. origin/main), falling back to
+# a local main/master when origin/HEAD is not set.
+default_branch () {
+  local head
+  head="$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null)"
+  if [ -n "$head" ]; then
+    echo "${head#refs/remotes/}"
+    return
+  fi
+
+  local branch
+  for branch in main master; do
+    if git rev-parse --verify --quiet "$branch" > /dev/null 2>&1; then
+      echo "$branch"
+      return
+    fi
+  done
+
+  echo master
+}
+
+# Fuzzy select a branch (local or remote) to compare against
+fzf_select_branch () {
+  git for-each-ref --format='%(refname:short)' refs/heads refs/remotes |
+    grep -v '/HEAD$' |
+    fzf --reverse --height=40% --cycle --prompt 'Compare with branch> '
+}
+
+# Resolve the target. '-f' fuzzy selects it; otherwise use the positional
+# argument, falling back to the repo default branch. Strip a leading
+# 'remotes/' so that 'origin/<branch>' refs are passed straight to git.
+if [ "$select_branch" = true ]; then
+  target="$(fzf_select_branch)"
+  [ -z "$target" ] && exit
+fi
+[ -z "$target" ] && target="$(default_branch)"
+target="${target#remotes/}"
+
+# Resolve the merge base once so the source and preview reuse it.
+base="$(git merge-base HEAD "$target")"
+if [ -z "$base" ]; then
+  echo "Could not find merge base with $target" >&2
+  exit 1
+fi
+
+editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
+
+# Find clipboard utility (copies the whole path, one per line)
+copy='true'
+if [ "$OS" = 'Windows_NT' ]; then
+  # Gitbash
+  copy="cat '{+f}' | clip.exe"
+elif [ "$OSTYPE" = 'darwin' ] || [ "$(uname)" = 'Darwin' ]; then
+  copy="cat {+f} | pbcopy"
+# Assume linux if above didn't match
+elif [ -n "$WAYLAND_DISPLAY" ] && command -v 'wl-copy' &>/dev/null; then
+  copy="cat {+f} | wl-copy --foreground --type text/plain"
+elif [ -n "$DISPLAY" ] && command -v 'xsel' &>/dev/null; then
+  copy="cat {+f} | xsel -i -b"
+elif [ -n "$DISPLAY" ] && command -v 'xclip' &>/dev/null; then
+  copy="cat {+f} | xclip -i -selection clipboard"
+fi
+
+# Preview the patch of the file under the cursor. 'ctrl-f' shows the same
+# diff fullscreen through a pager, mimicking the git-stack loop.
+if command -v delta &>/dev/null; then
+  preview="git diff --color=always $base -- {} | delta || true"
+  pager_view="git diff --color=always $base -- {} | delta | less -R"
+else
+  preview="git diff --color=always $base -- {} || true"
+  pager_view="git diff --color=always $base -- {} | less -R"
+fi
+
+# Call fzf
+mapfile -t selected < <(
+  git diff --name-only "$base" | fzf \
+    --ansi --cycle --multi \
+    --bind 'alt-a:select-all' \
+    --bind 'alt-c:clear-query' \
+    --bind 'alt-d:deselect-all' \
+    --bind 'alt-f:first' \
+    --bind 'alt-l:last' \
+    --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+    --bind 'shift-up:preview-up,shift-down:preview-down' \
+    --bind 'ctrl-^:toggle-preview' \
+    --bind 'ctrl-/:change-preview-window(down|hidden|)' \
+    --bind 'ctrl-s:toggle-sort' \
+    --bind "ctrl-f:execute($pager_view)" \
+    --bind "ctrl-y:execute-silent($copy)+bell" \
+    --expect=ctrl-o,ctrl-e,ctrl-r \
+    --header 'ctrl-o: Print diff | ctrl-e: Edit | ctrl-r: Diff in editor | ctrl-f: Fullscreen | ctrl-y: Copy' \
+    --input-border \
+    --layout=reverse \
+    --min-height 20 --border \
+    --preview "$preview" \
+    --preview-window 'right,60%,wrap-word' \
+    --prompt 'Compare Files> ' \
+    --with-shell 'bash -c'
+)
+
+# selected[0] is the --expect key line (empty for enter); files follow.
+# Nothing selected -> exit
+if [ -z "${selected[1]}" ]; then
+  exit
+fi
+
+expected_key="${selected[0]}"
+files=("${selected[@]:1}")
+
+open_diff_editor () {
+  local tmpfile
+  tmpfile="$(mktemp)"
+  git diff "$base" -- "${files[@]}" > "$tmpfile"
+
+  # On (n)vim editor set the git filetype
+  if [[ "$editor" =~ ^n?vim?$ ]]; then
+    exec "$editor" -c 'setlocal filetype=git' "$tmpfile"
+  else
+    exec "$editor" "$tmpfile"
+  fi
+}
+
+case "$expected_key" in
+  ctrl-o)
+    git diff "$base" -- "${files[@]}"
+    ;;
+  ctrl-e)
+    exec "$editor" "${files[@]}"
+    ;;
+  ctrl-r)
+    open_diff_editor
+    ;;
+  *)
+    # Default action: print the selected file path(s)
+    printf '%s\n' "${files[@]}"
+    ;;
+esac
