@@ -77,6 +77,7 @@ function showHelp {
       ctrl-r   Open the selected file(s) diff in `$EDITOR
       ctrl-f   Show the file diff fullscreen through a pager (loop)
       ctrl-y   Copy the selected file path(s) to the clipboard
+      alt-h    Show the help in the preview window
 
     Dependencies:
       - git
@@ -177,6 +178,43 @@ if (Get-Command -Name 'delta' -All -ErrorAction SilentlyContinue) {
   $pager_view = "git diff --color=always $base -- {} | less -R"
 }
 
+# Help shown in the preview window with alt-h
+$help_cat_cmd = ''
+if (Get-Command -Name 'bat' -All -ErrorAction SilentlyContinue) {
+  $help_cat_cmd = '| bat --color=always --language help --style=plain'
+}
+
+$help_cmd = @"
+Write-Output '
+  Preview window keys:
+    ctrl-^: Toggle preview
+    ctrl-/: Toggle preview position
+    ctrl-s: Toggle sort
+    shift-up: Preview up
+    shift-down: Preview down
+    alt-up: Preview page up
+    alt-down: Preview page down
+
+  Preview keys:
+    ctrl-d: Preview patch of file (default)
+
+  Utility keys:
+    ctrl-f: Show file diff fullscreen (pager loop)
+    ctrl-y: Copy selected file path(s)
+    ctrl-o: Exit and print selected file(s) diff
+    ctrl-e: Exit and edit selected file(s)
+    ctrl-r: Exit and open selected file(s) diff in editor
+    alt-x: Drop selected file(s) from result
+
+  Cursor keys:
+    alt-a: Select all
+    alt-d: Deselect all
+    alt-f: Go first
+    alt-l: Go last
+    alt-c: Clear query
+' $help_cat_cmd
+"@
+
 # Call fzf
 $selected = [System.Collections.Generic.List[string]]::new()
 
@@ -192,10 +230,14 @@ git diff --name-only $base | fzf `
   --bind 'ctrl-^:toggle-preview' `
   --bind 'ctrl-/:change-preview-window(down|hidden|)' `
   --bind 'ctrl-s:toggle-sort' `
+  --bind 'alt-x:exclude-multi' `
+  --bind "ctrl-d:change-preview:$preview" `
+  --bind "alt-h:preview:$help_cmd" `
   --bind "ctrl-f:execute($pager_view)" `
   --bind "ctrl-y:execute-silent($copy)+bell" `
   --expect='ctrl-o,ctrl-e,ctrl-r' `
-  --header 'ctrl-o: Print diff | ctrl-e: Edit | ctrl-r: Diff in editor | ctrl-f: Fullscreen | ctrl-y: Copy' `
+  --header 'alt-h: Help | ctrl-o: Print diff | ctrl-e: Edit | ctrl-r: Diff in editor | ctrl-f: Fullscreen | ctrl-y: Copy' `
+  --footer="Compare: $target" `
   --input-border `
   --layout=reverse `
   --min-height 20 --border `
