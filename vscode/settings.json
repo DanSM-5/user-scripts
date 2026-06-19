@@ -230,6 +230,9 @@
       "diagnosticSeverity": "information",
       "backgroundColor": "#61afef",
       "overviewRulerColor": "#61afef",
+      "regex": {
+        "pattern": "\\b(TODO)(\\([^)]*\\))?:"
+      },
       "before": {
         "contentText": " "
       }
@@ -244,7 +247,7 @@
         "contentText": " "
       },
       "regex": {
-        "pattern": "\\b(BUG|FIX|FIXME|ISSUE):"
+        "pattern": "\\b(BUG|FIX|FIXME|ISSUE)(\\([^)]*\\))?:"
       }
     },
     {
@@ -257,7 +260,7 @@
         "contentText": " "
       },
       "regex": {
-        "pattern": "\\b(FIXIT|PERF|OPTIM):"
+        "pattern": "\\b(FIXIT|PERF|OPTIM)(\\([^)]*\\))?:"
       }
     },
     {
@@ -270,7 +273,7 @@
         "contentText": " "
       },
       "regex": {
-        "pattern": "\\b(TEST|TESTING|PASSED|FAILED):"
+        "pattern": "\\b(TEST|TESTING|PASSED|FAILED)(\\([^)]*\\))?:"
       }
     },
     {
@@ -283,7 +286,7 @@
         "contentText": " "
       },
       "regex": {
-        "pattern": "\\b(OPTIMIZE|PERFORMANCE):"
+        "pattern": "\\b(OPTIMIZE|PERFORMANCE)(\\([^)]*\\))?:"
       }
     },
     {
@@ -296,7 +299,7 @@
         "contentText": " "
       },
       "regex": {
-        "pattern": "\\b(WARN|WARNING|XXX):"
+        "pattern": "\\b(WARN|WARNING|XXX)(\\([^)]*\\))?:"
       }
     },
     {
@@ -305,6 +308,9 @@
       "diagnosticSeverity": "warning",
       "backgroundColor": "#e5c07b",
       "overviewRulerColor": "#e5c07b",
+      "regex": {
+        "pattern": "\\b(HACK)(\\([^)]*\\))?:"
+      },
       "before": {
         "contentText": " "
       }
@@ -319,7 +325,7 @@
         "contentText": " "
       },
       "regex": {
-        "pattern": "\\b(INFO|NOTE):"
+        "pattern": "\\b(INFO|NOTE)(\\([^)]*\\))?:"
       }
     }
   ]
