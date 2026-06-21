@@ -2,9 +2,9 @@
 
 [[ -v debug ]] && set -x
 
-user_script_path="${user_script_path:-"$HOME/user-scripts"}"
+user_scripts_path="${user_scripts_path:-"$HOME/user-scripts"}"
 
-if ! [ -d "$user_script_path" ]; then
+if ! [ -d "$user_scripts_path" ]; then
   exit 1
 fi
 
@@ -19,5 +19,5 @@ script_location=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
 
 for item in "$script_location/bin/"*; do
   chmod +x "$item"
-  cp "$item" "$user_script_path/bin"
+  cp "$item" "$user_scripts_path/bin"
 done
