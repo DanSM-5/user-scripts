@@ -314,3 +314,22 @@ else
 fi
 ```
 
+## Show branches contained in a range
+
+```bash
+git branch --contains $(git merge-base <ref1> <ref2>) --merged <ref1> --format="%(refname:short)"
+# E.g.
+git branch --contains $(git merge-base HEAD master) --merged HEAD --format="%(refname:short)"
+
+# Find common ancestor between two refs. Needed if they have started to diverge
+# git merge-base <ref1> <ref2>
+
+# Use --contains and --merged to get a range of commits, then --format to only include short branch names
+# git branch --contains <ref1> --merged <ref2> --format="%(refname:short)"
+```
+
+## List all tags at a given ref
+
+```bash
+git tag --points-at <commit-hash-or-ref>
+```
