@@ -10,11 +10,16 @@ $dirrepo = if ($args[1]) { $args[1] } else {
   [System.IO.Path]::GetFileNameWithoutExtension($args[0])
 }
 
+# Avoid ".git" when cloning repos
+if (Test-Path -LiteralPath "${dirrepo}.git" -PathType Container -ErrorAction SilentlyContinue) {
+  Move-Item -LiteralPath "${dirrepo}.git" -Destination "$dirrepo" || exit 1
+}
+
 # Setup the bare repository
-Push-Location $dirrepo
+Push-Location $dirrepo || exit
 # Add git remote config
 # Ref: https://morgan.cugerone.com/blog/workarounds-to-git-worktree-using-bare-repository-and-cannot-fetch-remote-branches
 git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
 git fetch origin
-Pop-Location
+Pop-Location || exit
 
