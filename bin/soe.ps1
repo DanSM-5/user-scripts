@@ -2,39 +2,42 @@
 
 [CmdletBinding()]
 Param(
-  # String from pipe
   [Parameter(ValueFromPipeline = $true)]
   [string] $Content
 )
 
-
 Begin {
-  $lines = [System.Collections.Generic.List[string]]::new()
-  $temp = ''
+  if (-not $MyInvocation.ExpectingInput) {
+    exit
+  }
 
+  $temp = ''
   try {
     $temp = (New-TemporaryFile).FullName
   } catch {
     $temp = [System.IO.Path]::GetTempFilename()
   }
+
+  $writer = [System.IO.StreamWriter]::new($temp, $false, [System.Text.UTF8Encoding]::new($false))
 }
 
 Process {
-  if ( $Content -is [String] ) {
-    $lines.Add($Content)
+  if ($Content -is [String]) {
+    $writer.WriteLine($Content)
   }
 }
 
 End {
   try {
-    if ($lines.Length -eq 0) {
-      exit
-    }
+    $writer.Close()
+    $writer.Dispose()
 
-    $Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllLines($temp, $lines, $Utf8NoBomEncoding)
+    $editor = if ($env:PREFERRED_EDITOR) { $env:PREFERRED_EDITOR }
+              elseif ($env:EDITOR) { $env:EDITOR }
+              elseif ($env:VISUAL) { $env:VISUAL }
+              else { 'vim' }
 
-    nvim $temp
+    & $editor $temp
 
     Get-Content -LiteralPath $temp -Encoding utf8NoBOM -ErrorAction SilentlyContinue
   } finally {
