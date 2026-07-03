@@ -26,6 +26,8 @@ The purpose of `/bin` is to be located as the last entry in the `PATH` and have 
 that should prevent conflicts with other utilities from your native OS. The `path_end` is an empty script that
 can be used for this purpose by running it and check for exit status or simply looking if it is available in the path.
 
+See the **[command index](docs/executables.md)** for a description of every command available in `bin/`.
+
 # Contributing
 
 Feel free to contribute any of your scripts or submit patches to fix any issue you encounter.
