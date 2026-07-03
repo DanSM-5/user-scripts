@@ -136,7 +136,7 @@ fi
 [ -z "$target" ] && target="$(default_branch)"
 target="${target#remotes/}"
 
-editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
+editor="${PREFERRED_EDITOR:-${EDITOR:-${VISUAL:-vim}}}"
 
 # Find clipboard utility (copies the first field, i.e. the sha)
 copy='true'

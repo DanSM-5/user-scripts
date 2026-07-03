@@ -9,7 +9,7 @@
 
 MAN='/bin/man'
 # Preferred editor is custom variable from config
-editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
+editor="${PREFERRED_EDITOR:-${EDITOR:-${VISUAL:-vim}}}"
 
 if ! command -v "$MAN" &>/dev/null; then
   MAN='/usr/bin/man'

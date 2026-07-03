@@ -7,7 +7,7 @@ if [ -z "$1" ]; then
 fi
 
 # Preferred editor is custom variable from config
-editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
+editor="${PREFERRED_EDITOR:-${EDITOR:-${VISUAL:-vim}}}"
 
 # Create the file
 "$editor" "$@"

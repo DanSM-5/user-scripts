@@ -135,7 +135,7 @@ if [ -z "$base" ]; then
   exit 1
 fi
 
-editor="${PREFERRED_EDITOR:-${EDITOR:-vim}}"
+editor="${PREFERRED_EDITOR:-${EDITOR:-${VISUAL:-vim}}}"
 
 # Find clipboard utility (copies the whole path, one per line)
 copy='true'

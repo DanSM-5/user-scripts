@@ -63,7 +63,7 @@ location="${1:-.}"
 # Query to pass to fzf
 query="${*:2}"
 pattern="."
-editor="${PREFERRED_EDITOR:-"${EDITOR:-vim}"}"
+editor="${PREFERRED_EDITOR:-${EDITOR:-${VISUAL:-vim}}}"
 # env variable for user config location
 # user_conf_path="${user_conf_path:-"$HOME/.usr_conf"}"
 history_location="${FZF_HIST_DIR:-$HOME/.cache/fzf-history}"

@@ -110,9 +110,18 @@ if ((Get-Item -LiteralPath $file).Extension -eq '.gz') {
 }
 
 # Build and display
+$editor = if ($env:PREFERRED_EDITOR) { $env:PREFERRED_EDITOR }
+          elseif ($env:EDITOR) { $env:EDITOR }
+          elseif ($env:VISUAL) { $env:VISUAL }
+          else { 'vim' }
+
 try {
   get_man_content | mandoc -man 2> $null | col -bx | bat --color=always --style=plain --language man > $tmp_file.FullName
-  nvim "+silent Man!" $tmp_file.FullName
+  if ($editor -match 'n?vim') {
+    & $editor '+silent Man!' $tmp_file.FullName
+  } else {
+    & $editor $tmp_file.FullName
+  }
 } finally {
   Remove-Item -LiteralPath $tmp_file.FullName
 }

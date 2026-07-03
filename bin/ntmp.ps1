@@ -31,8 +31,9 @@ $dirsep = if ($is_windows) { '\' } else { '/' }
 $temporary = if ($is_windows) { "$env:TEMP\scratch" } else { '/tmp/scratch' }
 
 $editor = if ($env:PREFERRED_EDITOR) { $env:PREFERRED_EDITOR }
-  elseif ($env:EDITOR) { $env:EDITOR }
-  else { vim }
+          elseif ($env:EDITOR) { $env:EDITOR }
+          elseif ($env:VISUAL) { $env:VISUAL }
+          else { 'vim' }
 
 New-Item -ItemType Directory -Path $temporary -ErrorAction SilentlyContinue
 

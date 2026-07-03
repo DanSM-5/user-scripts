@@ -11,7 +11,7 @@ user_scripts_path="${user_scripts_path:-"$HOME/user-scripts"}"
 GPRJ_FZF_ARGS="${GPRJ_FZF_ARGS:-}"
 fzf_preview_normal="$user_conf_path/utils/fzf-preview.sh {}"
 fzf_history="${FZF_HIST_DIR:-"$HOME/.cache/fzf-history"}"
-editor="${PREFERRED_EDITOR:-"${EDITOR:-vim}"}"
+editor="${PREFERRED_EDITOR:-${EDITOR:-${VISUAL:-vim}}}"
 mkdir -p "$fzf_history"
 
 # Check if separated by null character "\0"

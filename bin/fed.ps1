@@ -45,8 +45,9 @@ $location = if ($QueryArgs[0]) { $QueryArgs[0] } else { '.' }
 $query = $QueryArgs[1..$QueryArgs.length]
 $pattern = '.'
 $editor = if ($env:PREFERRED_EDITOR) { $env:PREFERRED_EDITOR }
-  elseif ($env:EDITOR) { $env:EDITOR }
-  else { 'vim' }
+          elseif ($env:EDITOR) { $env:EDITOR }
+          elseif ($env:VISUAL) { $env:VISUAL }
+          else { 'vim' }
 # env variable for user config location
 # $user_conf_path = if ($env:user_conf_path) {
 #   $env:user_conf_path

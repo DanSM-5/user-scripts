@@ -5,7 +5,7 @@
 # If you want to preserve the file use
 # :save /path/to/save
 
-editor="${PREFERRED_EDITOR:-"${EDITOR:-vim}"}"
+editor="${PREFERRED_EDITOR:-${EDITOR:-${VISUAL:-vim}}}"
 scratch_dir="/tmp/scratch"
 
 mkdir -p "$scratch_dir"

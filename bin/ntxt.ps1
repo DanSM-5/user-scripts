@@ -44,7 +44,10 @@ Param(
 # Detect native path separator
 $dirsep = if ($IsWindows -or ($env:OS -eq 'Windows_NT')) { '\' } else { '/' }
 # Defaults to vim
-$editor = if ($env:PREFERRED_EDITOR) { $env:PREFERRED_EDITOR } elseif ($env:EDITOR) { $env:EDITOR } else { 'vim' }
+$editor = if ($env:PREFERRED_EDITOR) { $env:PREFERRED_EDITOR }
+          elseif ($env:EDITOR) { $env:EDITOR }
+          elseif ($env:VISUAL) { $env:VISUAL }
+          else { 'vim' }
 # Defaults to $HOME/prj/txt
 $dirlocation = if ($env:TXT_LOCATION) { $env:TXT_LOCATION } else { "${HOME}${dirsep}prj${dirsep}txt" }
 
