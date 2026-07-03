@@ -112,6 +112,99 @@ _join_with_slash() {
   printf '%s' "$*"
 }
 
+# Extract ref names from a GitHub matching-refs JSON response, stripping the
+# given prefix (e.g. "refs/heads/").  Reads JSON from stdin.
+_refs_names_from_json() {
+  local prefix="$1"
+  if command -v jq &>/dev/null; then
+    jq -r --arg p "$prefix" '.[].ref | ltrimstr($p)' 2>/dev/null || true
+  elif command -v python3 &>/dev/null; then
+    python3 -c "
+import sys, json
+p = sys.argv[1]
+try:
+    for item in json.load(sys.stdin):
+        r = item.get('ref', '')
+        print(r[len(p):] if r.startswith(p) else r)
+except Exception: pass
+" "$prefix" 2>/dev/null || true
+  elif command -v python &>/dev/null; then
+    python -c "
+import sys, json
+p = sys.argv[1]
+try:
+    for item in json.load(sys.stdin):
+        r = item.get('ref', '')
+        print(r[len(p):] if r.startswith(p) else r)
+except Exception: pass
+" "$prefix" 2>/dev/null || true
+  fi
+}
+
+# Resolve an ambiguous "ref[/with/slashes]/path/to/file" string into GH_REF
+# and GH_PATH by querying GitHub's matching-refs API.
+# Requires GH_OWNER and GH_REPO to already be set.
+_resolve_ref_path() {
+  local remaining="${1%/}"
+  IFS='/' read -ra rparts <<< "$remaining"
+  local rn=${#rparts[@]}
+
+  [[ $rn -eq 0 ]] && { GH_REF=""; GH_PATH=""; return; }
+  [[ $rn -eq 1 ]] && { GH_REF="${rparts[0]}"; GH_PATH=""; return; }
+
+  # SHA fingerprint (7–40 hex chars): unambiguously the complete ref
+  if [[ "${rparts[0]}" =~ ^[0-9a-f]{7,40}$ ]]; then
+    GH_REF="${rparts[0]}"
+    GH_PATH=$(_join_with_slash "${rparts[@]:1}")
+    return
+  fi
+
+  local first="${rparts[0]}"
+  local token="${GITHUB_TOKEN:-}"
+  local found_ref="" found_path=""
+
+  # Query matching-refs for branches then tags with the first path segment
+  for ref_type in heads tags; do
+    local refs_json
+    if command -v gh &>/dev/null; then
+      refs_json=$(gh api "repos/$GH_OWNER/$GH_REPO/git/matching-refs/$ref_type/$first" 2>/dev/null \
+        || printf '[]')
+    elif command -v curl &>/dev/null; then
+      local cargs=(-sf)
+      [[ -n "$token" ]] && cargs+=(-H "Authorization: Bearer $token")
+      refs_json=$(curl "${cargs[@]}" \
+        "$GITHUB_API/repos/$GH_OWNER/$GH_REPO/git/matching-refs/$ref_type/$first" 2>/dev/null \
+        || printf '[]')
+    else
+      refs_json='[]'
+    fi
+
+    local ref_names
+    ref_names=$(printf '%s' "$refs_json" | _refs_names_from_json "refs/$ref_type/") || true
+
+    while IFS= read -r ref_name; do
+      [[ -z "$ref_name" ]] && continue
+      if [[ "$remaining" == "$ref_name" ]]; then
+        found_ref="$ref_name"; found_path=""
+      elif [[ "$remaining" == "$ref_name/"* ]] && [[ ${#ref_name} -gt ${#found_ref} ]]; then
+        found_ref="$ref_name"
+        found_path="${remaining#"$ref_name/"}"
+      fi
+    done <<< "$ref_names"
+
+    [[ -n "$found_ref" ]] && break
+  done
+
+  if [[ -n "$found_ref" ]]; then
+    GH_REF="$found_ref"
+    GH_PATH="$found_path"
+  else
+    # Fallback: first segment is ref, rest is path (handles unknown ref types)
+    GH_REF="${rparts[0]}"
+    GH_PATH=$(_join_with_slash "${rparts[@]:1}")
+  fi
+}
+
 parse_github_url() {
   local url="${1%/}"
   url="${url#https://github.com/}"
@@ -125,13 +218,12 @@ parse_github_url() {
   local seg="${parts[2]:-}"
 
   if [[ "$seg" == "blob" || "$seg" == "tree" || "$seg" == "raw" ]]; then
-    GH_REF="${parts[3]:-}"
-    GH_PATH=$(_join_with_slash "${parts[@]:4}")
+    _resolve_ref_path "$(_join_with_slash "${parts[@]:3}")"
   else
     GH_REF=""
     GH_PATH=$(_join_with_slash "${parts[@]:2}")
+    GH_PATH="${GH_PATH%/}"
   fi
-  GH_PATH="${GH_PATH%/}"
 }
 
 parse_raw_url() {
@@ -159,10 +251,16 @@ parse_short_form() {
 
   GH_OWNER="${parts[0]}"
   GH_REPO="${parts[1]}"
-  GH_REF=""
-  if [[ ${#parts[@]} -gt 2 ]]; then
+
+  local seg="${parts[2]:-}"
+  if [[ "$seg" == "blob" || "$seg" == "tree" || "$seg" == "raw" ]]; then
+    # GitHub URL path form without the domain: owner/repo/blob/ref/path
+    _resolve_ref_path "$(_join_with_slash "${parts[@]:3}")"
+  elif [[ ${#parts[@]} -gt 2 ]]; then
+    GH_REF=""
     GH_PATH=$(_join_with_slash "${parts[@]:2}")
   else
+    GH_REF=""
     GH_PATH=""
   fi
 }
