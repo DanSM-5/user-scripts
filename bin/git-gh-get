@@ -1,0 +1,355 @@
+#!/usr/bin/env bash
+#
+# git-gh-get — Download files from GitHub without cloning
+#
+# Usage: git gh-get <source> [dest] [--container] [--help]
+#
+# source: username/repo/path/to/file
+#         https://github.com/user/repo/blob/ref/path/to/file
+#         https://raw.githubusercontent.com/user/repo/ref/path/to/file
+# dest:   optional output path (default: current directory)
+#
+# Backends (priority): gh CLI → curl → wget
+# Auth:   GITHUB_TOKEN environment variable for private repos
+
+set -euo pipefail
+
+readonly PROG="git-gh-get"
+readonly GITHUB_API="https://api.github.com"
+
+GH_OWNER="" GH_REPO="" GH_REF="" GH_PATH=""
+
+die()  { printf '%s: %s\n' "$PROG" "$*" >&2; exit 1; }
+info() { printf '%s: %s\n' "$PROG" "$*" >&2; }
+
+show_help() {
+  cat <<'EOF'
+Usage: git gh-get <source> [dest] [options]
+
+Download a file or directory from GitHub without cloning.
+
+Arguments:
+  source   GitHub source, one of:
+             username/repo/path/to/file.txt
+             https://github.com/user/repo/blob/main/path/to/file.txt
+             https://raw.githubusercontent.com/user/repo/main/path/to/file.txt
+  dest     Output path (default: current directory).
+             Trailing slash  → save inside directory, preserve original name.
+             Existing dir    → save inside directory, preserve original name.
+             Non-existing    → use as the output filename (parent dirs created).
+
+Options:
+  -c, --container   Download directory recursively (requires jq or python3)
+  -h, --help        Show this help
+
+Environment:
+  GITHUB_TOKEN   Personal access token for private repos
+
+Examples:
+  git gh-get username/repo/src/main.js
+  git gh-get https://github.com/user/repo/blob/main/README.md ./docs/
+  git gh-get -c username/repo/src/ ./local-src/
+  git gh-get -c https://github.com/user/repo/tree/main/cli/src/bin ./bin/
+EOF
+}
+
+# ── JSON helpers ──────────────────────────────────────────────────────────────
+
+# Read one top-level string field from JSON on stdin
+json_field() {
+  local key="$1"
+  if command -v jq &>/dev/null; then
+    jq -r --arg k "$key" '.[$k] // empty'
+  elif command -v python3 &>/dev/null; then
+    python3 -c "import sys,json; v=json.load(sys.stdin).get('$key',''); print(v) if v else exit(0)"
+  elif command -v python &>/dev/null; then
+    python -c "import sys,json; v=json.load(sys.stdin).get('$key',''); print(v) if v else exit(0)"
+  else
+    grep -o "\"$key\":\"[^\"]*\"" | head -1 | sed "s/\"$key\":\"//;s/\"//"
+  fi
+}
+
+# List blob paths under a prefix from GitHub tree JSON on stdin
+# Empty prefix → all blobs in the repo
+json_tree_paths() {
+  local prefix="$1"
+  if command -v jq &>/dev/null; then
+    if [[ -z "$prefix" ]]; then
+      jq -r '.tree[] | select(.type == "blob") | .path'
+    else
+      jq -r --arg p "$prefix" \
+        '.tree[] | select(.type == "blob") | select(.path == $p or (.path | startswith($p + "/"))) | .path'
+    fi
+  elif command -v python3 &>/dev/null; then
+    python3 - "$prefix" <<'PYEOF'
+import sys, json
+prefix = sys.argv[1]
+for item in json.load(sys.stdin).get('tree', []):
+    if item.get('type') == 'blob':
+        p = item.get('path', '')
+        if not prefix or p == prefix or p.startswith(prefix + '/'):
+            print(p)
+PYEOF
+  elif command -v python &>/dev/null; then
+    python - "$prefix" <<'PYEOF'
+import sys, json
+prefix = sys.argv[1]
+for item in json.load(sys.stdin).get('tree', []):
+    if item.get('type') == 'blob':
+        p = item.get('path', '')
+        if not prefix or p == prefix or p.startswith(prefix + '/'):
+            print(p)
+PYEOF
+  else
+    die "jq or python3 required for directory downloads"
+  fi
+}
+
+# ── Input parsing ─────────────────────────────────────────────────────────────
+
+_join_with_slash() {
+  local IFS='/'
+  printf '%s' "$*"
+}
+
+parse_github_url() {
+  local url="${1%/}"
+  url="${url#https://github.com/}"
+  url="${url#http://github.com/}"
+  url="${url#github.com/}"
+
+  IFS='/' read -ra parts <<< "$url"
+
+  GH_OWNER="${parts[0]:-}"
+  GH_REPO="${parts[1]:-}"
+  local seg="${parts[2]:-}"
+
+  if [[ "$seg" == "blob" || "$seg" == "tree" || "$seg" == "raw" ]]; then
+    GH_REF="${parts[3]:-}"
+    GH_PATH=$(_join_with_slash "${parts[@]:4}")
+  else
+    GH_REF=""
+    GH_PATH=$(_join_with_slash "${parts[@]:2}")
+  fi
+  GH_PATH="${GH_PATH%/}"
+}
+
+parse_raw_url() {
+  # https://raw.githubusercontent.com/user/repo/ref/path/to/file
+  local url="${1%/}"
+  url="${url#https://raw.githubusercontent.com/}"
+  url="${url#http://raw.githubusercontent.com/}"
+
+  IFS='/' read -ra parts <<< "$url"
+  GH_OWNER="${parts[0]:-}"
+  GH_REPO="${parts[1]:-}"
+  GH_REF="${parts[2]:-}"
+  GH_PATH=$(_join_with_slash "${parts[@]:3}")
+  GH_PATH="${GH_PATH%/}"
+}
+
+parse_short_form() {
+  local input="${1#./}"
+  input="${input#/}"
+  input="${input%.git}"
+  input="${input%/}"
+
+  IFS='/' read -ra parts <<< "$input"
+  [[ ${#parts[@]} -lt 2 ]] && die "Invalid source: expected username/repo/... format"
+
+  GH_OWNER="${parts[0]}"
+  GH_REPO="${parts[1]}"
+  GH_REF=""
+  if [[ ${#parts[@]} -gt 2 ]]; then
+    GH_PATH=$(_join_with_slash "${parts[@]:2}")
+  else
+    GH_PATH=""
+  fi
+}
+
+parse_source() {
+  case "$1" in
+    https://raw.githubusercontent.com/*|http://raw.githubusercontent.com/*)
+      parse_raw_url "$1" ;;
+    https://github.com/*|http://github.com/*|github.com/*)
+      parse_github_url "$1" ;;
+    *)
+      parse_short_form "$1" ;;
+  esac
+}
+
+# ── GitHub API ────────────────────────────────────────────────────────────────
+
+# Fetch a JSON endpoint using the best available HTTP client
+api_json() {
+  local endpoint="$1"
+  local token="${GITHUB_TOKEN:-}"
+
+  if command -v gh &>/dev/null; then
+    gh api "$endpoint"
+  elif command -v curl &>/dev/null; then
+    local args=(-sf "$GITHUB_API/$endpoint")
+    [[ -n "$token" ]] && args+=(-H "Authorization: Bearer $token")
+    curl "${args[@]}"
+  elif command -v wget &>/dev/null; then
+    local args=(-qO-)
+    [[ -n "$token" ]] && args+=(--header="Authorization: Bearer $token")
+    wget "${args[@]}" "$GITHUB_API/$endpoint"
+  else
+    die "No HTTP client found. Install gh CLI, curl, or wget."
+  fi
+}
+
+get_default_branch() {
+  local branch
+  branch=$(api_json "repos/$GH_OWNER/$GH_REPO" | json_field "default_branch") || true
+  [[ -z "$branch" ]] && die "Could not determine default branch for $GH_OWNER/$GH_REPO"
+  printf '%s' "$branch"
+}
+
+# ── Output path resolution ────────────────────────────────────────────────────
+
+resolve_file_output() {
+  local dest="$1" filename="$2"
+  if [[ -z "$dest" ]]; then
+    printf './%s' "$filename"
+  elif [[ "$dest" == */ ]]; then
+    mkdir -p "$dest"
+    printf '%s%s' "$dest" "$filename"
+  elif [[ -d "$dest" ]]; then
+    printf '%s/%s' "${dest%/}" "$filename"
+  else
+    local parent; parent=$(dirname "$dest")
+    [[ "$parent" != "." ]] && mkdir -p "$parent"
+    printf '%s' "$dest"
+  fi
+}
+
+resolve_dir_output() {
+  local dest="$1" dirname="$2"
+  if [[ -z "$dest" ]]; then
+    printf './%s' "$dirname"
+  elif [[ "$dest" == */ ]]; then
+    printf '%s%s' "$dest" "$dirname"
+  elif [[ -d "$dest" ]]; then
+    printf '%s/%s' "${dest%/}" "$dirname"
+  else
+    printf '%s' "$dest"
+  fi
+}
+
+# ── Download ──────────────────────────────────────────────────────────────────
+
+download_file() {
+  local path="$1" output="$2"
+  local token="${GITHUB_TOKEN:-}"
+
+  if command -v gh &>/dev/null; then
+    local api_path="repos/$GH_OWNER/$GH_REPO/contents/$path?ref=$GH_REF"
+    gh api "$api_path" -H "Accept: application/vnd.github.raw+json" > "$output"
+  elif command -v curl &>/dev/null; then
+    local url="https://raw.githubusercontent.com/$GH_OWNER/$GH_REPO/$GH_REF/$path"
+    local args=(-fsSL "$url" -o "$output")
+    [[ -n "$token" ]] && args+=(-H "Authorization: Bearer $token")
+    curl "${args[@]}"
+  elif command -v wget &>/dev/null; then
+    local url="https://raw.githubusercontent.com/$GH_OWNER/$GH_REPO/$GH_REF/$path"
+    local args=(-qO "$output")
+    [[ -n "$token" ]] && args+=(--header="Authorization: Bearer $token")
+    wget "${args[@]}" "$url"
+  else
+    die "No HTTP client found. Install gh CLI, curl, or wget."
+  fi
+}
+
+download_container() {
+  local output_dir="$1"
+  local path="${GH_PATH%/}"
+
+  info "Fetching repository tree ($GH_OWNER/$GH_REPO @ $GH_REF)..."
+  local tree_json
+  tree_json=$(api_json "repos/$GH_OWNER/$GH_REPO/git/trees/$GH_REF?recursive=1")
+
+  local truncated; truncated=$(printf '%s' "$tree_json" | json_field "truncated") || true
+  [[ "$truncated" == "true" ]] && \
+    info "Warning: tree is truncated — large repo, some files may be missing"
+
+  local files
+  files=$(printf '%s' "$tree_json" | json_tree_paths "$path")
+  [[ -z "$files" ]] && die "No files found at '$path' — check the path or use the full GitHub URL"
+
+  local count=0
+  while IFS= read -r file_path; do
+    local rel
+    if [[ -n "$path" ]]; then
+      rel="${file_path#"$path"/}"
+    else
+      rel="$file_path"
+    fi
+    [[ -z "$rel" ]] && rel=$(basename "$file_path")
+
+    local out="$output_dir/$rel"
+    mkdir -p "$(dirname "$out")"
+    info "↓ $rel"
+    download_file "$file_path" "$out"
+    count=$((count + 1))
+  done <<< "$files"
+
+  info "Downloaded $count file(s) to $output_dir"
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+main() {
+  local source="" dest="" container=false help=false
+  local positional=()
+
+  for arg in "$@"; do
+    case "$arg" in
+      -h|--help|help) help=true ;;
+      -c|--container) container=true ;;
+      -*) die "Unknown option: $arg" ;;
+      *) positional+=("$arg") ;;
+    esac
+  done
+
+  $help && { show_help; exit 0; }
+  [[ ${#positional[@]} -eq 0 ]] && { show_help; exit 1; }
+
+  source="${positional[0]}"
+  dest="${positional[1]:-}"
+
+  parse_source "$source"
+  [[ -z "$GH_OWNER" ]] && die "Could not parse owner from: $source"
+  [[ -z "$GH_REPO" ]]  && die "Could not parse repo from: $source"
+
+  if [[ -z "$GH_REF" ]]; then
+    info "Resolving default branch..."
+    GH_REF=$(get_default_branch)
+  fi
+
+  if $container; then
+    local dir_name
+    if [[ -n "$GH_PATH" ]]; then
+      dir_name=$(basename "${GH_PATH%/}")
+    else
+      dir_name="$GH_REPO"
+    fi
+    [[ -z "$dir_name" || "$dir_name" == "." ]] && dir_name="$GH_REPO"
+
+    local out_dir; out_dir=$(resolve_dir_output "$dest" "$dir_name")
+    mkdir -p "$out_dir"
+    download_container "$out_dir"
+  else
+    [[ -z "$GH_PATH" ]] && \
+      die "No file path in source — use -c/--container to download a directory"
+    local filename; filename=$(basename "$GH_PATH")
+    [[ -z "$filename" || "$filename" == "." ]] && \
+      die "Could not determine filename from: $GH_PATH"
+    local output; output=$(resolve_file_output "$dest" "$filename")
+    download_file "$GH_PATH" "$output"
+    info "Downloaded to $output"
+  fi
+}
+
+main "$@"
