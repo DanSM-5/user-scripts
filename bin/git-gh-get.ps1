@@ -96,6 +96,72 @@ $DestArg   = if ($Positional.Count -gt 1) { $Positional[1] } else { '' }
 
 # ── Input parsing ─────────────────────────────────────────────────────────────
 
+# Resolve an ambiguous "ref[/with/slashes]/path/to/file" string using GitHub's
+# matching-refs API.  Requires $GhOwner and $GhRepo to already be set.
+function Resolve-RefPath {
+  param([string]$Remaining)
+  $Remaining = $Remaining.TrimEnd('/')
+  $rparts = $Remaining -split '/'
+
+  if ($rparts.Count -eq 0 -or $Remaining -eq '') {
+    $script:GhRef = ''; $script:GhPath = ''; return
+  }
+  if ($rparts.Count -eq 1) {
+    $script:GhRef = $rparts[0]; $script:GhPath = ''; return
+  }
+
+  # SHA fingerprint: 7-40 hex chars → first segment is the complete ref
+  if ($rparts[0] -match '^[0-9a-f]{7,40}$') {
+    $script:GhRef  = $rparts[0]
+    $script:GhPath = ($rparts[1..($rparts.Count-1)] -join '/').TrimEnd('/')
+    return
+  }
+
+  $first    = $rparts[0]
+  $token    = $env:GITHUB_TOKEN
+  $headers  = @{}
+  if ($token) { $headers['Authorization'] = "Bearer $token" }
+
+  $foundRef  = ''
+  $foundPath = ''
+
+  foreach ($refType in 'heads','tags') {
+    $refs = $null
+    try {
+      if (Get-HasGh) {
+        $refs = (gh api "repos/$GhOwner/$GhRepo/git/matching-refs/$refType/$first") | ConvertFrom-Json
+      } else {
+        $refs = Invoke-RestMethod `
+          -Uri "$GithubApi/repos/$GhOwner/$GhRepo/git/matching-refs/$refType/$first" `
+          -Headers $headers -ErrorAction Stop
+      }
+    } catch { $refs = @() }
+
+    foreach ($item in $refs) {
+      $strip   = "refs/$refType/"
+      $refName = if ($item.ref.StartsWith($strip)) { $item.ref.Substring($strip.Length) } else { $item.ref }
+
+      if ($Remaining -eq $refName) {
+        $foundRef = $refName; $foundPath = ''; break
+      } elseif ($Remaining.StartsWith("$refName/") -and $refName.Length -gt $foundRef.Length) {
+        $foundRef  = $refName
+        $foundPath = $Remaining.Substring($refName.Length + 1)
+      }
+    }
+
+    if ($foundRef) { break }
+  }
+
+  if ($foundRef) {
+    $script:GhRef  = $foundRef
+    $script:GhPath = $foundPath.TrimEnd('/')
+  } else {
+    # Fallback: first segment is ref, rest is path
+    $script:GhRef  = $rparts[0]
+    $script:GhPath = ($rparts[1..($rparts.Count-1)] -join '/').TrimEnd('/')
+  }
+}
+
 function Parse-GithubUrl {
   param([string]$Url)
   $u = $Url.TrimEnd('/')
@@ -108,8 +174,8 @@ function Parse-GithubUrl {
   $seg            = if ($parts.Count -gt 2) { $parts[2] } else { '' }
 
   if ($seg -in 'blob','tree','raw') {
-    $script:GhRef  = if ($parts.Count -gt 3) { $parts[3] } else { '' }
-    $script:GhPath = ($parts[4..($parts.Count-1)] -join '/').TrimEnd('/')
+    $remaining = if ($parts.Count -gt 3) { $parts[3..($parts.Count-1)] -join '/' } else { '' }
+    Resolve-RefPath $remaining
   } else {
     $script:GhRef  = ''
     $script:GhPath = ($parts[2..($parts.Count-1)] -join '/').TrimEnd('/')
@@ -137,8 +203,19 @@ function Parse-ShortForm {
 
   $script:GhOwner = $parts[0]
   $script:GhRepo  = $parts[1]
-  $script:GhRef   = ''
-  $script:GhPath  = if ($parts.Count -gt 2) { $parts[2..($parts.Count-1)] -join '/' } else { '' }
+
+  $seg = if ($parts.Count -gt 2) { $parts[2] } else { '' }
+  if ($seg -in 'blob','tree','raw') {
+    # GitHub URL path without domain: owner/repo/blob/ref/path
+    $remaining = if ($parts.Count -gt 3) { $parts[3..($parts.Count-1)] -join '/' } else { '' }
+    Resolve-RefPath $remaining
+  } elseif ($parts.Count -gt 2) {
+    $script:GhRef  = ''
+    $script:GhPath = ($parts[2..($parts.Count-1)] -join '/')
+  } else {
+    $script:GhRef  = ''
+    $script:GhPath = ''
+  }
 }
 
 function Parse-Source {
