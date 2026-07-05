@@ -11,6 +11,16 @@
 #
 # Backends (priority): gh CLI → curl → wget
 # Auth:   GITHUB_TOKEN environment variable for private repos
+#
+# Ambiguity note: the short form "username/repo/path/to/file" (and GitHub URLs
+# without blob/tree) requires a GitHub matching-refs API call to determine
+# whether the first path segment is a branch/tag or a directory name.  If a
+# repository has both a branch and a root directory with the same name, the
+# branch takes precedence.  To eliminate the ambiguity, use the full GitHub
+# URL that includes the blob or tree segment:
+#   https://github.com/user/repo/blob/branch-name/path/to/file
+# or the short form with the explicit segment:
+#   user/repo/blob/branch-name/path/to/file
 
 set -euo pipefail
 
@@ -149,8 +159,11 @@ except Exception: pass
 # Resolve an ambiguous "ref[/with/slashes]/path/to/file" string into GH_REF
 # and GH_PATH by querying GitHub's matching-refs API.
 # Requires GH_OWNER and GH_REPO to already be set.
+# Pass "true" as $2 to fall back to GH_REF="" (default branch) when no
+# branch/tag matches — used for short-form paths without blob/tree.
 _resolve_ref_path() {
   local remaining="${1%/}"
+  local fallback_default="${2:-false}"
   IFS='/' read -ra rparts <<< "$remaining"
   local rn=${#rparts[@]}
 
@@ -203,6 +216,10 @@ _resolve_ref_path() {
   if [[ -n "$found_ref" ]]; then
     GH_REF="$found_ref"
     GH_PATH="$found_path"
+  elif [[ "$fallback_default" == "true" ]]; then
+    # No branch/tag matched; treat entire path as a file path at the default branch
+    GH_REF=""
+    GH_PATH="$remaining"
   else
     # Fallback: first segment is ref, rest is path (handles unknown ref types)
     GH_REF="${rparts[0]}"
@@ -224,10 +241,11 @@ parse_github_url() {
 
   if [[ "$seg" == "blob" || "$seg" == "tree" || "$seg" == "raw" ]]; then
     _resolve_ref_path "$(_join_with_slash "${parts[@]:3}")"
+  elif [[ ${#parts[@]} -gt 2 ]]; then
+    _resolve_ref_path "$(_join_with_slash "${parts[@]:2}")" true
   else
     GH_REF=""
-    GH_PATH=$(_join_with_slash "${parts[@]:2}")
-    GH_PATH="${GH_PATH%/}"
+    GH_PATH=""
   fi
 }
 
@@ -262,8 +280,7 @@ parse_short_form() {
     # GitHub URL path form without the domain: owner/repo/blob/ref/path
     _resolve_ref_path "$(_join_with_slash "${parts[@]:3}")"
   elif [[ ${#parts[@]} -gt 2 ]]; then
-    GH_REF=""
-    GH_PATH=$(_join_with_slash "${parts[@]:2}")
+    _resolve_ref_path "$(_join_with_slash "${parts[@]:2}")" true
   else
     GH_REF=""
     GH_PATH=""

@@ -32,6 +32,14 @@
   git gh-get -c https://github.com/user/repo/tree/main/cli/src/bin ./bin/
 .NOTES
   Set the GITHUB_TOKEN environment variable for private repositories.
+
+  Ambiguity: the short form "username/repo/path/to/file" (and GitHub URLs
+  without blob/tree) queries the matching-refs API to decide whether the first
+  path segment is a branch/tag or a directory.  When a branch and a root
+  directory share the same name, the branch takes precedence.  To avoid
+  ambiguity, include the blob/tree segment:
+    https://github.com/user/repo/blob/branch-name/path/to/file
+    user/repo/blob/branch-name/path/to/file
 #>
 
 $PROG       = 'git-gh-get'
@@ -103,8 +111,11 @@ $DestArg   = if ($Positional.Count -gt 1) { $Positional[1] } else { '' }
 
 # Resolve an ambiguous "ref[/with/slashes]/path/to/file" string using GitHub's
 # matching-refs API.  Requires $GhOwner and $GhRepo to already be set.
+# Pass -FallbackToDefaultBranch to treat the whole path as a file path at the
+# default branch when no branch/tag matches (used for short-form paths without
+# blob/tree).
 function Resolve-RefPath {
-  param([string]$Remaining)
+  param([string]$Remaining, [switch]$FallbackToDefaultBranch)
   $Remaining = $Remaining.TrimEnd('/')
   $rparts = $Remaining -split '/'
 
@@ -160,6 +171,10 @@ function Resolve-RefPath {
   if ($foundRef) {
     $script:GhRef  = $foundRef
     $script:GhPath = $foundPath.TrimEnd('/')
+  } elseif ($FallbackToDefaultBranch) {
+    # No branch/tag matched; treat entire path as a file path at the default branch
+    $script:GhRef  = ''
+    $script:GhPath = $Remaining.TrimEnd('/')
   } else {
     # Fallback: first segment is ref, rest is path
     $script:GhRef  = $rparts[0]
@@ -181,9 +196,11 @@ function Parse-GithubUrl {
   if ($seg -in 'blob','tree','raw') {
     $remaining = if ($parts.Count -gt 3) { $parts[3..($parts.Count-1)] -join '/' } else { '' }
     Resolve-RefPath $remaining
+  } elseif ($parts.Count -gt 2) {
+    Resolve-RefPath ($parts[2..($parts.Count-1)] -join '/') -FallbackToDefaultBranch
   } else {
     $script:GhRef  = ''
-    $script:GhPath = ($parts[2..($parts.Count-1)] -join '/').TrimEnd('/')
+    $script:GhPath = ''
   }
 }
 
@@ -215,8 +232,7 @@ function Parse-ShortForm {
     $remaining = if ($parts.Count -gt 3) { $parts[3..($parts.Count-1)] -join '/' } else { '' }
     Resolve-RefPath $remaining
   } elseif ($parts.Count -gt 2) {
-    $script:GhRef  = ''
-    $script:GhPath = ($parts[2..($parts.Count-1)] -join '/')
+    Resolve-RefPath ($parts[2..($parts.Count-1)] -join '/') -FallbackToDefaultBranch
   } else {
     $script:GhRef  = ''
     $script:GhPath = ''
