@@ -37,7 +37,6 @@
 $PROG       = 'git-gh-get'
 $GithubApi  = 'https://api.github.com'
 $GhOwner    = ''; $GhRepo = ''; $GhRef = ''; $GhPath = ''
-$UseGh      = $true  # set to $false via --no-gh / -NoGh to skip gh CLI
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -62,8 +61,6 @@ Arguments:
 
 Options:
   -c, -Container, --container   Download directory recursively
-  --gh, -Gh                     Use gh CLI if available (default)
-  --no-gh, -NoGh                Skip gh CLI; use curl/wget/Invoke-WebRequest
   -h, -Help, --help             Show this help
 
 Environment:
@@ -87,8 +84,6 @@ foreach ($a in $args) {
   $key = $a -replace '^--', '-'
   if     ($key -in '-h', '-help' -or $a -eq 'help') { $Help      = $true }
   elseif ($key -in '-c', '-container')               { $Container = $true }
-  elseif ($key -in '-gh')                            { $UseGh     = $true }
-  elseif ($key -in '-no-gh', '-nogh')                { $UseGh     = $false }
   elseif ($key.StartsWith('-'))                      { Die "Unknown option: $a" }
   else                                               { $Positional.Add($a) }
 }
@@ -237,7 +232,7 @@ function Parse-Source {
 # ── HTTP client detection ─────────────────────────────────────────────────────
 
 function Get-HasGh {
-  $UseGh -and ($null -ne (Get-Command gh -ErrorAction SilentlyContinue))
+  $null -ne (Get-Command gh -ErrorAction SilentlyContinue)
 }
 
 function Get-HasCurl {

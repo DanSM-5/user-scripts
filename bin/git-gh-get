@@ -18,12 +18,9 @@ readonly PROG="git-gh-get"
 readonly GITHUB_API="https://api.github.com"
 
 GH_OWNER="" GH_REPO="" GH_REF="" GH_PATH=""
-USE_GH=true  # set to false via --no-gh to skip gh CLI and use curl/wget
 
 die()  { printf '%s: %s\n' "$PROG" "$*" >&2; exit 1; }
 info() { printf '%s: %s\n' "$PROG" "$*" >&2; }
-
-_has_gh() { [[ "$USE_GH" == "true" ]] && _has_gh; }
 
 show_help() {
   cat <<'EOF'
@@ -43,8 +40,6 @@ Arguments:
 
 Options:
   -c, --container   Download directory recursively (requires jq or python3)
-  --gh              Use gh CLI if available (default)
-  --no-gh           Skip gh CLI; use curl/wget instead
   -h, --help        Show this help
 
 Environment:
@@ -171,7 +166,7 @@ _resolve_ref_path() {
   # Query matching-refs for branches then tags with the first path segment
   for ref_type in heads tags; do
     local refs_json
-    if _has_gh; then
+    if command -v gh &>/dev/null; then
       refs_json=$(gh api "repos/$GH_OWNER/$GH_REPO/git/matching-refs/$ref_type/$first" 2>/dev/null \
         || printf '[]')
     elif command -v curl &>/dev/null; then
@@ -288,7 +283,7 @@ api_json() {
   local endpoint="$1"
   local token="${GITHUB_TOKEN:-}"
 
-  if _has_gh; then
+  if command -v gh &>/dev/null; then
     gh api "$endpoint"
   elif command -v curl &>/dev/null; then
     local args=(-sf "$GITHUB_API/$endpoint")
@@ -347,7 +342,7 @@ download_file() {
   local path="$1" output="$2"
   local token="${GITHUB_TOKEN:-}"
 
-  if _has_gh; then
+  if command -v gh &>/dev/null; then
     local api_path="repos/$GH_OWNER/$GH_REPO/contents/$path?ref=$GH_REF"
     gh api "$api_path" -H "Accept: application/vnd.github.raw+json" > "$output"
   elif command -v curl &>/dev/null; then
@@ -411,8 +406,6 @@ main() {
     case "$arg" in
       -h|--help|help) help=true ;;
       -c|--container) container=true ;;
-      --gh)           USE_GH=true ;;
-      --no-gh)        USE_GH=false ;;
       -*) die "Unknown option: $arg" ;;
       *) positional+=("$arg") ;;
     esac
