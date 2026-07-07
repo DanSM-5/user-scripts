@@ -140,6 +140,7 @@
 
 [tag]
   sort = version:refname
+  # gpgsign = true # Always sign tag (implicit -S)
 
 # [alias]
 #   amend = commit --amend
