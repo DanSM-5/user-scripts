@@ -333,3 +333,58 @@ git branch --contains $(git merge-base HEAD master) --merged HEAD --format="%(re
 ```bash
 git tag --points-at <commit-hash-or-ref>
 ```
+
+## Update author
+
+### Last commit
+
+```bash
+git commit --amend --author="New Name <new@email.com>" --no-edit [--allow-empty]
+git push --force-with-lease # required if already pushed
+```
+
+## Multiple commits
+
+```bash
+# Interactive mode: mark commits with 'edit' in the editor
+git rebase -i HEAD~N [--force] [--root]
+
+# Automated mode: reset author to current git config for last N commits
+git rebase -i HEAD~N --exec "git commit --amend --reset-author --no-edit" [--force] [--root]
+
+# Where N is number of commits down the history or --root from the start of the history
+```
+
+## Inital commit only
+
+Run interactive commit to root
+
+```bash
+git rebase -i --root
+```
+
+Mark initial commit as `edit`
+
+```
+edit abc1234 Initial commit
+pick def5678 Second commit
+pick ghi9101 Third commit
+```
+
+Amend the commit
+
+```bash
+git commit --amend --author="New Name <new@email.com>" --no-edit [--force] [--allow-empty]
+```
+
+Continue the rebase
+
+```bash
+git rebase --continue
+```
+
+Optional: Force push if already in remote
+
+```bash
+git push --force-with-lease
+```
