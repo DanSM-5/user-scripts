@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+git ls-files | fzf \
+    --border thinblock --padding 1,2 --input-border thinblock \
+    --list-border thinblock --info inline-right \
+    --preview-border thinblock --header-border thinblock --header-first \
+    --header 'Show information about files in the index and the working tree' \
+    --header-label ' Description ' --header-label-pos bottom \
+    --border-label ' Demo ' --input-label ' Input ' \
+    --border-label-pos bottom --input-label-pos bottom \
+    --list-label-pos bottom --preview-label-pos bottom \
+    --preview 'bat --color=always {} --style=numbers' \
+    --bind 'result:transform-list-label:
+        if [[ -z $FZF_QUERY ]]; then
+          echo " $FZF_MATCH_COUNT items "
+        else
+          echo " $FZF_MATCH_COUNT matches for [$FZF_QUERY] "
+        fi
+        ' \
+    --bind 'focus:transform-preview-label:[[ -n {} ]] && printf " Previewing [%s] " {}' \
+    --bind 'ctrl-r:change-list-label( Reloading the list )+reload(sleep 2; git ls-files)' \
+    --color 'bg:#222222,border:#aaaaaa' \
+    --color 'preview-bg:#333344,preview-border:#9999cc,preview-label:#ccccff' \
+    --color 'list-bg:#334433,list-border:#669966,list-label:#99cc99' \
+    --color 'input-bg:#443333,input-border:#996666,input-label:#ffcccc' \
+    --color 'header-fg:#333333,header-bg:#cccccc,header-border:#999999,header-label:#666666'
+
