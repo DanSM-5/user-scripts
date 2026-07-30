@@ -388,3 +388,24 @@ Optional: Force push if already in remote
 ```bash
 git push --force-with-lease
 ```
+
+## Diff utils
+
+### Diff agains branch
+
+
+```bash
+# only list files changed
+git diff --name-only $(git merge-base --fork-point <base-branch>)
+```
+
+```bash
+# Full diff
+git diff $(git merge-base --fork-point <base-branch>) HEAD
+
+# Dot syntax
+git diff <base-branch>...<head-branch>
+
+# gh cli
+gh pr diff
+```
