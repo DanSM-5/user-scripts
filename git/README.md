@@ -438,13 +438,13 @@ gh pr diff
 > Here is a visual representation of `git log A..B`. The commits that branch B contains that don't exist in A is what is returned by the commit range,
 > and is highlighted in red in the Venn diagram, and circled in blue in the commit tree:
 >
-> [git log A..B](./images/git-log-a..b-venn.png)
-> [git log A..B diagram tree](./images/git-log-a..b-branch.png)
+> ![git log A..B](./images/git-log-a..b-venn.png)
+> ![git log A..B diagram tree](./images/git-log-a..b-branch.png)
 >
 > These are the diagrams for `git log A...B`. Notice that the commits that are shared by both branches are not returned by the command:
 >
-> [git log A...B](./images/git-log-a...b-venn.png)
-> [git log A...B diagram tree](./images/git-log-a...b-branch.png)
+> ![git log A...B](./images/git-log-a...b-venn.png)
+> ![git log A...B diagram tree](./images/git-log-a...b-branch.png)
 >
 > ## Making the Triple-Dot Commit Range ... More Useful
 >
@@ -479,7 +479,7 @@ gh pr diff
 > git diff $(git merge-base foo bar) bar  # same thing as above
 >```
 >
-> [git diff diagram](./images/git-diff-a...b.png)
+> ![git diff diagram](./images/git-diff-a...b.png)
 >
 > In other words, `git diff foo..bar` is exactly the same as `git diff foo bar`;
 > both will show you the difference between the tips of the two branches foo and bar.
@@ -498,7 +498,7 @@ gh pr diff
 >
 > The meaning of `..` and `...` for `git log` can be shown graphically as below:
 >
-> [git rev-list](./images/git-rev-list-foo..bar.png)
+> ![git rev-list](./images/git-rev-list-foo..bar.png)
 >
 > So, `git rev-list foo..bar` shows you everything on branch `bar` that isn't also on branch `foo`.
 > On the other hand, `git rev-list foo...bar` shows you all the commits that are in either `foo` or `bar`, but *not both*.
@@ -510,4 +510,4 @@ gh pr diff
 
 ## Bonus diagram
 
-[git bonus](./images/git-bonus.png)
+![git bonus](./images/git-bonus.png)
