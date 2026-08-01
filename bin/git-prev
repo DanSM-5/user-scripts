@@ -1,54 +1,82 @@
 #!/usr/bin/env bash
 
-# TODO: Remember difference between ".." and "..." in both git log and git diff
-# https://stackoverflow.com/questions/462974/what-are-the-differences-between-double-dot-and-triple-dot-in-git-com
-# https://stackoverflow.com/questions/7251477/what-are-the-differences-between-double-dot-and-triple-dot-in-git-dif
+# Show diffs using the 1-based positions printed by `git log`, where HEAD is 1.
+#
+#   git prev                         HEAD^...HEAD (the current commit's patch)
+#   git prev 3                       HEAD~2...HEAD
+#   git prev 2 4                     HEAD~3...HEAD~1
+#   git prev -C ./repo 3 --stat      forwards -C ./repo to git and --stat to diff
+#   git prev -C ./repo - --stat      uses - to skip positions and start diff args
+#
+# The two-position form is normalized from the older selected commit to the
+# newer one, regardless of argument order. Positions must be contiguous: after
+# the first position, only an immediately following number can be the second.
+# A standalone positive integer is always a git-prev position. Attach numeric
+# option values to their option (for example, --abbrev=5 or -U5). Use `git diff`
+# directly for refs, branches, revision expressions, or non-revision diff modes.
 
-# Show diff against previous commits
-# With no arguments, it will always show the previous commit contents
-# > gprev
-# With a single argument, it will show the changes until the number of commits back
-# > gprev 5
-# With two argument, it will show the changes from first to second commit
-# > gprev 2 5
-# You can use branch names or hashes instead of numbers but you should prefer
-# using `git diff` directly in such a case
-base=''
-ref=''
-expr=''
+git_args=()
+diff_args=()
+position_1=''
+position_2=''
 
-if [ "$#" -eq 0 ]; then
-  base=HEAD^
-  ref=HEAD
-elif [ "$#" -eq 1 ]; then
-  if [[ "$*" =~ ^[^.]+[.][.]{1,2}[^.]+$ ]]; then
-    expr="$*"
-  else
-    base="${1:-HEAD~1}"
-    ref="HEAD"
+# Before the first position, arguments belong to git. Once a position is found,
+# any remaining arguments after the optional second position belong to git diff.
+# With no positions, a single `-` marks the start of the git diff arguments.
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = '-' ]; then
+    shift
+    diff_args=("$@")
+    break
   fi
 
-elif [ "$#" -gt 1 ]; then
-  ref="$1"
-  base="$2"
+  if [[ "$1" =~ ^[0-9]+$ ]]; then
+    position_1="$1"
+    shift
+
+    if [ "$#" -gt 0 ] && [[ "$1" =~ ^[0-9]+$ ]]; then
+      position_2="$1"
+      shift
+    fi
+
+    diff_args=("$@")
+    break
+  fi
+
+  git_args+=("$1")
+  shift
+done
+
+if [[ "$position_1" =~ ^0+$ ]] || [[ "$position_2" =~ ^0+$ ]]; then
+  printf 'git-prev: positions must be positive integers\n' >&2
+  exit 2
 fi
 
-if [ -z "$expr" ] && [ -z "$base" ] && [ -z "$ref" ]; then
-  printf 'Invalid arguments: %s' "$*"
-  exit 1
-fi
-
-if [[ "$base" =~ ^[0-9]+$ ]]; then
-  base="HEAD~$base"
-fi
-if [[ "$ref" =~ ^[0-9]+$ ]]; then
-  ref="HEAD~$ref"
-fi
-
-expr="${expr:-"$base...$ref"}"
-
-if command -v delta &> /dev/null && [ -t 1 ]; then
-  git diff "$expr" | delta
+if [ -z "$position_1" ]; then
+  base=HEAD^
+  ref=HEAD
 else
-  git diff "$expr"
+  # Force base 10 so positions with leading zeroes do not become octal values.
+  position_1=$((10#$position_1))
+
+  if [ -z "$position_2" ]; then
+    base="HEAD~$((position_1 - 1))"
+    ref=HEAD
+  else
+    position_2=$((10#$position_2))
+
+    if ((position_1 < position_2)); then
+      newer_position=$position_1
+      older_position=$position_2
+    else
+      newer_position=$position_2
+      older_position=$position_1
+    fi
+
+    base="HEAD~$((older_position - 1))"
+    ref="HEAD~$((newer_position - 1))"
+  fi
 fi
+
+# Let Git apply its configured pager (including delta) and preserve Git's status.
+exec git "${git_args[@]}" diff "$base...$ref" "${diff_args[@]}"
