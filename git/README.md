@@ -409,3 +409,105 @@ git diff <base-branch>...<head-branch>
 # gh cli
 gh pr diff
 ```
+
+## Differences when using `..` and `...`
+
+### Git log
+
+[git log ranges](https://stackoverflow.com/questions/462974/what-are-the-differences-between-double-dot-and-triple-dot-in-git-com)
+
+> ## Using Commit Ranges with Git Log
+>
+> When you're using commit ranges like `..` and `...` with git log, the difference between them is that, for branches A and B,
+>
+> ```bash
+> git log A..B
+> ```
+>
+> will show you all of the commits that B has that A doesn't have, while
+>
+> ```bash
+> git log A...B
+> ```
+>
+> will show you both the commits that A has and that B doesn't have, and the commits that B has that A doesn't have, or in other words,
+> it will filter out all of the commits that both A and B share, thus only showing the commits that they don't both share.
+>
+> ## Visualization with Venn Diagrams & Commit Trees
+>
+> Here is a visual representation of `git log A..B`. The commits that branch B contains that don't exist in A is what is returned by the commit range,
+> and is highlighted in red in the Venn diagram, and circled in blue in the commit tree:
+>
+> [git log A..B](./images/git-log-a..b-venn.png)
+> [git log A..B diagram tree](./images/git-log-a..b-branch.png)
+>
+> These are the diagrams for `git log A...B`. Notice that the commits that are shared by both branches are not returned by the command:
+>
+> [git log A...B](./images/git-log-a...b-venn.png)
+> [git log A...B diagram tree](./images/git-log-a...b-branch.png)
+>
+> ## Making the Triple-Dot Commit Range ... More Useful
+>
+> You can make the triple-dot commit range ... more useful in a log command by using the --left-right option to show which commits belong to which branch:
+>
+> ```
+> $ git log --oneline --decorate --left-right --graph master...origin/master
+> < 1794bee (HEAD, master) Derp some more
+> > 6e6ce69 (origin/master, origin/HEAD) Add hello.txt
+> ```
+>
+> In the above output, you'll see the commits that belong to master are prefixed with <, while commits that belong to origin/master are prefixed with >.
+
+### Git diff
+
+[git diff ranges](https://stackoverflow.com/questions/7251477/what-are-the-differences-between-double-dot-and-triple-dot-in-git-dif)
+
+> *Since I'd already created these images, I thought it might be worth using them in another answer,
+> although the description of the difference between `..` (dot-dot) and `...` (dot-dot-dot) is essentially
+> the same as in [manojlds's answer](https://stackoverflow.com/questions/7251477/git-diff-whats-the-difference-between-having-and-no-dots/7252067#7252067).*
+>
+> The command `git diff` typically¹ only shows you the difference between the states of the tree between exactly two points in the commit graph.
+> The `..` and `...` notations in git diff have the following meanings:
+>
+> ```bash
+> # Left side in the illustration below:
+> git diff foo..bar
+> git diff foo bar  # same thing as above
+>
+> # Right side in the illustration below:
+> git diff foo...bar
+> git diff $(git merge-base foo bar) bar  # same thing as above
+>```
+>
+> [git diff diagram](./images/git-diff-a...b.png)
+>
+> In other words, `git diff foo..bar` is exactly the same as `git diff foo bar`;
+> both will show you the difference between the tips of the two branches foo and bar.
+> On the other hand, `git diff foo...bar` will show you the difference between the "**merge base**" of the two branches and the tip of bar.
+> The "**merge base**" is usually the last commit in common between those two branches,
+> so this command will show you the changes that your work on bar has introduced,
+> while ignoring everything that has been done on foo in the mean time.
+>
+> That's all you need to know about the `..` and `...` notations in git diff. However...
+>
+> ---
+>
+> ... a common source of confusion here is that `..` and `...` mean subtly different things when used in a command such as `git log`
+> that expects a set of commits as one or more arguments.
+> (These commands all end up using `git rev-list` to parse a list of commits from their arguments.)
+>
+> The meaning of `..` and `...` for `git log` can be shown graphically as below:
+>
+> [git rev-list](./images/git-rev-list-foo..bar.png)
+>
+> So, `git rev-list foo..bar` shows you everything on branch `bar` that isn't also on branch `foo`.
+> On the other hand, `git rev-list foo...bar` shows you all the commits that are in either `foo` or `bar`, but *not both*.
+> The third diagram just shows that if you list the two branches, you get the commits that are in either one or both of them.
+>
+> Well, I find that all a bit confusing, anyway, and I think the commit graph diagrams help :)
+>
+> ¹ I only say "typically" since when resolving merge conflicts, for example, git diff will show you a three-way merge.
+
+## Bonus diagram
+
+[git bonus](./images/git-bonus.png)

@@ -1,6 +1,24 @@
 
 # Set eol LF
-* text eol=lf
+* text=auto eol=lf
+
+# Explicitly declare binary files to prevent corruption
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.mp4 binary
+*.webm binary
 
 # Comment binaries
 comment.exe      binary
