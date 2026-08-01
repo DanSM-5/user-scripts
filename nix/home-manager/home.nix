@@ -36,80 +36,91 @@
     # '')
 
     _7zz
-    # ani-cli
+    ast-grep
     bat
+    biome
     btop
     # bun
-    codesnap
+    carapace # create completions for commands
     chafa
-    # carapace
-    delta
-    dive
-    # dog
+    codesnap # make images from code
+    # ctop # top command for containers
+    # curl
+    delta # git diff pager
+    dive # explore docker images layers
+    doggo # dig like utility
     dua
+    duf # disk usage utility
     erdtree
     eza
     fastfetch
     # fclones
     # fdupes
     fd
-    # file
     ffmpeg
     # fzf
-    # gallery-dl
     ghostscript
-    # gawk
-    # gnumake
-    glow
-    go
-    gron
+    gh # github cli
+    # gifski # generate gifs
+    glow # pretty print md
+    go 
     gum
     # gnused
+    gron # make json greppable
+    gping # ping with graph
+    # hyperfine # benchmark tool
     highlight
-    hyperfine
     imagemagick
     # iputils
+    jc # format output of commands as json
     jq
+    # jo # easy create json objects
     # jx
-    jc
-    jo
     lf
+    lazydocker # tui for docker
     # lua-language-server
-    # ncurses
-    # nodejs_20
-    # mpv
+    luarocks
     # micro
+    # mpv
+    # mcat # cat images and files
+    mdterm # markdown pager
+    mkpasswd # encrypt passwords
+    # nmap # network discovery tool
+    nil # nix-expression-language
     neovim
     oh-my-posh
+    onefetch # fastfetch for project directories
     # perl
-    # pipx
     # ps
-    # poppler
-    poppler-utils
-    # procs
+    # poppler # pdf utilities
     # python3
-    # rclip
-    rclone
-    # rsync
+    poppler-utils
+    # postgresql
+    procs # cross platform process viewer (ps)
+    pwgen # generate password
+    # rclip # semantic photo searcher
+    rclone # copy utility
     ripgrep
-    rustup
-    # rtorrent
-    sd
-    sad
+    # rustup
+    sd # simple sed like
+    sad # batch file edit tool
     sqlite
     starship
-    tldr
-    # typescript-language-server
-    # unixtools.col
-    # transmission
+    # tldr
+    tealdeer # tldr client
+    # tree
+    tree-sitter
+    tuicr # github pr tui
     unrar
     # unzip
-    # xidel
-    # yt-dlp
-    # ytfzf
-    zig
+    upx # compress binaries
+    viddy # watch command
+    # watchexec # watch changes in a path
+    # xidel # extract data from html/xml using css selectors
+    yq
+    # zig
     # zip
-    zsh
+    # zsh
   ];
 
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
