@@ -1,0 +1,516 @@
+#!/usr/bin/env bash
+# paste-image - Save a clipboard image on Windows, macOS, or Linux.
+#
+# Examples:
+#   paste-image diagram
+#   paste-image photo.jpg
+#   printf '%s' diagram | paste-image
+#   paste-image --help
+
+set -euo pipefail
+
+usage() {
+   #  while IFS= read -r line; do
+	# 	printf "  %s\n" "$line"
+	# done <<-EOF
+  cat <<EOF
+Usage: ${0##*/} [NAME[.EXT]]
+       ${0##*/} {-h|--help|help}
+
+Save the image currently on the clipboard in the current directory. An
+extension in NAME selects the output format, so names such as photo.jpg and
+photo.jpeg remain JPEG files. Without an extension, the clipboard MIME type is
+used to choose one; if it cannot be determined, PNG is assumed. NAME may be
+supplied as the single argument or through standard input. If neither supplies
+a name, a random numeric name is used.
+
+Clipboard backends:
+  Windows, WSL, Git Bash  PowerShell and paste-image.ps1
+  macOS                  pngpaste, or the built-in osascript tool
+  Linux (Wayland)        wl-paste from wl-clipboard
+  Linux (X11)            xclip
+
+ImageMagick (magick, or the legacy convert/identify commands) is used for MIME
+detection and whenever the clipboard image must be converted to the requested
+format.
+
+Examples:
+  ${0##*/} screenshot
+  ${0##*/} screenshot.jpeg
+  printf '%s' issue-123 | ${0##*/}
+  ${0##*/} -- "name beginning with a dash"
+EOF
+}
+
+fail() {
+  printf '%s: %s\n' "${0##*/}" "$*" >&2
+  exit 1
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "$2"
+}
+
+case "${1-}" in
+  help | -h | --help)
+    usage
+    exit 0
+    ;;
+  --)
+    shift
+    ;;
+esac
+
+if (($# > 1)); then
+  usage >&2
+  fail 'expected at most one image name'
+fi
+
+if (($# == 1)); then
+  filename=$1
+elif [[ ! -t 0 ]]; then
+  filename=$(</dev/stdin)
+else
+  filename=''
+fi
+
+if [[ -z $filename ]]; then
+  filename=$RANDOM
+fi
+
+uname_system=$(uname -s 2>/dev/null || true)
+uname_release=$(uname -r 2>/dev/null || true)
+
+is_wsl=false
+case "$uname_system:$uname_release" in
+  *[Mm][Ii][Cc][Rr][Oo][Ss][Oo][Ff][Tt]* | *[Ww][Ss][Ll]*) is_wsl=true ;;
+esac
+if [[ -n ${WSL_INTEROP-} || -n ${WSL_DISTRO_NAME-} ]]; then
+  is_wsl=true
+fi
+
+platform=''
+if [[ $is_wsl == true ]]; then
+  platform=windows
+elif [[ ${OS-} == Windows_NT ]]; then
+  platform=windows
+else
+  case "$uname_system" in
+    CYGWIN* | MINGW* | MSYS*) platform=windows ;;
+  esac
+fi
+
+if [[ -z $platform ]]; then
+  case "${OSTYPE-}" in
+    darwin*) platform=macos ;;
+    linux*) platform=linux ;;
+  esac
+fi
+
+if [[ -z $platform ]]; then
+  case "$uname_system" in
+    Darwin) platform=macos ;;
+    Linux) platform=linux ;;
+    *) fail "unsupported operating system: ${uname_system:-unknown}" ;;
+  esac
+fi
+
+case $filename in
+  /*) requested_file=$filename ;;
+  *) requested_file="$PWD/$filename" ;;
+esac
+
+output_directory=$(dirname "$requested_file")
+[[ -d $output_directory ]] || fail "output directory does not exist: $output_directory"
+
+temporary_directory=''
+clipboard_file=''
+temporary_output_file=''
+clipboard_mime_type=''
+filename_extension=''
+filename_has_extension=false
+
+filename_basename=${requested_file##*/}
+case $filename_basename in
+  *.*)
+    filename_stem=${filename_basename%.*}
+    extension_candidate=${filename_basename##*.}
+    if [[ -n $filename_stem && -n $extension_candidate ]]; then
+      filename_extension=$extension_candidate
+      filename_has_extension=true
+    fi
+    ;;
+esac
+
+cleanup() {
+  if [[ -n $clipboard_file && -e $clipboard_file ]]; then
+    rm -f "$clipboard_file"
+  fi
+  if [[ -n $temporary_output_file && -e $temporary_output_file ]]; then
+    rm -f "$temporary_output_file"
+  fi
+  if [[ -n $temporary_directory && -d $temporary_directory ]]; then
+    rmdir "$temporary_directory" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+temporary_directory=$(mktemp -d "$output_directory/.paste-image.XXXXXX")
+clipboard_file="$temporary_directory/clipboard.png"
+
+clipboard_has_type() {
+  local requested_type=$1
+  local available_types=$2
+  local available_type
+
+  while IFS= read -r available_type; do
+    available_type=${available_type%$'\r'}
+    [[ $available_type == "$requested_type" ]] && return 0
+  done <<<"$available_types"
+
+  return 1
+}
+
+mime_type_for_extension() {
+  case $1 in
+    [Pp][Nn][Gg]) printf '%s\n' image/png ;;
+    [Jj][Pp][Gg] | [Jj][Pp][Ee][Gg]) printf '%s\n' image/jpeg ;;
+    [Tt][Ii][Ff] | [Tt][Ii][Ff][Ff]) printf '%s\n' image/tiff ;;
+    [Bb][Mm][Pp]) printf '%s\n' image/bmp ;;
+    [Ww][Ee][Bb][Pp]) printf '%s\n' image/webp ;;
+    [Gg][Ii][Ff]) printf '%s\n' image/gif ;;
+    [Aa][Vv][Ii][Ff]) printf '%s\n' image/avif ;;
+    [Hh][Ee][Ii][Cc]) printf '%s\n' image/heic ;;
+    *) return 1 ;;
+  esac
+}
+
+canonical_mime_type() {
+  case $1 in
+    image/png | image/x-png) printf '%s\n' image/png ;;
+    image/jpeg | image/jpg) printf '%s\n' image/jpeg ;;
+    image/tiff | image/x-tiff) printf '%s\n' image/tiff ;;
+    image/bmp | image/x-bmp) printf '%s\n' image/bmp ;;
+    image/webp | image/gif | image/avif | image/heic) printf '%s\n' "$1" ;;
+    *) return 1 ;;
+  esac
+}
+
+extension_for_mime_type() {
+  case $(canonical_mime_type "$1" 2>/dev/null || true) in
+    image/png) printf '%s\n' png ;;
+    image/jpeg) printf '%s\n' jpg ;;
+    image/tiff) printf '%s\n' tiff ;;
+    image/bmp) printf '%s\n' bmp ;;
+    image/webp) printf '%s\n' webp ;;
+    image/gif) printf '%s\n' gif ;;
+    image/avif) printf '%s\n' avif ;;
+    image/heic) printf '%s\n' heic ;;
+    *) return 1 ;;
+  esac
+}
+
+is_supported_clipboard_type() {
+  canonical_mime_type "$1" >/dev/null 2>&1
+}
+
+choose_image_type() {
+  local available_types=$1
+  local preferred_mime_type=''
+  local available_type
+  local candidate
+  local -a candidates=()
+
+  if [[ $filename_has_extension == true ]]; then
+    preferred_mime_type=$(mime_type_for_extension "$filename_extension" 2>/dev/null || true)
+  fi
+
+  if [[ -n $preferred_mime_type ]]; then
+    case $preferred_mime_type in
+      image/png) candidates=(image/png image/x-png) ;;
+      image/jpeg) candidates=(image/jpeg image/jpg) ;;
+      image/tiff) candidates=(image/tiff image/x-tiff) ;;
+      image/bmp) candidates=(image/bmp image/x-bmp) ;;
+      *) candidates=("$preferred_mime_type") ;;
+    esac
+
+    for candidate in "${candidates[@]}"; do
+      if clipboard_has_type "$candidate" "$available_types"; then
+        printf '%s\n' "$candidate"
+        return 0
+      fi
+    done
+  fi
+
+  while IFS= read -r available_type; do
+    available_type=${available_type%$'\r'}
+    if is_supported_clipboard_type "$available_type"; then
+      printf '%s\n' "$available_type"
+      return 0
+    fi
+  done <<<"$available_types"
+
+  return 1
+}
+
+read_clipboard_image() {
+  local mime_type=$1
+  shift
+
+  if ! "$@" >"$clipboard_file"; then
+    fail 'could not read the clipboard image'
+  fi
+  clipboard_mime_type=$mime_type
+}
+
+is_legacy_imagemagick_command() {
+  local command_name=$1
+  local version
+
+  command -v "$command_name" >/dev/null 2>&1 || return 1
+  version=$("$command_name" -version 2>/dev/null || true)
+  [[ $version == *ImageMagick* ]]
+}
+
+detect_clipboard_mime_type() {
+  local image_format=''
+
+  if command -v magick >/dev/null 2>&1; then
+    image_format=$(magick identify -quiet -format '%m' "${clipboard_file}[0]" 2>/dev/null || true)
+  elif is_legacy_imagemagick_command identify; then
+    image_format=$(identify -quiet -format '%m' "${clipboard_file}[0]" 2>/dev/null || true)
+  fi
+
+  case $image_format in
+    PNG*) printf '%s\n' image/png ;;
+    JPEG*) printf '%s\n' image/jpeg ;;
+    TIFF*) printf '%s\n' image/tiff ;;
+    BMP*) printf '%s\n' image/bmp ;;
+    WEBP*) printf '%s\n' image/webp ;;
+    GIF*) printf '%s\n' image/gif ;;
+    AVIF*) printf '%s\n' image/avif ;;
+    HEIC*) printf '%s\n' image/heic ;;
+    *) return 1 ;;
+  esac
+}
+
+convert_clipboard_image() {
+  temporary_output_file="$temporary_directory/output.$filename_extension"
+
+  if command -v magick >/dev/null 2>&1; then
+    if ! magick "${clipboard_file}[0]" "$temporary_output_file"; then
+      fail "ImageMagick could not convert the clipboard image to .$filename_extension"
+    fi
+  elif is_legacy_imagemagick_command convert; then
+    if ! convert "${clipboard_file}[0]" "$temporary_output_file"; then
+      fail "ImageMagick could not convert the clipboard image to .$filename_extension"
+    fi
+  else
+    fail 'ImageMagick is required to convert the clipboard image'
+  fi
+}
+
+paste_with_powershell() {
+  local powershell_command=''
+  local powershell_script
+  local windows_script
+  local windows_output
+  local script_directory
+
+  if command -v powershell.exe >/dev/null 2>&1; then
+    powershell_command=$(command -v powershell.exe)
+  elif command -v pwsh.exe >/dev/null 2>&1; then
+    powershell_command=$(command -v pwsh.exe)
+  elif command -v powershell >/dev/null 2>&1; then
+    powershell_command=$(command -v powershell)
+  else
+    fail 'PowerShell is required on Windows and WSL'
+  fi
+
+  script_directory=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+  powershell_script="$script_directory/paste-image.ps1"
+  [[ -f $powershell_script ]] || fail "companion script not found: $powershell_script"
+
+  if [[ $is_wsl == true ]]; then
+    require_command wslpath 'wslpath is required to pass WSL paths to PowerShell'
+    windows_script=$(wslpath -w "$powershell_script")
+    windows_output=$(wslpath -w "$clipboard_file")
+  else
+    require_command cygpath 'cygpath is required to pass Git Bash/Cygwin paths to PowerShell'
+    windows_script=$(cygpath -aw "$powershell_script")
+    windows_output=$(cygpath -aw "$clipboard_file")
+  fi
+
+  if ! "$powershell_command" \
+    -NoLogo \
+    -NoProfile \
+    -NonInteractive \
+    -ExecutionPolicy Bypass \
+    -Sta \
+    -File "$windows_script" \
+    -OutputPath "$windows_output" \
+    -Quiet; then
+    fail 'PowerShell could not save the clipboard image'
+  fi
+
+  clipboard_mime_type=image/png
+}
+
+paste_on_macos() {
+  local image_format
+
+  if command -v pngpaste >/dev/null 2>&1; then
+    if ! pngpaste "$clipboard_file"; then
+      fail 'the clipboard does not contain an image'
+    fi
+    clipboard_mime_type=image/png
+    return
+  fi
+
+  require_command osascript 'pngpaste or the built-in osascript command is required on macOS'
+
+  if ! image_format=$(
+    osascript - "$clipboard_file" <<'APPLESCRIPT'
+on run arguments
+  set outputPath to item 1 of arguments
+  set imageFormat to ""
+
+  try
+    set imageData to the clipboard as «class PNGf»
+    set imageFormat to "png"
+  on error
+    try
+      set imageData to the clipboard as «class TIFF»
+      set imageFormat to "tiff"
+    on error
+      try
+        set imageData to the clipboard as «class JPEG»
+        set imageFormat to "jpeg"
+      on error
+        error "The clipboard does not contain an image."
+      end try
+    end try
+  end try
+
+  set fileHandle to missing value
+  try
+    set fileHandle to open for access (POSIX file outputPath) with write permission
+    set eof of fileHandle to 0
+    write imageData to fileHandle
+    close access fileHandle
+  on error errorMessage number errorNumber
+    if fileHandle is not missing value then
+      try
+        close access fileHandle
+      end try
+    end if
+    error errorMessage number errorNumber
+  end try
+
+  return imageFormat
+end run
+APPLESCRIPT
+  ); then
+    fail 'the clipboard does not contain an image'
+  fi
+
+  case $image_format in
+    png) clipboard_mime_type=image/png ;;
+    tiff) clipboard_mime_type=image/tiff ;;
+    jpeg) clipboard_mime_type=image/jpeg ;;
+    *) clipboard_mime_type='' ;;
+  esac
+}
+
+paste_on_linux() {
+  local available_types
+  local mime_type
+  local wayland_is_available=false
+  local x11_is_available=false
+
+  if [[ -n ${WAYLAND_DISPLAY-} || ${XDG_SESSION_TYPE-} == wayland ]]; then
+    wayland_is_available=true
+  fi
+  if [[ -n ${DISPLAY-} || ${XDG_SESSION_TYPE-} == x11 ]]; then
+    x11_is_available=true
+  fi
+
+  if [[ $wayland_is_available == true ]] && command -v wl-paste >/dev/null 2>&1; then
+    if ! available_types=$(wl-paste --list-types); then
+      fail 'could not inspect the Wayland clipboard'
+    fi
+    if ! mime_type=$(choose_image_type "$available_types"); then
+      fail 'the clipboard does not contain a supported image'
+    fi
+    read_clipboard_image "$mime_type" wl-paste --no-newline --type "$mime_type"
+    return
+  fi
+
+  if [[ $x11_is_available == true ]] && command -v xclip >/dev/null 2>&1; then
+    if ! available_types=$(xclip -selection clipboard -t TARGETS -o); then
+      fail 'could not inspect the X11 clipboard'
+    fi
+    if ! mime_type=$(choose_image_type "$available_types"); then
+      fail 'the clipboard does not contain a supported image'
+    fi
+    read_clipboard_image "$mime_type" xclip -selection clipboard -t "$mime_type" -o
+    return
+  fi
+
+  if [[ $wayland_is_available == true && $x11_is_available == true ]]; then
+    fail 'install wl-clipboard for Wayland or xclip for X11 clipboard support'
+  elif [[ $wayland_is_available == true ]]; then
+    fail 'wl-paste was not found; install wl-clipboard for Wayland clipboard support'
+  elif [[ $x11_is_available == true ]]; then
+    fail 'xclip was not found; install it for X11 clipboard support'
+  else
+    fail 'no Wayland or X11 graphical session was detected'
+  fi
+}
+
+case $platform in
+  windows) paste_with_powershell ;;
+  macos) paste_on_macos ;;
+  linux) paste_on_linux ;;
+esac
+
+[[ -s $clipboard_file ]] || fail 'clipboard image was empty'
+
+if [[ -z $clipboard_mime_type ]]; then
+  clipboard_mime_type=$(detect_clipboard_mime_type || true)
+fi
+
+if [[ $filename_has_extension == true ]]; then
+  output_file=$requested_file
+else
+  filename_extension=$(extension_for_mime_type "$clipboard_mime_type" 2>/dev/null || true)
+  if [[ -z $filename_extension ]]; then
+    filename_extension=png
+  fi
+  output_file="$requested_file.$filename_extension"
+fi
+
+target_mime_type=$(mime_type_for_extension "$filename_extension" 2>/dev/null || true)
+source_mime_type=$(canonical_mime_type "$clipboard_mime_type" 2>/dev/null || true)
+
+printf 'Creating: %s\n' "$output_file"
+
+if [[ -n $target_mime_type && $target_mime_type == "$source_mime_type" ]]; then
+  mv -f "$clipboard_file" "$output_file"
+  clipboard_file=''
+else
+  convert_clipboard_image
+  [[ -s $temporary_output_file ]] || fail 'converted clipboard image was empty'
+  mv -f "$temporary_output_file" "$output_file"
+  temporary_output_file=''
+fi
+
+if [[ -n $clipboard_file && -e $clipboard_file ]]; then
+  rm -f "$clipboard_file"
+fi
+clipboard_file=''
+rmdir "$temporary_directory"
+temporary_directory=''
+trap - EXIT
+
+printf 'Created: %s\n' "$output_file"
