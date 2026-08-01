@@ -8,8 +8,9 @@
 
   Backends (in priority order): gh CLI, curl, wget, Invoke-WebRequest.
 
-  Supports GitHub URLs (github.com/blob/tree), raw URLs
-  (raw.githubusercontent.com), and the short form "username/repo/path".
+  Supports GitHub URLs, raw URLs (raw.githubusercontent.com), and the short
+  form "username/repo/path". GitHub's blob/tree/raw path components are
+  optional; a leading branch or tag is detected when possible.
 .PARAMETER Source
   GitHub path in one of these forms:
     username/repo/path/to/file.txt
@@ -20,6 +21,10 @@
   If omitted, downloads to the current directory using the original filename.
 .PARAMETER Container
   Download a directory recursively instead of a single file.
+.PARAMETER Gh
+  Use the gh CLI when it is available. This is the default.
+.PARAMETER NoGh
+  Skip the gh CLI and use curl, wget, or Invoke-WebRequest.
 .PARAMETER Help
   Show this help message and exit.
 .EXAMPLE
@@ -37,6 +42,7 @@
 $PROG       = 'git-gh-get'
 $GithubApi  = 'https://api.github.com'
 $GhOwner    = ''; $GhRepo = ''; $GhRef = ''; $GhPath = ''
+$UseGh      = $true  # set to $false via --no-gh / -NoGh to skip gh CLI
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -52,8 +58,13 @@ Download a file or directory from GitHub without cloning.
 Arguments:
   source   GitHub source, one of:
              username/repo/path/to/file.txt
+             username/repo/main/path/to/file.txt
+             username/repo/blob/main/path/to/file.txt
              https://github.com/user/repo/blob/main/path/to/file.txt
+             https://github.com/user/repo/main/path/to/file.txt
              https://raw.githubusercontent.com/user/repo/main/path/to/file.txt
+           blob/tree/raw are optional. Without one, a matching branch or tag
+           prefix is used; otherwise the path is read from the default branch.
   dest     Output path (default: current directory).
              Trailing slash  -> save inside directory, preserve original name.
              Existing dir    -> save inside directory, preserve original name.
@@ -61,14 +72,26 @@ Arguments:
 
 Options:
   -c, -Container, --container   Download directory recursively
+  --gh, -Gh                     Use gh CLI if available (default)
+  --no-gh, -NoGh                Skip gh CLI; use curl/wget/Invoke-WebRequest
   -h, -Help, --help             Show this help
 
 Environment:
   GITHUB_TOKEN   Personal access token for private repos
 
+Ambiguities:
+  A matching branch/tag prefix wins over a same-named default-branch path.
+  Use blob/<default-ref>/path to force default-branch path interpretation.
+  If ref lookup is unavailable, markerless input uses the default branch; an
+  explicit ref containing "/" may be split after its first component.
+  A leading 7-40 character hexadecimal component is treated as a commit SHA.
+  When a branch and tag share a name, the branch is preferred.
+
 Examples:
   git gh-get username/repo/src/main.js
+  git gh-get username/repo/main/src/main.js
   git gh-get https://github.com/user/repo/blob/main/README.md ./docs/
+  git gh-get https://github.com/user/repo/main/README.md ./docs/
   git gh-get -Container username/repo/src/ ./local-src/
 '@
 }
@@ -84,6 +107,8 @@ foreach ($a in $args) {
   $key = $a -replace '^--', '-'
   if     ($key -in '-h', '-help' -or $a -eq 'help') { $Help      = $true }
   elseif ($key -in '-c', '-container')               { $Container = $true }
+  elseif ($key -in '-gh')                            { $UseGh     = $true }
+  elseif ($key -in '-no-gh', '-nogh')                { $UseGh     = $false }
   elseif ($key.StartsWith('-'))                      { Die "Unknown option: $a" }
   else                                               { $Positional.Add($a) }
 }
@@ -97,23 +122,32 @@ $DestArg   = if ($Positional.Count -gt 1) { $Positional[1] } else { '' }
 # ── Input parsing ─────────────────────────────────────────────────────────────
 
 # Resolve an ambiguous "ref[/with/slashes]/path/to/file" string using GitHub's
-# matching-refs API.  Requires $GhOwner and $GhRepo to already be set.
+# matching-refs API. If AssumeRef is true, an unresolved value falls back to
+# treating its first component as the ref. Otherwise, an unresolved value is a
+# path on the repository's default branch. Requires $GhOwner and $GhRepo.
 function Resolve-RefPath {
-  param([string]$Remaining)
+  param(
+    [string]$Remaining,
+    [bool]$AssumeRef = $true
+  )
   $Remaining = $Remaining.TrimEnd('/')
-  $rparts = $Remaining -split '/'
 
-  if ($rparts.Count -eq 0 -or $Remaining -eq '') {
+  if (-not $Remaining) {
     $script:GhRef = ''; $script:GhPath = ''; return
   }
-  if ($rparts.Count -eq 1) {
+
+  $rparts = @($Remaining -split '/')
+
+  if ($AssumeRef -and $rparts.Count -eq 1) {
     $script:GhRef = $rparts[0]; $script:GhPath = ''; return
   }
 
   # SHA fingerprint: 7-40 hex chars → first segment is the complete ref
   if ($rparts[0] -match '^[0-9a-f]{7,40}$') {
     $script:GhRef  = $rparts[0]
-    $script:GhPath = ($rparts[1..($rparts.Count-1)] -join '/').TrimEnd('/')
+    $script:GhPath = if ($rparts.Count -gt 1) {
+      ($rparts[1..($rparts.Count-1)] -join '/').TrimEnd('/')
+    } else { '' }
     return
   }
 
@@ -125,11 +159,18 @@ function Resolve-RefPath {
   $foundRef  = ''
   $foundPath = ''
 
+  # Keep the longest match across both namespaces. Branches win a tie because
+  # they are visited first.
   foreach ($refType in 'heads','tags') {
     $refs = $null
     try {
       if (Get-HasGh) {
-        $refs = (gh api "repos/$GhOwner/$GhRepo/git/matching-refs/$refType/$first") | ConvertFrom-Json
+        $rawRefs = gh api "repos/$GhOwner/$GhRepo/git/matching-refs/$refType/$first" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $rawRefs) {
+          $refs = ($rawRefs -join "`n") | ConvertFrom-Json
+        } else {
+          $refs = @()
+        }
       } else {
         $refs = Invoke-RestMethod `
           -Uri "$GithubApi/repos/$GhOwner/$GhRepo/git/matching-refs/$refType/$first" `
@@ -137,28 +178,36 @@ function Resolve-RefPath {
       }
     } catch { $refs = @() }
 
-    foreach ($item in $refs) {
+    foreach ($item in @($refs)) {
+      if (-not $item.ref) { continue }
       $strip   = "refs/$refType/"
       $refName = if ($item.ref.StartsWith($strip)) { $item.ref.Substring($strip.Length) } else { $item.ref }
 
-      if ($Remaining -eq $refName) {
+      if ($Remaining -ceq $refName -and $refName.Length -gt $foundRef.Length) {
         $foundRef = $refName; $foundPath = ''; break
-      } elseif ($Remaining.StartsWith("$refName/") -and $refName.Length -gt $foundRef.Length) {
+      } elseif (
+        $Remaining.StartsWith("$refName/", [System.StringComparison]::Ordinal) -and
+        $refName.Length -gt $foundRef.Length
+      ) {
         $foundRef  = $refName
         $foundPath = $Remaining.Substring($refName.Length + 1)
       }
     }
-
-    if ($foundRef) { break }
   }
 
   if ($foundRef) {
     $script:GhRef  = $foundRef
     $script:GhPath = $foundPath.TrimEnd('/')
-  } else {
-    # Fallback: first segment is ref, rest is path
+  } elseif ($AssumeRef) {
+    # An explicit tree/blob/raw component (or the raw-content host) tells us
+    # that a ref is present even when lookup is unavailable.
     $script:GhRef  = $rparts[0]
-    $script:GhPath = ($rparts[1..($rparts.Count-1)] -join '/').TrimEnd('/')
+    $script:GhPath = if ($rparts.Count -gt 1) {
+      ($rparts[1..($rparts.Count-1)] -join '/').TrimEnd('/')
+    } else { '' }
+  } else {
+    $script:GhRef  = ''
+    $script:GhPath = $Remaining
   }
 }
 
@@ -173,12 +222,15 @@ function Parse-GithubUrl {
   $script:GhRepo  = $parts[1]
   $seg            = if ($parts.Count -gt 2) { $parts[2] } else { '' }
 
-  if ($seg -in 'blob','tree','raw') {
+  if ($parts.Count -gt 3 -and $seg -in 'blob','tree','raw') {
     $remaining = if ($parts.Count -gt 3) { $parts[3..($parts.Count-1)] -join '/' } else { '' }
-    Resolve-RefPath $remaining
+    Resolve-RefPath $remaining $true
+  } elseif ($parts.Count -gt 2) {
+    $remaining = $parts[2..($parts.Count-1)] -join '/'
+    Resolve-RefPath $remaining $false
   } else {
     $script:GhRef  = ''
-    $script:GhPath = ($parts[2..($parts.Count-1)] -join '/').TrimEnd('/')
+    $script:GhPath = ''
   }
 }
 
@@ -188,15 +240,15 @@ function Parse-RawUrl {
   $u = $u -replace '^https?://raw\.githubusercontent\.com/', ''
 
   $parts = $u -split '/'
-  $script:GhOwner = $parts[0]
-  $script:GhRepo  = $parts[1]
-  $script:GhRef   = $parts[2]
-  $script:GhPath  = ($parts[3..($parts.Count-1)] -join '/').TrimEnd('/')
+  $script:GhOwner = if ($parts.Count -gt 0) { $parts[0] } else { '' }
+  $script:GhRepo  = if ($parts.Count -gt 1) { $parts[1] } else { '' }
+  $remaining      = if ($parts.Count -gt 2) { $parts[2..($parts.Count-1)] -join '/' } else { '' }
+  Resolve-RefPath $remaining $true
 }
 
 function Parse-ShortForm {
-  param([string]$Input)
-  $s = $Input -replace '^\.[\\/]', '' -replace '^[\\/]', '' -replace '\.git$', '' -replace '[\\/]$', ''
+  param([string]$Source)
+  $s = $Source -replace '^\.[\\/]', '' -replace '^[\\/]', '' -replace '\.git$', '' -replace '[\\/]$', ''
   $parts = $s -split '[\\/]'
 
   if ($parts.Count -lt 2) { Die "Invalid source: expected username/repo/... format" }
@@ -205,13 +257,13 @@ function Parse-ShortForm {
   $script:GhRepo  = $parts[1]
 
   $seg = if ($parts.Count -gt 2) { $parts[2] } else { '' }
-  if ($seg -in 'blob','tree','raw') {
+  if ($parts.Count -gt 3 -and $seg -in 'blob','tree','raw') {
     # GitHub URL path without domain: owner/repo/blob/ref/path
     $remaining = if ($parts.Count -gt 3) { $parts[3..($parts.Count-1)] -join '/' } else { '' }
-    Resolve-RefPath $remaining
+    Resolve-RefPath $remaining $true
   } elseif ($parts.Count -gt 2) {
-    $script:GhRef  = ''
-    $script:GhPath = ($parts[2..($parts.Count-1)] -join '/')
+    $remaining = $parts[2..($parts.Count-1)] -join '/'
+    Resolve-RefPath $remaining $false
   } else {
     $script:GhRef  = ''
     $script:GhPath = ''
@@ -232,7 +284,7 @@ function Parse-Source {
 # ── HTTP client detection ─────────────────────────────────────────────────────
 
 function Get-HasGh {
-  $null -ne (Get-Command gh -ErrorAction SilentlyContinue)
+  $UseGh -and ($null -ne (Get-Command gh -ErrorAction SilentlyContinue))
 }
 
 function Get-HasCurl {
@@ -310,14 +362,56 @@ function Resolve-DirOutput {
 
 # ── Download ──────────────────────────────────────────────────────────────────
 
+function Invoke-GhApiToFile {
+  param(
+    [string]$Endpoint,
+    [string]$Output
+  )
+
+  # gh api has no output-file option. Stream native stdout directly to disk so
+  # binary files are not decoded and re-encoded by the PowerShell pipeline.
+  $ghCommand = Get-Command gh -CommandType Application -ErrorAction SilentlyContinue
+  if (-not $ghCommand) { Die 'gh CLI is not available' }
+
+  $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+  $startInfo.FileName = $ghCommand.Source
+  $startInfo.UseShellExecute = $false
+  $startInfo.RedirectStandardOutput = $true
+  foreach ($argument in @('api', $Endpoint, '-H', 'Accept: application/vnd.github.raw+json')) {
+    $startInfo.ArgumentList.Add($argument)
+  }
+
+  $process = [System.Diagnostics.Process]::new()
+  $process.StartInfo = $startInfo
+  $outputStream = $null
+  $failure = ''
+  $exitCode = -1
+
+  try {
+    $outputStream = [System.IO.File]::Create($Output)
+    if (-not $process.Start()) { throw 'Could not start gh CLI' }
+    $process.StandardOutput.BaseStream.CopyTo($outputStream)
+    $process.WaitForExit()
+    $exitCode = $process.ExitCode
+  } catch {
+    $failure = $_.Exception.Message
+  } finally {
+    if ($outputStream) { $outputStream.Dispose() }
+    $process.Dispose()
+  }
+
+  if ($failure) { Die "gh download failed: $failure" }
+  if ($exitCode -ne 0) { Die "gh download failed with exit code $exitCode" }
+}
+
 function Download-File {
   param([string]$Path, [string]$Output)
   $token = $env:GITHUB_TOKEN
 
   if (Get-HasGh) {
-    $apiPath = "repos/$GhOwner/$GhRepo/contents/$Path`?ref=$GhRef"
-    gh api $apiPath -H 'Accept: application/vnd.github.raw+json' --output $Output
-    if ($LASTEXITCODE -ne 0) { Die "gh download failed for: $Path" }
+    $encodedRef = [System.Uri]::EscapeDataString($GhRef)
+    $apiPath = "repos/$GhOwner/$GhRepo/contents/$Path`?ref=$encodedRef"
+    Invoke-GhApiToFile $apiPath $Output
     return
   }
 
@@ -352,7 +446,8 @@ function Download-Container {
   $path = $GhPath.TrimEnd('/')
 
   Write-Info "Fetching repository tree ($GhOwner/$GhRepo @ $GhRef)..."
-  $tree = Invoke-ApiJson "repos/$GhOwner/$GhRepo/git/trees/$GhRef`?recursive=1"
+  $encodedRef = [System.Uri]::EscapeDataString($GhRef)
+  $tree = Invoke-ApiJson "repos/$GhOwner/$GhRepo/git/trees/$encodedRef`?recursive=1"
 
   if ($tree.truncated) {
     Write-Info "Warning: tree is truncated — large repo, some files may be missing"

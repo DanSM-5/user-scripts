@@ -2,7 +2,7 @@
 #
 # git-gh-get — Download files from GitHub without cloning
 #
-# Usage: git gh-get <source> [dest] [--container] [--help]
+# Usage: git gh-get <source> [dest] [--container] [--gh|--no-gh] [--help]
 #
 # source: username/repo/path/to/file
 #         https://github.com/user/repo/blob/ref/path/to/file
@@ -18,9 +18,12 @@ readonly PROG="git-gh-get"
 readonly GITHUB_API="https://api.github.com"
 
 GH_OWNER="" GH_REPO="" GH_REF="" GH_PATH=""
+USE_GH=true  # set to false via --no-gh to skip gh CLI and use curl/wget
 
 die()  { printf '%s: %s\n' "$PROG" "$*" >&2; exit 1; }
 info() { printf '%s: %s\n' "$PROG" "$*" >&2; }
+
+_has_gh() { [[ "$USE_GH" == "true" ]] && command -v gh &>/dev/null; }
 
 show_help() {
   cat <<'EOF'
@@ -31,8 +34,13 @@ Download a file or directory from GitHub without cloning.
 Arguments:
   source   GitHub source, one of:
              username/repo/path/to/file.txt
+             username/repo/main/path/to/file.txt
+             username/repo/blob/main/path/to/file.txt
              https://github.com/user/repo/blob/main/path/to/file.txt
+             https://github.com/user/repo/main/path/to/file.txt
              https://raw.githubusercontent.com/user/repo/main/path/to/file.txt
+           blob/tree/raw are optional. Without one, a matching branch or tag
+           prefix is used; otherwise the path is read from the default branch.
   dest     Output path (default: current directory).
              Trailing slash  → save inside directory, preserve original name.
              Existing dir    → save inside directory, preserve original name.
@@ -40,14 +48,26 @@ Arguments:
 
 Options:
   -c, --container   Download directory recursively (requires jq or python3)
+  --gh              Use gh CLI if available (default)
+  --no-gh           Skip gh CLI; use curl/wget instead
   -h, --help        Show this help
 
 Environment:
   GITHUB_TOKEN   Personal access token for private repos
 
+Ambiguities:
+  A matching branch/tag prefix wins over a same-named default-branch path.
+  Use blob/<default-ref>/path to force default-branch path interpretation.
+  If ref lookup is unavailable, markerless input uses the default branch; an
+  explicit ref containing "/" may be split after its first component.
+  A leading 7-40 character hexadecimal component is treated as a commit SHA.
+  When a branch and tag share a name, the branch is preferred.
+
 Examples:
   git gh-get username/repo/src/main.js
+  git gh-get username/repo/main/src/main.js
   git gh-get https://github.com/user/repo/blob/main/README.md ./docs/
+  git gh-get https://github.com/user/repo/main/README.md ./docs/
   git gh-get -c username/repo/src/ ./local-src/
   git gh-get -c https://github.com/user/repo/tree/main/cli/src/bin ./bin/
 EOF
@@ -112,6 +132,24 @@ _join_with_slash() {
   printf '%s' "$*"
 }
 
+# Percent-encode a single URL component. LC_ALL=C makes the loop byte-oriented
+# so UTF-8 ref names are encoded correctly as well.
+_urlencode_component() {
+  local LC_ALL=C value="$1" encoded="" char hex
+  local i
+  for ((i = 0; i < ${#value}; i++)); do
+    char="${value:i:1}"
+    case "$char" in
+      [a-zA-Z0-9.~_-]) encoded+="$char" ;;
+      *)
+        printf -v hex '%%%02X' "'$char"
+        encoded+="$hex"
+        ;;
+    esac
+  done
+  printf '%s' "$encoded"
+}
+
 # Extract ref names from a GitHub matching-refs JSON response, stripping the
 # given prefix (e.g. "refs/heads/").  Reads JSON from stdin.
 _refs_names_from_json() {
@@ -138,19 +176,61 @@ try:
         print(r[len(p):] if r.startswith(p) else r)
 except Exception: pass
 " "$prefix" 2>/dev/null || true
+  else
+    grep -o '"ref"[[:space:]]*:[[:space:]]*"[^"]*"' \
+      | sed -E 's/^"ref"[[:space:]]*:[[:space:]]*"//; s/"$//' \
+      | sed "s#^$prefix##"
   fi
 }
 
+# Fetch matching refs without making lookup failures fatal. Reads the backend
+# preference set by --gh/--no-gh.
+_matching_refs_json() {
+  local ref_type="$1" first="$2"
+  local endpoint="repos/$GH_OWNER/$GH_REPO/git/matching-refs/$ref_type/$first"
+  local token="${GITHUB_TOKEN:-}"
+  local response=""
+
+  if _has_gh; then
+    response=$(gh api "$endpoint" 2>/dev/null) || response='[]'
+  elif command -v curl &>/dev/null; then
+    local cargs=(-sf)
+    [[ -n "$token" ]] && cargs+=(-H "Authorization: Bearer $token")
+    response=$(curl "${cargs[@]}" "$GITHUB_API/$endpoint" 2>/dev/null) || response='[]'
+  elif command -v wget &>/dev/null; then
+    local wargs=(-qO-)
+    [[ -n "$token" ]] && wargs+=(--header="Authorization: Bearer $token")
+    response=$(wget "${wargs[@]}" "$GITHUB_API/$endpoint" 2>/dev/null) || response='[]'
+  else
+    response='[]'
+  fi
+
+  printf '%s' "$response"
+}
+
 # Resolve an ambiguous "ref[/with/slashes]/path/to/file" string into GH_REF
-# and GH_PATH by querying GitHub's matching-refs API.
+# and GH_PATH by querying GitHub's matching-refs API. If assume_ref is true,
+# an unresolved value falls back to treating its first component as the ref.
+# Otherwise, an unresolved value is a path on the repository's default branch.
 # Requires GH_OWNER and GH_REPO to already be set.
 _resolve_ref_path() {
   local remaining="${1%/}"
+  local assume_ref="${2:-true}"
+
+  if [[ -z "$remaining" ]]; then
+    GH_REF=""
+    GH_PATH=""
+    return
+  fi
+
   IFS='/' read -ra rparts <<< "$remaining"
   local rn=${#rparts[@]}
 
-  [[ $rn -eq 0 ]] && { GH_REF=""; GH_PATH=""; return; }
-  [[ $rn -eq 1 ]] && { GH_REF="${rparts[0]}"; GH_PATH=""; return; }
+  if [[ "$assume_ref" == "true" && $rn -eq 1 ]]; then
+    GH_REF="${rparts[0]}"
+    GH_PATH=""
+    return
+  fi
 
   # SHA fingerprint (7–40 hex chars): unambiguously the complete ref
   if [[ "${rparts[0]}" =~ ^[0-9a-f]{7,40}$ ]]; then
@@ -160,48 +240,39 @@ _resolve_ref_path() {
   fi
 
   local first="${rparts[0]}"
-  local token="${GITHUB_TOKEN:-}"
   local found_ref="" found_path=""
 
-  # Query matching-refs for branches then tags with the first path segment
+  # Query branches and tags and keep the longest matching ref. Branches win a
+  # tie because they are visited first.
   for ref_type in heads tags; do
     local refs_json
-    if command -v gh &>/dev/null; then
-      refs_json=$(gh api "repos/$GH_OWNER/$GH_REPO/git/matching-refs/$ref_type/$first" 2>/dev/null \
-        || printf '[]')
-    elif command -v curl &>/dev/null; then
-      local cargs=(-sf)
-      [[ -n "$token" ]] && cargs+=(-H "Authorization: Bearer $token")
-      refs_json=$(curl "${cargs[@]}" \
-        "$GITHUB_API/repos/$GH_OWNER/$GH_REPO/git/matching-refs/$ref_type/$first" 2>/dev/null \
-        || printf '[]')
-    else
-      refs_json='[]'
-    fi
+    refs_json=$(_matching_refs_json "$ref_type" "$first")
 
     local ref_names
     ref_names=$(printf '%s' "$refs_json" | _refs_names_from_json "refs/$ref_type/") || true
 
     while IFS= read -r ref_name; do
       [[ -z "$ref_name" ]] && continue
-      if [[ "$remaining" == "$ref_name" ]]; then
+      if [[ "$remaining" == "$ref_name" && ${#ref_name} -gt ${#found_ref} ]]; then
         found_ref="$ref_name"; found_path=""
       elif [[ "$remaining" == "$ref_name/"* ]] && [[ ${#ref_name} -gt ${#found_ref} ]]; then
         found_ref="$ref_name"
         found_path="${remaining#"$ref_name/"}"
       fi
     done <<< "$ref_names"
-
-    [[ -n "$found_ref" ]] && break
   done
 
   if [[ -n "$found_ref" ]]; then
     GH_REF="$found_ref"
     GH_PATH="$found_path"
-  else
-    # Fallback: first segment is ref, rest is path (handles unknown ref types)
+  elif [[ "$assume_ref" == "true" ]]; then
+    # An explicit tree/blob/raw component (or the raw-content host) tells us
+    # that a ref is present even when lookup is unavailable.
     GH_REF="${rparts[0]}"
     GH_PATH=$(_join_with_slash "${rparts[@]:1}")
+  else
+    GH_REF=""
+    GH_PATH="$remaining"
   fi
 }
 
@@ -217,12 +288,14 @@ parse_github_url() {
   GH_REPO="${parts[1]:-}"
   local seg="${parts[2]:-}"
 
-  if [[ "$seg" == "blob" || "$seg" == "tree" || "$seg" == "raw" ]]; then
-    _resolve_ref_path "$(_join_with_slash "${parts[@]:3}")"
+  if [[ ${#parts[@]} -gt 3 ]] && \
+     [[ "$seg" == "blob" || "$seg" == "tree" || "$seg" == "raw" ]]; then
+    _resolve_ref_path "$(_join_with_slash "${parts[@]:3}")" true
+  elif [[ ${#parts[@]} -gt 2 ]]; then
+    _resolve_ref_path "$(_join_with_slash "${parts[@]:2}")" false
   else
     GH_REF=""
-    GH_PATH=$(_join_with_slash "${parts[@]:2}")
-    GH_PATH="${GH_PATH%/}"
+    GH_PATH=""
   fi
 }
 
@@ -235,9 +308,7 @@ parse_raw_url() {
   IFS='/' read -ra parts <<< "$url"
   GH_OWNER="${parts[0]:-}"
   GH_REPO="${parts[1]:-}"
-  GH_REF="${parts[2]:-}"
-  GH_PATH=$(_join_with_slash "${parts[@]:3}")
-  GH_PATH="${GH_PATH%/}"
+  _resolve_ref_path "$(_join_with_slash "${parts[@]:2}")" true
 }
 
 parse_short_form() {
@@ -253,12 +324,12 @@ parse_short_form() {
   GH_REPO="${parts[1]}"
 
   local seg="${parts[2]:-}"
-  if [[ "$seg" == "blob" || "$seg" == "tree" || "$seg" == "raw" ]]; then
+  if [[ ${#parts[@]} -gt 3 ]] && \
+     [[ "$seg" == "blob" || "$seg" == "tree" || "$seg" == "raw" ]]; then
     # GitHub URL path form without the domain: owner/repo/blob/ref/path
-    _resolve_ref_path "$(_join_with_slash "${parts[@]:3}")"
+    _resolve_ref_path "$(_join_with_slash "${parts[@]:3}")" true
   elif [[ ${#parts[@]} -gt 2 ]]; then
-    GH_REF=""
-    GH_PATH=$(_join_with_slash "${parts[@]:2}")
+    _resolve_ref_path "$(_join_with_slash "${parts[@]:2}")" false
   else
     GH_REF=""
     GH_PATH=""
@@ -283,7 +354,7 @@ api_json() {
   local endpoint="$1"
   local token="${GITHUB_TOKEN:-}"
 
-  if command -v gh &>/dev/null; then
+  if _has_gh; then
     gh api "$endpoint"
   elif command -v curl &>/dev/null; then
     local args=(-sf "$GITHUB_API/$endpoint")
@@ -342,8 +413,9 @@ download_file() {
   local path="$1" output="$2"
   local token="${GITHUB_TOKEN:-}"
 
-  if command -v gh &>/dev/null; then
-    local api_path="repos/$GH_OWNER/$GH_REPO/contents/$path?ref=$GH_REF"
+  if _has_gh; then
+    local encoded_ref; encoded_ref=$(_urlencode_component "$GH_REF")
+    local api_path="repos/$GH_OWNER/$GH_REPO/contents/$path?ref=$encoded_ref"
     gh api "$api_path" -H "Accept: application/vnd.github.raw+json" > "$output"
   elif command -v curl &>/dev/null; then
     local url="https://raw.githubusercontent.com/$GH_OWNER/$GH_REPO/$GH_REF/$path"
@@ -365,8 +437,9 @@ download_container() {
   local path="${GH_PATH%/}"
 
   info "Fetching repository tree ($GH_OWNER/$GH_REPO @ $GH_REF)..."
+  local encoded_ref; encoded_ref=$(_urlencode_component "$GH_REF")
   local tree_json
-  tree_json=$(api_json "repos/$GH_OWNER/$GH_REPO/git/trees/$GH_REF?recursive=1")
+  tree_json=$(api_json "repos/$GH_OWNER/$GH_REPO/git/trees/$encoded_ref?recursive=1")
 
   local truncated; truncated=$(printf '%s' "$tree_json" | json_field "truncated") || true
   [[ "$truncated" == "true" ]] && \
@@ -406,6 +479,8 @@ main() {
     case "$arg" in
       -h|--help|help) help=true ;;
       -c|--container) container=true ;;
+      --gh)           USE_GH=true ;;
+      --no-gh)        USE_GH=false ;;
       -*) die "Unknown option: $arg" ;;
       *) positional+=("$arg") ;;
     esac
