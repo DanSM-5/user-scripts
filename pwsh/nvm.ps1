@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 
-if ($IsWindows) {
+if ($env:OS -eq "Windows_NT") {
   # Check if there is a single argument is use
   # Otherwise, forward arguments to real nvm
   $nvmrc_present = Test-Path "$PWD/.nvmrc" -ea 0
