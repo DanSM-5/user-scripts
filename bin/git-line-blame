@@ -1,0 +1,453 @@
+#!/usr/bin/env bash
+
+# Interactively browse the commits that last changed one line of a file.
+
+[[ -v debug ]] && set -x
+
+open=false
+fullscreen=false
+print_patches=false
+git_args=''
+line_path=''
+
+showHelp () {
+  printf '%s\n' "
+    Show the commit history of one line
+
+    Synopsis:
+      \$ git-line-blame [flags] [<line>:<path>]
+
+    Description:
+      Trace one line through history with 'git log -L <line>,+1:<path> -s'
+      and browse the matching commits with fzf. The default preview shows the
+      selected commit's patch scoped to the same file.
+
+      When <line>:<path> is omitted, a ripgrep-backed fzf picker selects a
+      single line of code before opening its line history.
+
+    Usage:
+      git-line-blame '45:path/to/file'
+      git-line-blame -g '--first-parent' '45:path/to/file'
+      git-line-blame
+
+    Dependencies:
+      - git
+      - fzf
+      - rg
+      - delta (optional)
+      - bat   (optional)
+
+      Linux only. One of the below for clipboard functionality.
+      - wl-copy
+      - xclip
+      - xsel
+
+    Flags:
+      -h, --help                   > Print this message.
+      -g, --gitargs [arguments]    > Extra arguments passed to git log.
+      -e, --edit                   > Open selected commit patches in \$EDITOR.
+      -d, --display                > Show fzf in full screen.
+      -p, --print                  > Print selected commit patches on exit.
+
+    Environment:
+      GLB_FZF_ARGS                 > Extra arguments passed to both fzf pickers.
+      GLB_GIT_ARGS                 > Extra arguments passed to git log.
+      GLB_RG_ARGS                  > Extra arguments passed to ripgrep.
+      GLB_RG_PREFIX                > Override the ripgrep picker command.
+      GLB_BAT_ARGS                 > Extra arguments passed to bat.
+      FZF_HIST_DIR                 > Directory for fzf query history.
+      PREFERRED_EDITOR/EDITOR/VISUAL > Editor used by --edit and ctrl-e.
+
+    Arguments:
+      A positive line number and repository-relative file path, separated by
+      the first colon. Quote the value when the path contains spaces.
+  "
+}
+
+# Allow case-insensitive long-option patterns used by the sibling scripts.
+shopt -s extglob
+
+# shellcheck disable=SC2221 disable=SC2222
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -[gG]|-?(-)[gG]it[aA]rgs)
+      if [ $# -lt 2 ]; then
+        echo "Option $1 requires an argument" >&2
+        exit 1
+      fi
+      git_args="$2"
+      shift 2
+      ;;
+    -[eE]|-?(-)[eE]dit)
+      open=true
+      shift
+      ;;
+    -[dD]|-?(-)[dD]isplay)
+      fullscreen=true
+      shift
+      ;;
+    -[pP]|-?(-)[pP]rint)
+      print_patches=true
+      shift
+      ;;
+    -[hH]|-?(-)[hH]elp)
+      showHelp
+      exit 0
+      ;;
+    -*|--*)
+      echo "Unknown option $1" >&2
+      exit 1
+      ;;
+    *)
+      line_path="$1"
+      shift
+      ;;
+  esac
+done
+
+if ! toplevel="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  echo 'Not a git repo!' >&2
+  exit 1
+fi
+
+invocation_dir="$PWD"
+
+# Run from the repository root so ripgrep results and git object paths agree.
+cd "$toplevel" || exit 1
+
+GLB_FZF_ARGS="${GLB_FZF_ARGS:-}"
+GLB_GIT_ARGS="${GLB_GIT_ARGS:-}"
+GLB_RG_ARGS="${GLB_RG_ARGS:-}"
+GLB_RG_PREFIX="${GLB_RG_PREFIX:-rg --column --line-number --no-heading --color=always --smart-case --no-ignore --glob '!.git' --glob '!node_modules' --hidden}"
+GLB_BAT_ARGS="${GLB_BAT_ARGS:-}"
+export GLB_BAT_ARGS
+
+fzf_args=()
+if [ "$fullscreen" = true ]; then
+  fzf_args+=(
+    '--bind' 'ctrl-/:change-preview-window(right|hidden|)'
+    '--preview-window' 'top,60%,wrap-word'
+  )
+
+  if [ "$OS" = 'Windows_NT' ]; then
+    # fzf does not consistently recognize ctrl-/ and ctrl-^ at exactly 100%
+    # height in Git Bash.
+    fzf_args+=('--height' '99%')
+  else
+    fzf_args+=('--height' '100%')
+  fi
+else
+  fzf_args+=(
+    '--height' '80%'
+    '--bind' 'ctrl-/:change-preview-window(down|hidden|)'
+    '--preview-window' 'right,60%,wrap-word'
+  )
+fi
+
+for farg in $GLB_FZF_ARGS; do
+  fzf_args+=("$farg")
+done
+
+help_cat_cmd='cat'
+if command -v bat &>/dev/null; then
+  help_cat_cmd='bat --color=always --language help --style=plain'
+fi
+
+select_line () {
+  if ! command -v rg &>/dev/null; then
+    echo 'git-line-blame requires rg for interactive line selection' >&2
+    return 1
+  fi
+
+  local rg_command file_preview commits_preview help_cmd
+  rg_command="$GLB_RG_PREFIX $GLB_RG_ARGS {q} || true"
+
+  # Expanded later by the fzf preview shell.
+  # shellcheck disable=SC2016
+  file_preview='
+    FILE={1}
+    NUMBER={2}
+    if command -v bat &>/dev/null; then
+      bat --style="${BAT_STYLE:-numbers}" --color=always --pager=never \
+        --highlight-line="$NUMBER" $GLB_BAT_ARGS -- "$FILE"
+    else
+      cat -- "$FILE"
+    fi
+  '
+
+  # shellcheck disable=SC2016
+  commits_preview='
+    FILE={1}
+    git log --color=always --oneline --decorate --follow -- "$FILE" || true
+  '
+
+  help_cmd="
+    $help_cat_cmd <<< '
+  Preview window keys:
+    ctrl-^: Toggle preview
+    ctrl-/: Toggle preview position
+    ctrl-s: Toggle sort
+    shift-up: Preview up
+    shift-down: Preview down
+    alt-up: Preview page up
+    alt-down: Preview page down
+
+  Preview keys:
+    ctrl-d: Preview selected line in file (default)
+    ctrl-g: Preview commits that changed the file
+
+  Search keys:
+    ctrl-r: Live ripgrep search
+    ctrl-f: Fuzzy filter current results
+    alt-r: Reload ripgrep results
+
+  Cursor keys:
+    alt-f: Go first
+    alt-l: Go last
+    alt-c: Clear query
+  '
+  "
+
+  fzf \
+    --accept-nth '{2}:{1}' \
+    --ansi --cycle --no-multi \
+    --bind 'alt-c:clear-query' \
+    --bind 'alt-f:first' \
+    --bind 'alt-l:last' \
+    --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+    --bind 'ctrl-^:toggle-preview' \
+    --bind 'ctrl-s:toggle-sort' \
+    --bind 'shift-up:preview-up,shift-down:preview-down' \
+    --bind "start:reload($rg_command)" \
+    --bind "change:reload:$rg_command" \
+    --bind "alt-r:reload($rg_command)" \
+    --bind "ctrl-r:unbind(ctrl-r)+change-prompt(Ripgrep> )+disable-search+reload($rg_command)+rebind(change,ctrl-f)" \
+    --bind 'ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)' \
+    --bind "ctrl-d:change-preview:$file_preview" \
+    --bind "ctrl-g:change-preview:$commits_preview" \
+    --bind "alt-h:preview:$help_cmd" \
+    --delimiter : \
+    --disabled \
+    --header 'ctrl-r: Ripgrep | ctrl-f: Fzf filter | alt-h: Help' \
+    --input-border \
+    --layout=reverse \
+    --min-height 20 --border \
+    --preview "$file_preview" \
+    --prompt 'Ripgrep> ' \
+    --with-shell 'bash -c' \
+    "${fzf_args[@]}"
+}
+
+selected_interactively=false
+if [ -z "$line_path" ]; then
+  selected_interactively=true
+  line_path="$(select_line)" || exit 1
+fi
+
+# Empty means the line picker was cancelled.
+[ -z "$line_path" ] && exit
+
+if [[ "$line_path" != *:* ]]; then
+  echo "Invalid input '$line_path'. Expected <line>:<path>" >&2
+  exit 1
+fi
+
+line_number="${line_path%%:*}"
+path_input="${line_path#*:}"
+
+if ! [[ "$line_number" =~ ^[1-9][0-9]*$ ]] || [ -z "$path_input" ]; then
+  echo "Invalid input '$line_path'. Expected a positive <line>:<path>" >&2
+  exit 1
+fi
+
+# The picker runs at the root. Resolve positional pathspecs from the directory
+# where the command was invoked, matching normal Git path behavior. -L itself
+# requires exactly one concrete repository-relative file.
+lookup_dir="$toplevel"
+if [ "$selected_interactively" = false ]; then
+  lookup_dir="$invocation_dir"
+fi
+
+mapfile -d '' -t tracked_files < <(
+  git -C "$lookup_dir" -c core.quotePath=false ls-files -z --full-name -- "$path_input"
+)
+
+if [ "${#tracked_files[@]}" -eq 0 ]; then
+  echo "Cannot find a tracked file matching: $path_input" >&2
+  exit 1
+fi
+
+if [ "${#tracked_files[@]}" -ne 1 ]; then
+  echo "The path must resolve to exactly one tracked file: $path_input" >&2
+  exit 1
+fi
+
+filename="${tracked_files[0]}"
+if ! git cat-file -e "HEAD:$filename" 2>/dev/null; then
+  echo "The file does not exist at HEAD: $filename" >&2
+  exit 1
+fi
+
+editor="${PREFERRED_EDITOR:-${EDITOR:-${VISUAL:-vim}}}"
+history_location="${FZF_HIST_DIR:-$HOME/.cache/fzf-history}"
+history_file="$history_location/git-line-blame"
+mkdir -p "$history_location"
+
+# fzf preview and reload commands read these values without interpolating the
+# path into shell source. This keeps spaces and shell metacharacters intact.
+export GIT_LINE_BLAME_FILE="$filename"
+export GIT_LINE_BLAME_LINE="$line_number"
+
+format='%C(auto)%h%d %s %C(black)%C(bold)%cr %C(auto)%an'
+source_command="git log $GLB_GIT_ARGS $git_args -L \"\$GIT_LINE_BLAME_LINE,+1:\$GIT_LINE_BLAME_FILE\" -s --color=always --format='$format' || true"
+
+if command -v delta &>/dev/null; then
+  # Expanded later by the fzf preview shell.
+  # shellcheck disable=SC2016
+  preview_cmd='git show --color=always {1} -- "$GIT_LINE_BLAME_FILE" | delta || true'
+  preview_all='git show --color=always {1} | delta || true'
+else
+  # shellcheck disable=SC2016
+  preview_cmd='git show --color=always {1} -- "$GIT_LINE_BLAME_FILE" || true'
+  preview_all='git show --color=always {1} || true'
+fi
+
+# shellcheck disable=SC2016
+preview_file='git show --color=always {1}:"$GIT_LINE_BLAME_FILE"'
+if command -v bat &>/dev/null; then
+  bat_style="${BAT_STYLE:-numbers,header}"
+  preview_file="$preview_file | bat --color=always --style=$bat_style $GLB_BAT_ARGS --file-name \"\$GIT_LINE_BLAME_FILE\""
+fi
+preview_graph='git log --color=always --oneline --decorate --graph {1}'
+preview_file_names='git show --color=always --name-only {1} || true'
+
+help_cmd="
+  $help_cat_cmd <<< '
+  Preview window keys:
+    ctrl-^: Toggle preview
+    ctrl-/: Toggle preview position
+    ctrl-s: Toggle sort
+    shift-up: Preview up
+    shift-down: Preview down
+    alt-up: Preview page up
+    alt-down: Preview page down
+
+  Preview keys:
+    ctrl-a: Preview whole patch
+    ctrl-d: Preview patch on file (default)
+    ctrl-f: Preview file at hash
+    ctrl-g: Preview graph at hash
+    alt-g: Preview names of changed files in commit
+
+  Utility keys:
+    ctrl-y: Copy selected hash(es)
+    ctrl-o: Exit and print selected hash(es) with git show
+    ctrl-e: Exit and open selected hash(es) in editor
+    alt-x: Remove selected hash(es) from result
+    alt-r: Reload line history
+
+  Cursor keys:
+    alt-a: Select all
+    alt-d: Deselect all
+    alt-f: Go first
+    alt-l: Go last
+    alt-c: Clear query
+  '
+"
+
+# Find a platform clipboard utility. The selected hash is always field one.
+copy='true'
+if [ "$OS" = 'Windows_NT' ]; then
+  copy="awk '{ print \$1 }' '{+f}' | clip.exe"
+elif [ "$OSTYPE" = 'darwin' ] || [ "$(uname)" = 'Darwin' ]; then
+  copy="awk '{ print \$1 }' {+f} | pbcopy"
+elif [ -n "$WAYLAND_DISPLAY" ] && command -v wl-copy &>/dev/null; then
+  copy="awk '{ print \$1 }' {+f} | wl-copy --foreground --type text/plain"
+elif [ -n "$DISPLAY" ] && command -v xsel &>/dev/null; then
+  copy="awk '{ print \$1 }' {+f} | xsel -i -b"
+elif [ -n "$DISPLAY" ] && command -v xclip &>/dev/null; then
+  copy="awk '{ print \$1 }' {+f} | xclip -i -selection clipboard"
+fi
+
+mapfile -t commits < <(
+  # The initial pipe reports git errors before fzf starts; alt-r reuses the
+  # equivalent command through fzf's configured shell.
+  eval "$source_command" | fzf \
+    --accept-nth '{1}' \
+    --ansi --cycle --multi --no-sort \
+    --bind 'alt-a:select-all' \
+    --bind 'alt-c:clear-query' \
+    --bind 'alt-d:deselect-all' \
+    --bind 'alt-f:first' \
+    --bind 'alt-l:last' \
+    --bind 'alt-up:preview-page-up,alt-down:preview-page-down' \
+    --bind 'ctrl-^:toggle-preview' \
+    --bind 'ctrl-s:toggle-sort' \
+    --bind 'shift-up:preview-up,shift-down:preview-down' \
+    --bind "ctrl-a:change-preview:$preview_all" \
+    --bind "ctrl-d:change-preview:$preview_cmd" \
+    --bind "ctrl-f:change-preview:$preview_file" \
+    --bind "ctrl-g:change-preview:$preview_graph" \
+    --bind "alt-g:change-preview:$preview_file_names" \
+    --bind "ctrl-y:execute-silent($copy)+bell" \
+    --bind 'alt-x:exclude-multi' \
+    --bind "alt-r:reload($source_command)" \
+    --bind "alt-h:preview:$help_cmd" \
+    --expect=ctrl-o,ctrl-e \
+    --header 'ctrl-a: Full patch | ctrl-d: File patch | alt-h: Help' \
+    --footer="Line: $line_number | File: $filename" \
+    --history="$history_file" \
+    --input-border \
+    --layout=reverse \
+    --min-height 20 --border \
+    --preview "$preview_cmd" \
+    --prompt 'Line Blame> ' \
+    --with-shell 'bash -c' \
+    "${fzf_args[@]}"
+)
+
+# commits[0] is the --expect key (empty for enter); hashes follow.
+if [ -z "${commits[1]}" ]; then
+  exit
+fi
+
+expected_key="${commits[0]}"
+hashes=("${commits[@]:1}")
+
+print_selected_patches () {
+  git show "${hashes[@]}"
+}
+
+open_editor () {
+  local tmpfile
+  tmpfile="$(mktemp)"
+  git show "${hashes[@]}" > "$tmpfile"
+
+  if [[ "$editor" =~ ^n?vim?$ ]]; then
+    exec "$editor" -c 'setlocal filetype=git' "$tmpfile"
+  else
+    exec "$editor" "$tmpfile"
+  fi
+}
+
+if [ "$expected_key" = 'ctrl-o' ]; then
+  print_selected_patches
+  exit
+fi
+
+if [ "$expected_key" = 'ctrl-e' ]; then
+  open_editor
+  exit
+fi
+
+if [ "$print_patches" = true ]; then
+  print_selected_patches
+  exit
+fi
+
+if [ "$open" = true ]; then
+  open_editor
+  exit
+fi
+
+printf '%s\n' "${hashes[@]}"

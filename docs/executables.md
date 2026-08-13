@@ -46,6 +46,7 @@
 | `git-file-history` | Show commit history for a specific file with patch preview; supports copying hashes and editing commits. |
 | `git-gh-get` | Download a file or directory from GitHub without cloning the full repository. Accepts `user/repo/path` or a URL. |
 | `git-jump` | Git extension that populates the editor's quickfix list with interesting locations (diffs, merge conflicts, grep results, whitespace errors). |
+| `git-line-blame` | Trace one code line through history with `git log -L`; select the line with ripgrep or pass `<line>:<path>`, then browse commits and file-scoped patches. |
 | `git-prev` | Show the diff of the previous commit, N commits back, or a range between commits. |
 | `git-search-commits` | Interactive commit search across log messages or patch content, with delta-colored preview. |
 | `git-stack` | Show commits reachable from HEAD but not yet in the target branch (your local commit stack). |
