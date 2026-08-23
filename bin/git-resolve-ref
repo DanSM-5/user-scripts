@@ -22,6 +22,8 @@ readonly PROGRAM_NAME='git-resolve-ref'
 #   'github-personal|github|https://github.com'
 #   'git.example.com|forgejo|https://git.example.com'
 CUSTOM_RESOLVERS=(
+  'github-personal|github|https://github.com'
+  'github-work|github|https://github.com'
 )
 
 # Built-in public forge mappings. Custom entries always take precedence.

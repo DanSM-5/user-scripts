@@ -21,6 +21,8 @@ $ProgramName = 'git-resolve-ref'
 #   [pscustomobject]@{ Host = 'github-personal'; Forge = 'github'; WebOrigin = 'https://github.com' }
 #   [pscustomobject]@{ Host = 'git.example.com'; Forge = 'forgejo'; WebOrigin = 'https://git.example.com' }
 $CustomResolvers = @(
+  [pscustomobject]@{ Host = 'github-personal'; Forge = 'github'; WebOrigin = 'https://github.com' }
+  [pscustomobject]@{ Host = 'github-work';     Forge = 'github'; WebOrigin = 'https://github.com' }
 )
 
 # Built-in public forge mappings. Custom entries always take precedence.
