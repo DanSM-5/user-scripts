@@ -1,0 +1,779 @@
+#!/bin/bash
+# Resolve a Git repository reference to its forge URL.
+#
+# The command prints the URL by default. Pass --open to launch it instead.
+
+set -uo pipefail
+
+readonly PROGRAM_NAME='git-resolve-ref'
+
+# Custom resolver configuration ------------------------------------------------
+#
+# Entries are ordered and have this format:
+#
+#   host-pattern|forge|web-origin
+#
+# host-pattern uses shell wildcard syntax. Keep matches exact unless a wildcard
+# is intentional. forge must name one of the URL builders implemented below:
+# github, gitlab, forgejo, gitea, or bitbucket-cloud. web-origin is optional for
+# hosts whose HTTPS origin is the same as their Git SSH hostname.
+#
+# Examples:
+#   'github-personal|github|https://github.com'
+#   'git.example.com|forgejo|https://git.example.com'
+CUSTOM_RESOLVERS=(
+)
+
+# Built-in public forge mappings. Custom entries always take precedence.
+BUILTIN_RESOLVERS=(
+  'github.com|github|https://github.com'
+  'gitlab.com|gitlab|https://gitlab.com'
+  'codeberg.org|forgejo|https://codeberg.org'
+  'gitea.com|gitea|https://gitea.com'
+  'bitbucket.org|bitbucket-cloud|https://bitbucket.org'
+)
+
+OPEN_URL=0
+REPOSITORY_PATH=''
+REMOTE_NAME="${GIT_RESOLVE_REF_REMOTE:-}"
+REMOTE_URL="${GIT_RESOLVE_REF_REMOTE_URL:-}"
+FORGE_OVERRIDE="${GIT_RESOLVE_REF_FORGE:-}"
+WEB_URL_OVERRIDE="${GIT_RESOLVE_REF_WEB_URL:-}"
+OPENER="${GIT_RESOLVE_REF_OPENER:-}"
+SSH_OVERRIDE="${GIT_RESOLVE_REF_SSH:-}"
+AT_REF=''
+NO_SSH_ALIAS="${GIT_RESOLVE_REF_NO_SSH_ALIAS:-0}"
+DEBUG="${GIT_RESOLVE_REF_DEBUG:-0}"
+REMOTE_OPTION_SET=0
+
+die() {
+  printf '%s: %s\n' "$PROGRAM_NAME" "$*" >&2
+  exit 1
+}
+
+debug() {
+  case "$DEBUG" in
+    1|true|TRUE|yes|YES|on|ON) printf '%s: %s\n' "$PROGRAM_NAME" "$*" >&2 ;;
+  esac
+}
+
+show_help() {
+  cat <<'EOF'
+Usage: git-resolve-ref [options] <kind> [value]
+
+Resolve a Git repository reference to a forge URL. The URL is printed to
+stdout unless --open is supplied.
+
+Kinds:
+  repository              Repository root (alias: repo)
+  remote <name>            Root of a specific remote repository
+  branch <name>            Local branch
+  remote-branch <name>     Remote-tracking branch, e.g. origin/topic
+  tag <name>               Tag source tree
+  commit <revision>        Commit page
+  ref <revision>           Best-effort generic ref, resolved as a commit
+  stash <revision>         Stash commit page
+  file <path>              File at HEAD, or at the revision passed to --at
+
+Options:
+  --open                   Open the URL instead of printing it
+  -C, --repository <path>  Run Git relative to another repository
+  --remote <name>          Override automatic remote selection
+  --remote-url <url>       Resolve using an explicit Git remote URL
+  --forge <name>           Force a forge URL builder
+  --web-url <url>          Override the repository browser root URL
+  --at <revision>          Revision used by the file kind
+  --opener <path>          Program that receives the URL with --open
+  --ssh <path-or-command>  SSH command used to expand aliases with -G
+  --no-ssh-alias           Do not expand SSH Host aliases
+  --debug                  Print resolution decisions to stderr
+  -h, --help               Show this help
+  --                       Stop option parsing
+
+Forge names:
+  github, gitlab, forgejo, gitea, bitbucket-cloud
+
+Environment:
+  GIT_RESOLVE_REF_REMOTE
+  GIT_RESOLVE_REF_REMOTE_URL
+  GIT_RESOLVE_REF_FORGE
+  GIT_RESOLVE_REF_WEB_URL
+  GIT_RESOLVE_REF_OPENER
+  GIT_RESOLVE_REF_SSH
+  GIT_RESOLVE_REF_NO_SSH_ALIAS
+  GIT_RESOLVE_REF_DEBUG
+
+Examples:
+  git-resolve-ref branch main
+  git-resolve-ref --open remote-branch origin/feature/example
+  git-resolve-ref --at v1.0.0 file docs/guide.md
+  git-resolve-ref --remote upstream commit HEAD
+EOF
+}
+
+require_value() {
+  [[ $# -ge 2 ]] || die "missing value for $1"
+}
+
+POSITIONAL_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --open)
+      OPEN_URL=1
+      ;;
+    -C|--repository)
+      require_value "$@"
+      REPOSITORY_PATH="$2"
+      shift
+      ;;
+    --repository=*) REPOSITORY_PATH="${1#*=}" ;;
+    --remote)
+      require_value "$@"
+      REMOTE_NAME="$2"
+      REMOTE_OPTION_SET=1
+      shift
+      ;;
+    --remote=*) REMOTE_NAME="${1#*=}"; REMOTE_OPTION_SET=1 ;;
+    --remote-url)
+      require_value "$@"
+      REMOTE_URL="$2"
+      shift
+      ;;
+    --remote-url=*) REMOTE_URL="${1#*=}" ;;
+    --forge)
+      require_value "$@"
+      FORGE_OVERRIDE="$2"
+      shift
+      ;;
+    --forge=*) FORGE_OVERRIDE="${1#*=}" ;;
+    --web-url)
+      require_value "$@"
+      WEB_URL_OVERRIDE="$2"
+      shift
+      ;;
+    --web-url=*) WEB_URL_OVERRIDE="${1#*=}" ;;
+    --at)
+      require_value "$@"
+      AT_REF="$2"
+      shift
+      ;;
+    --at=*) AT_REF="${1#*=}" ;;
+    --opener)
+      require_value "$@"
+      OPENER="$2"
+      shift
+      ;;
+    --opener=*) OPENER="${1#*=}" ;;
+    --ssh)
+      require_value "$@"
+      SSH_OVERRIDE="$2"
+      shift
+      ;;
+    --ssh=*) SSH_OVERRIDE="${1#*=}" ;;
+    --no-ssh-alias)
+      NO_SSH_ALIAS=1
+      ;;
+    --debug)
+      DEBUG=1
+      ;;
+    -h|--help)
+      show_help
+      exit 0
+      ;;
+    --)
+      shift
+      POSITIONAL_ARGS+=("$@")
+      break
+      ;;
+    -*) die "unknown option: $1" ;;
+    *) POSITIONAL_ARGS+=("$1") ;;
+  esac
+  shift
+done
+
+[[ ${#POSITIONAL_ARGS[@]} -ge 1 ]] || {
+  show_help >&2
+  exit 1
+}
+
+KIND="${POSITIONAL_ARGS[0]}"
+VALUE="${POSITIONAL_ARGS[1]:-}"
+if [[ ${#POSITIONAL_ARGS[@]} -gt 2 ]]; then
+  die 'too many positional arguments'
+fi
+
+case "$KIND" in
+  repo) KIND='repository' ;;
+  remote_branch) KIND='remote-branch' ;;
+  refs/*) KIND='ref' ;;
+esac
+
+case "$KIND" in
+  repository)
+    [[ -z $VALUE ]] || die 'repository does not accept a value'
+    ;;
+  remote|branch|remote-branch|tag|commit|ref|stash|file)
+    [[ -n $VALUE ]] || die "$KIND requires a value"
+    ;;
+  *) die "unsupported kind: $KIND" ;;
+esac
+
+GIT=(git)
+[[ -n $REPOSITORY_PATH ]] && GIT+=(-C "$REPOSITORY_PATH")
+
+git_text() {
+  "${GIT[@]}" "$@" 2>/dev/null
+}
+
+HAVE_REPOSITORY=0
+if git_text rev-parse --git-dir >/dev/null; then
+  HAVE_REPOSITORY=1
+fi
+
+if (( ! HAVE_REPOSITORY )) && [[ -z $REMOTE_URL && -z $WEB_URL_OVERRIDE ]]; then
+  die 'not in a Git repository; use -C, --remote-url, or --web-url'
+fi
+
+get_remote_names() {
+  (( HAVE_REPOSITORY )) || return 0
+  git_text remote || true
+}
+
+remote_exists() {
+  local wanted="$1" remote
+  while IFS= read -r remote; do
+    [[ $remote == "$wanted" ]] && return 0
+  done < <(get_remote_names)
+  return 1
+}
+
+remote_from_tracking_ref() {
+  local ref="${1#refs/remotes/}"
+  local remote best=''
+  while IFS= read -r remote; do
+    if [[ $ref == "$remote/"* && ${#remote} -gt ${#best} ]]; then
+      best="$remote"
+    fi
+  done < <(get_remote_names)
+  printf '%s' "$best"
+}
+
+upstream_remote_for_branch() {
+  local branch="${1#refs/heads/}"
+  local remote
+  remote=$(git_text for-each-ref --format='%(upstream:remotename)' "refs/heads/$branch" | sed -n '1p') || true
+  [[ $remote != '.' ]] && printf '%s' "$remote"
+}
+
+current_branch() {
+  (( HAVE_REPOSITORY )) || return 0
+  git_text symbolic-ref --quiet --short HEAD || true
+}
+
+select_default_remote() {
+  local branch remote
+  branch=$(current_branch)
+  if [[ -n $branch ]]; then
+    remote=$(upstream_remote_for_branch "$branch")
+    if [[ -n $remote ]]; then
+      printf '%s' "$remote"
+      return
+    fi
+  fi
+
+  if remote_exists origin; then
+    printf 'origin'
+    return
+  fi
+
+  local -a remotes=()
+  while IFS= read -r remote; do
+    [[ -n $remote ]] && remotes+=("$remote")
+  done < <(get_remote_names)
+  if [[ ${#remotes[@]} -eq 1 ]]; then
+    printf '%s' "${remotes[0]}"
+  fi
+}
+
+TARGET_KIND="$KIND"
+TARGET_VALUE="$VALUE"
+
+case "$KIND" in
+  remote)
+    (( REMOTE_OPTION_SET )) || REMOTE_NAME="$VALUE"
+    TARGET_KIND='repository'
+    TARGET_VALUE=''
+    ;;
+  remote-branch)
+    TARGET_VALUE="${VALUE#refs/remotes/}"
+    if [[ -z $REMOTE_NAME ]]; then
+      REMOTE_NAME=$(remote_from_tracking_ref "$TARGET_VALUE")
+    fi
+    if [[ -n $REMOTE_NAME && $TARGET_VALUE == "$REMOTE_NAME/"* ]]; then
+      TARGET_VALUE="${TARGET_VALUE#"$REMOTE_NAME/"}"
+    elif [[ -z $REMOTE_NAME && ! $TARGET_VALUE == */* ]]; then
+      die "remote-branch must include a remote name: $VALUE"
+    elif [[ -z $REMOTE_NAME ]]; then
+      # Outside a repository there is no configured remote list to consult,
+      # so use the conventional first path component as the remote name.
+      TARGET_VALUE="${TARGET_VALUE#*/}"
+    fi
+    ;;
+  branch)
+    TARGET_VALUE="${VALUE#refs/heads/}"
+    if [[ -z $REMOTE_NAME ]] && (( HAVE_REPOSITORY )); then
+      REMOTE_NAME=$(upstream_remote_for_branch "$TARGET_VALUE")
+    fi
+    ;;
+  tag)
+    TARGET_VALUE="${VALUE#refs/tags/}"
+    ;;
+esac
+
+# When a file is explicitly resolved at a local or remote-tracking branch,
+# prefer that branch's remote over the current checkout's upstream.
+if [[ $KIND == file && -z $REMOTE_NAME && -n $AT_REF ]] && (( HAVE_REPOSITORY )); then
+  if [[ $AT_REF == refs/remotes/* ]]; then
+    REMOTE_NAME=$(remote_from_tracking_ref "$AT_REF")
+  else
+    candidate_branch="${AT_REF#refs/heads/}"
+    if git_text show-ref --verify --quiet "refs/heads/$candidate_branch"; then
+      REMOTE_NAME=$(upstream_remote_for_branch "$candidate_branch")
+    fi
+  fi
+fi
+
+if [[ -z $REMOTE_URL && -z $WEB_URL_OVERRIDE ]]; then
+  if [[ -z $REMOTE_NAME ]]; then
+    REMOTE_NAME=$(select_default_remote)
+  fi
+  [[ -n $REMOTE_NAME ]] || die 'could not select a remote; use --remote or --remote-url'
+  remote_exists "$REMOTE_NAME" || die "unknown remote: $REMOTE_NAME"
+  REMOTE_URL=$(git_text remote get-url "$REMOTE_NAME") || die "could not read URL for remote: $REMOTE_NAME"
+fi
+
+debug "remote=${REMOTE_NAME:-<explicit-url>}"
+
+# Split a command string without eval. This accepts the quoting normally used
+# by GIT_SSH_COMMAND and core.sshCommand.
+split_command() {
+  local input="${1:-}"
+  local character next current='' quote=''
+  local -i index=0 length=${#input}
+  local started=0
+  SPLIT_COMMAND_RESULT=()
+
+  while (( index < length )); do
+    character="${input:index:1}"
+    if [[ -n $quote ]]; then
+      if [[ $character == "$quote" ]]; then
+        quote=''
+        started=1
+      elif [[ $quote == '"' && $character == \\ ]] && (( index + 1 < length )); then
+        next="${input:index+1:1}"
+        case "$next" in
+          [[:space:]]|"'"|'"'|\\) current+="$next"; (( index++ )) ;;
+          *) current+="$character" ;;
+        esac
+        started=1
+      else
+        current+="$character"
+        started=1
+      fi
+    else
+      case "$character" in
+        "'"|'"') quote="$character"; started=1 ;;
+        \\)
+          if (( index + 1 < length )); then
+            next="${input:index+1:1}"
+            case "$next" in
+              [[:space:]]|"'"|'"'|\\) current+="$next"; (( index++ )) ;;
+              *) current+="$character" ;;
+            esac
+          else
+            current+="$character"
+          fi
+          started=1
+          ;;
+        [[:space:]])
+          if (( started )); then
+            SPLIT_COMMAND_RESULT+=("$current")
+            current=''
+            started=0
+          fi
+          ;;
+        *) current+="$character"; started=1 ;;
+      esac
+    fi
+    (( index++ ))
+  done
+
+  [[ -z $quote ]] || return 1
+  (( ! started )) || SPLIT_COMMAND_RESULT+=("$current")
+}
+
+effective_ssh_command() {
+  local configured=''
+  if [[ -n $SSH_OVERRIDE ]]; then
+    configured="$SSH_OVERRIDE"
+  elif [[ -n ${GIT_SSH_COMMAND:-} ]]; then
+    configured="$GIT_SSH_COMMAND"
+  elif (( HAVE_REPOSITORY )); then
+    configured=$(git_text config --get core.sshCommand) || true
+  fi
+  if [[ -z $configured && -n ${GIT_SSH:-} ]]; then
+    configured="$GIT_SSH"
+  fi
+  printf '%s' "${configured:-ssh}"
+}
+
+resolve_ssh_hostname_with() {
+  local configured="$1" alias="$2" output key resolved=''
+  split_command "$configured" || return 1
+  [[ ${#SPLIT_COMMAND_RESULT[@]} -gt 0 ]] || return 1
+
+  output=$("${SPLIT_COMMAND_RESULT[@]}" -G "$alias" 2>/dev/null) || return 1
+  while read -r key resolved _; do
+    if [[ ${key,,} == hostname ]]; then
+      resolved="${resolved%$'\r'}"
+      printf '%s' "${resolved,,}"
+      return 0
+    fi
+  done <<< "$output"
+  return 1
+}
+
+resolve_ssh_hostname() {
+  local alias="$1" configured resolved=''
+  configured=$(effective_ssh_command)
+  resolved=$(resolve_ssh_hostname_with "$configured" "$alias") || resolved=''
+  if [[ -z $resolved && $configured != ssh ]]; then
+    # A platform-specific Git SSH executable can be unavailable from a
+    # compatibility layer even when the local OpenSSH client has equivalent
+    # configuration. Keep this as a best-effort fallback only.
+    resolved=$(resolve_ssh_hostname_with ssh "$alias") || resolved=''
+  fi
+  [[ -n $resolved ]] || return 1
+  printf '%s' "$resolved"
+}
+
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+MATCHED_FORGE=''
+MATCHED_ORIGIN=''
+match_resolver() {
+  local candidate="${1,,}" array_name="$2" entry pattern forge origin
+  local -n rules="$array_name"
+  for entry in "${rules[@]}"; do
+    IFS='|' read -r pattern forge origin <<< "$entry"
+    pattern=$(trim "$pattern")
+    forge=$(trim "$forge")
+    origin=$(trim "${origin:-}")
+    # shellcheck disable=SC2254
+    case "$candidate" in
+      ${pattern,,})
+        MATCHED_FORGE="${forge,,}"
+        MATCHED_ORIGIN="${origin%/}"
+        return 0
+        ;;
+    esac
+  done
+  return 1
+}
+
+REMOTE_TRANSPORT=''
+REMOTE_HOST=''
+REMOTE_PATH=''
+DERIVED_ORIGIN=''
+
+parse_remote_url() {
+  local url="$1" authority host_path scheme
+  if [[ $url =~ ^(https?|git)://([^/]+)/(.+)$ ]]; then
+    scheme="${BASH_REMATCH[1],,}"
+    authority="${BASH_REMATCH[2]##*@}"
+    REMOTE_PATH="${BASH_REMATCH[3]}"
+    REMOTE_HOST="$authority"
+    if [[ $REMOTE_HOST == \[*\]* ]]; then
+      REMOTE_HOST="${REMOTE_HOST#\[}"
+      REMOTE_HOST="${REMOTE_HOST%%\]*}"
+    else
+      REMOTE_HOST="${REMOTE_HOST%%:*}"
+    fi
+    REMOTE_HOST="${REMOTE_HOST,,}"
+    REMOTE_TRANSPORT="$scheme"
+    if [[ $scheme == http || $scheme == https ]]; then
+      DERIVED_ORIGIN="$scheme://$authority"
+    else
+      DERIVED_ORIGIN="https://$REMOTE_HOST"
+    fi
+  elif [[ $url =~ ^ssh://([^/]+)/(.+)$ ]]; then
+    authority="${BASH_REMATCH[1]##*@}"
+    REMOTE_PATH="${BASH_REMATCH[2]}"
+    REMOTE_HOST="${authority%%:*}"
+    REMOTE_HOST="${REMOTE_HOST,,}"
+    REMOTE_TRANSPORT='ssh'
+    DERIVED_ORIGIN="https://$REMOTE_HOST"
+  elif [[ ! $url =~ ^[A-Za-z]:[\\/] && $url =~ ^([^@/:]+@)?([^/:]+):(.+)$ ]]; then
+    REMOTE_HOST="${BASH_REMATCH[2],,}"
+    REMOTE_PATH="${BASH_REMATCH[3]}"
+    REMOTE_TRANSPORT='ssh'
+    DERIVED_ORIGIN="https://$REMOTE_HOST"
+  else
+    return 1
+  fi
+
+  REMOTE_PATH="${REMOTE_PATH#/}"
+  REMOTE_PATH="${REMOTE_PATH%/}"
+  REMOTE_PATH="${REMOTE_PATH%.git}"
+  [[ -n $REMOTE_HOST && -n $REMOTE_PATH ]]
+}
+
+if [[ -n $WEB_URL_OVERRIDE ]]; then
+  REPOSITORY_WEB_URL="${WEB_URL_OVERRIDE%/}"
+  if [[ $REPOSITORY_WEB_URL =~ ^https?://([^/]+) ]]; then
+    REMOTE_HOST="${BASH_REMATCH[1]##*@}"
+    REMOTE_HOST="${REMOTE_HOST%%:*}"
+    REMOTE_HOST="${REMOTE_HOST,,}"
+  fi
+else
+  parse_remote_url "$REMOTE_URL" || die 'unsupported remote URL; use --web-url for local or unusual remotes'
+
+  original_host="$REMOTE_HOST"
+  if ! match_resolver "$original_host" CUSTOM_RESOLVERS; then
+    if [[ $REMOTE_TRANSPORT == ssh ]]; then
+      case "$NO_SSH_ALIAS" in
+        1|true|TRUE|yes|YES|on|ON) ;;
+        *)
+          resolved_host=$(resolve_ssh_hostname "$original_host") || resolved_host=''
+          if [[ -n $resolved_host ]]; then
+            REMOTE_HOST="$resolved_host"
+            DERIVED_ORIGIN="https://$REMOTE_HOST"
+            debug "ssh-host=$original_host -> $REMOTE_HOST"
+          fi
+          ;;
+      esac
+    fi
+    match_resolver "$REMOTE_HOST" CUSTOM_RESOLVERS ||
+      match_resolver "$REMOTE_HOST" BUILTIN_RESOLVERS || true
+  fi
+
+  [[ -n $MATCHED_ORIGIN ]] && DERIVED_ORIGIN="$MATCHED_ORIGIN"
+  REPOSITORY_WEB_URL="${DERIVED_ORIGIN%/}/$REMOTE_PATH"
+fi
+
+if [[ -n $FORGE_OVERRIDE ]]; then
+  FORGE="${FORGE_OVERRIDE,,}"
+else
+  FORGE="$MATCHED_FORGE"
+  if [[ -z $FORGE && -n $REMOTE_HOST ]]; then
+    match_resolver "$REMOTE_HOST" CUSTOM_RESOLVERS ||
+      match_resolver "$REMOTE_HOST" BUILTIN_RESOLVERS || true
+    FORGE="$MATCHED_FORGE"
+  fi
+fi
+
+REPOSITORY_WEB_URL="${REPOSITORY_WEB_URL%.git}"
+REPOSITORY_WEB_URL="${REPOSITORY_WEB_URL%/}"
+debug "forge=${FORGE:-unknown}"
+debug "repository=$REPOSITORY_WEB_URL"
+
+urlencode_component() {
+  local LC_ALL=C value="$1" encoded='' character hex
+  local -i index
+  for (( index = 0; index < ${#value}; index++ )); do
+    character="${value:index:1}"
+    case "$character" in
+      [a-zA-Z0-9.~_-]) encoded+="$character" ;;
+      *)
+        printf -v hex '%%%02X' "'$character"
+        encoded+="$hex"
+        ;;
+    esac
+  done
+  printf '%s' "$encoded"
+}
+
+urlencode_path() {
+  local path="$1" segment result='' separator=''
+  local -a segments=()
+  local IFS='/'
+  read -r -a segments <<< "$path"
+  for segment in "${segments[@]}"; do
+    result+="$separator$(urlencode_component "$segment")"
+    separator='/'
+  done
+  printf '%s' "$result"
+}
+
+commit_for_ref() {
+  local ref="$1" commit=''
+  if (( HAVE_REPOSITORY )); then
+    commit=$(git_text rev-parse --verify "${ref}^{commit}") || commit=''
+  fi
+  printf '%s' "${commit:-$ref}"
+}
+
+ref_category() {
+  local ref="$1" branch
+  case "$ref" in
+    refs/heads/*) printf 'branch'; return ;;
+    refs/tags/*) printf 'tag'; return ;;
+    refs/remotes/*) printf 'branch'; return ;;
+  esac
+
+  if (( HAVE_REPOSITORY )); then
+    if [[ $ref == HEAD ]]; then
+      branch=$(current_branch)
+      if [[ -n $branch ]]; then
+        printf 'branch'
+        return
+      fi
+    fi
+    if git_text show-ref --verify --quiet "refs/heads/$ref"; then
+      printf 'branch'
+      return
+    fi
+    if git_text show-ref --verify --quiet "refs/tags/$ref"; then
+      printf 'tag'
+      return
+    fi
+  fi
+  printf 'commit'
+}
+
+FILE_REF="${AT_REF:-HEAD}"
+FILE_REF_KIND=''
+if [[ $TARGET_KIND == file ]]; then
+  FILE_REF_KIND=$(ref_category "$FILE_REF")
+  case "$FILE_REF" in
+    refs/heads/*) FILE_REF="${FILE_REF#refs/heads/}" ;;
+    refs/tags/*) FILE_REF="${FILE_REF#refs/tags/}" ;;
+    refs/remotes/*)
+      tracking_remote=$(remote_from_tracking_ref "$FILE_REF")
+      FILE_REF="${FILE_REF#refs/remotes/}"
+      [[ -z $tracking_remote ]] || FILE_REF="${FILE_REF#"$tracking_remote/"}"
+      ;;
+    HEAD)
+      if [[ $FILE_REF_KIND == branch ]]; then
+        FILE_REF=$(current_branch)
+      fi
+      ;;
+  esac
+  if [[ $FILE_REF_KIND == commit ]]; then
+    FILE_REF=$(commit_for_ref "$FILE_REF")
+  fi
+fi
+
+ENCODED_TARGET=$(urlencode_path "$TARGET_VALUE")
+ENCODED_FILE_REF=$(urlencode_path "$FILE_REF")
+ENCODED_FILE_PATH=$(urlencode_path "$TARGET_VALUE")
+
+case "$TARGET_KIND" in
+  commit|ref|stash)
+    TARGET_VALUE=$(commit_for_ref "$TARGET_VALUE")
+    ENCODED_TARGET=$(urlencode_component "$TARGET_VALUE")
+    ;;
+esac
+
+build_url() {
+  case "$TARGET_KIND" in
+    repository)
+      printf '%s' "$REPOSITORY_WEB_URL"
+      return
+      ;;
+  esac
+
+  if [[ -z $FORGE ]]; then
+    debug 'unknown forge; falling back to the repository root'
+    printf '%s' "$REPOSITORY_WEB_URL"
+    return
+  fi
+
+  case "$FORGE:$TARGET_KIND" in
+    github:branch|github:remote-branch|github:tag)
+      printf '%s/tree/%s' "$REPOSITORY_WEB_URL" "$ENCODED_TARGET"
+      ;;
+    github:commit|github:ref|github:stash)
+      printf '%s/commit/%s' "$REPOSITORY_WEB_URL" "$ENCODED_TARGET"
+      ;;
+    github:file)
+      printf '%s/blob/%s/%s' "$REPOSITORY_WEB_URL" "$ENCODED_FILE_REF" "$ENCODED_FILE_PATH"
+      ;;
+    gitlab:branch|gitlab:remote-branch|gitlab:tag)
+      printf '%s/-/tree/%s' "$REPOSITORY_WEB_URL" "$ENCODED_TARGET"
+      ;;
+    gitlab:commit|gitlab:ref|gitlab:stash)
+      printf '%s/-/commit/%s' "$REPOSITORY_WEB_URL" "$ENCODED_TARGET"
+      ;;
+    gitlab:file)
+      printf '%s/-/blob/%s/%s' "$REPOSITORY_WEB_URL" "$ENCODED_FILE_REF" "$ENCODED_FILE_PATH"
+      ;;
+    forgejo:branch|gitea:branch|forgejo:remote-branch|gitea:remote-branch)
+      printf '%s/src/branch/%s' "$REPOSITORY_WEB_URL" "$ENCODED_TARGET"
+      ;;
+    forgejo:tag|gitea:tag)
+      printf '%s/src/tag/%s' "$REPOSITORY_WEB_URL" "$ENCODED_TARGET"
+      ;;
+    forgejo:commit|gitea:commit|forgejo:ref|gitea:ref|forgejo:stash|gitea:stash)
+      printf '%s/commit/%s' "$REPOSITORY_WEB_URL" "$ENCODED_TARGET"
+      ;;
+    forgejo:file|gitea:file)
+      case "$FILE_REF_KIND" in
+        branch) printf '%s/src/branch/%s/%s' "$REPOSITORY_WEB_URL" "$ENCODED_FILE_REF" "$ENCODED_FILE_PATH" ;;
+        tag) printf '%s/src/tag/%s/%s' "$REPOSITORY_WEB_URL" "$ENCODED_FILE_REF" "$ENCODED_FILE_PATH" ;;
+        *) printf '%s/src/commit/%s/%s' "$REPOSITORY_WEB_URL" "$ENCODED_FILE_REF" "$ENCODED_FILE_PATH" ;;
+      esac
+      ;;
+    bitbucket-cloud:branch|bitbucket-cloud:remote-branch|bitbucket-cloud:tag)
+      printf '%s/src/%s' "$REPOSITORY_WEB_URL" "$ENCODED_TARGET"
+      ;;
+    bitbucket-cloud:commit|bitbucket-cloud:ref|bitbucket-cloud:stash)
+      printf '%s/commits/%s' "$REPOSITORY_WEB_URL" "$ENCODED_TARGET"
+      ;;
+    bitbucket-cloud:file)
+      printf '%s/src/%s/%s' "$REPOSITORY_WEB_URL" "$ENCODED_FILE_REF" "$ENCODED_FILE_PATH"
+      ;;
+    *) die "forge '$FORGE' does not support kind '$TARGET_KIND'" ;;
+  esac
+}
+
+URL=$(build_url)
+debug "url=$URL"
+
+open_url() {
+  local url="$1" system
+  if [[ -n $OPENER ]]; then
+    "$OPENER" "$url"
+    return
+  fi
+
+  system=$(uname -s 2>/dev/null || true)
+  case "$system" in
+    MINGW*|MSYS*|CYGWIN*)
+      command -v start >/dev/null 2>&1 || die 'start is not available; set GIT_RESOLVE_REF_OPENER'
+      start "$url"
+      ;;
+    Darwin*)
+      command -v open >/dev/null 2>&1 || die 'open is not available; set GIT_RESOLVE_REF_OPENER'
+      open "$url"
+      ;;
+    Linux*)
+      # WSL intentionally uses xdg-open too; the local configuration is able
+      # to hand the URL to the Windows default browser.
+      command -v xdg-open >/dev/null 2>&1 || die 'xdg-open is not available; set GIT_RESOLVE_REF_OPENER'
+      xdg-open "$url" >/dev/null 2>&1 &
+      ;;
+    *) die 'no default opener for this platform; set GIT_RESOLVE_REF_OPENER' ;;
+  esac
+}
+
+if (( OPEN_URL )); then
+  open_url "$URL"
+else
+  printf '%s\n' "$URL"
+fi
