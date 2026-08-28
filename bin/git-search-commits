@@ -5,6 +5,9 @@ mode='log'
 open=false
 print_patches=false
 fullscreen=false
+expect_keys="${GSC_EXPECT:-}"
+delegate_output=false
+[[ -v GSC_EXPECT ]] && delegate_output=true
 editor="${PREFERRED_EDITOR:-${EDITOR:-${VISUAL:-vim}}}"
 history_location="${FZF_HIST_DIR:-$HOME/.cache/fzf-history}"
 history_file="$history_location/git-search-commits"
@@ -70,6 +73,10 @@ showHelp () {
 
       -p, --print                  > Print the hashes on exit
 
+      --expect [keys]              > Replace fzf expected keys and print the pressed key
+                                     followed by selected hashes. Also available through
+                                     GSC_EXPECT.
+
     Arguments:
 
       Remaining arguments are treated as the initial query for search.
@@ -124,6 +131,12 @@ while [[ $# -gt 0 ]]; do
     -[pP]|-?(-)[pP]rint)
       print_patches=true
       shift # past argument
+      ;;
+    --[eE]xpect)
+      expect_keys="$2"
+      delegate_output=true
+      shift # past argument
+      shift # past value
       ;;
     -[hH]|-?(-)[hH]elp)
       showHelp
@@ -292,6 +305,12 @@ help_cmd="
 "
 
 # Call fzf
+if [ "$delegate_output" = true ]; then
+  expect_keys="${expect_keys:-enter}"
+else
+  expect_keys='ctrl-o,ctrl-e'
+fi
+
 mapfile -t commits < <(fzf \
     --accept-nth '{1}' \
     --ansi --cycle --multi \
@@ -314,7 +333,7 @@ mapfile -t commits < <(fzf \
     --bind "alt-g:change-preview:$fzf_preview_names" \
     --bind "ctrl-y:execute-silent($copy)+bell" \
     --bind "start:reload:$source_command" \
-    --expect=ctrl-o,ctrl-e \
+    --expect="$expect_keys" \
     --bind 'alt-x:exclude-multi' \
     --bind "alt-h:preview:$help_cmd" \
     --disabled \
@@ -338,6 +357,14 @@ if [ -z "${commits[1]}" ]; then
 fi
 
 expected_key="${commits[0]}"
+
+# A caller that overrides --expect owns the selected-key behavior. Return the
+# raw fzf contract (expected key, then hashes) so it can handle every key
+# without triggering this script's print/edit branches.
+if [ "$delegate_output" = true ]; then
+  printf '%s\n' "${commits[@]}"
+  exit
+fi
 
 print_patches () {
   git show "${commits[@]:1}"

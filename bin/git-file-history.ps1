@@ -25,6 +25,10 @@
 .PARAMETER Print
   Print the selected hashes on exit
 
+.PARAMETER Expect
+  Replace fzf expected keys and print the pressed key followed by selected hashes.
+  Also available through GFH_EXPECT.
+
 .INPUTS
   No input from pipeline
 
@@ -77,6 +81,9 @@ Param(
   [Switch] $Display = $false,
   # Print the selected hashes on exit
   [Switch] $Print = $false,
+  # Delegate expected-key behavior to the caller
+  [AllowEmptyString()]
+  [String] $Expect = $env:GFH_EXPECT,
   # Query to search
   [Parameter(ValueFromRemainingArguments = $true, position = 0 )]
   [String[]] $File = @()
@@ -128,6 +135,10 @@ function showHelp {
 
       -Print [switch]              > Print the hashes on exit
 
+      -Expect [string]             > Replace fzf expected keys and print the pressed key
+                                     followed by selected hashes. Also available through
+                                     GFH_EXPECT.
+
     Arguments:
 
       Path to the file to check commit history.
@@ -137,6 +148,13 @@ function showHelp {
 if ($Help) {
   showHelp
   exit
+}
+
+$delegate_output = $PSBoundParameters.ContainsKey('Expect') -or (Test-Path Env:GFH_EXPECT)
+$expect_keys = if ($delegate_output) {
+  if ([String]::IsNullOrWhiteSpace($Expect)) { 'enter' } else { $Expect }
+} else {
+  'ctrl-o,ctrl-e'
 }
 
 $pwsh = if (Get-Command -Name 'pwsh' -All -ErrorAction SilentlyContinue) { 'pwsh' } else { 'powershell' }
@@ -401,7 +419,7 @@ $source_command | Invoke-Expression | fzf `
   --bind "ctrl-y:execute-silent($copy)+bell" `
   --bind 'alt-x:exclude-multi' `
   --bind "alt-r:reload:$source_command" `
-  --expect="ctrl-o,ctrl-e" `
+  --expect="$expect_keys" `
   --bind "alt-h:preview:$help_cmd" `
   --header "ctrl-a: Full patch | ctrl-d: File patch | alt-h: Help" `
   --history="$history_file" `
@@ -422,6 +440,14 @@ if ($commits.Count -lt 2) {
 
 $expected_key = $commits[0]
 $hashes = $commits.GetRange(1, $commits.Count - 1)
+
+# A caller that overrides -Expect owns the selected-key behavior. Return the
+# raw fzf contract (expected key, then hashes) so it can handle every key
+# without triggering this script's print/edit branches.
+if ($delegate_output) {
+  Write-Output @commits
+  exit
+}
 
 function print_patches () {
   git show @hashes
@@ -461,4 +487,3 @@ if ($Edit) {
 
 # Print selected hashes
 Write-Output @hashes
-
