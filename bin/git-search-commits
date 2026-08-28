@@ -30,6 +30,7 @@ showHelp () {
       Target the files you are interested in to narrow the search (see '--file').
       Use ctrl-r to search with git interactively (default mode).
       Use ctrl-f to filter result with fuzzy matches.
+      Use alt-e, alt-r, and alt-t to switch search modes without leaving fzf.
       Use ctrl-y to copy hashes to clipboard (require dependencies on linux).
 
     Modes:
@@ -151,24 +152,49 @@ if [[ -n "${files[*]}" ]]; then
   format_files="%s -- ${files[*]}"
 fi
 
-# Git command to perform
-if [ "$mode" = 'regex' ]; then
-  # shellcheck disable=SC2059
-  base_command="$(printf "$base_command" "-G $format_files")"
-elif [ "$mode" = 'string' ]; then
-  # shellcheck disable=SC2059
-  base_command="$(printf "$base_command" "-S $format_files")"
-else
-  mode='log'
-  # shellcheck disable=SC2059
-  base_command="$(printf "$base_command" "--grep $format_files")"
-fi
+# Git commands for each search mode
+# shellcheck disable=SC2059
+log_command="$(printf "$base_command" "--grep $format_files")"
+# shellcheck disable=SC2059
+string_command="$(printf "$base_command" "-S $format_files")"
+# shellcheck disable=SC2059
+regex_command="$(printf "$base_command" "-G $format_files")"
+
+case "$mode" in
+  regex)
+    current_command="$regex_command"
+    ;;
+  string)
+    current_command="$string_command"
+    ;;
+  *)
+    mode='log'
+    current_command="$log_command"
+    ;;
+esac
 
 # Intentional usage of variable in first position of printf
 # shellcheck disable=SC2059
-source_command="$(printf "$base_command" "'$*'") || true"
+source_command="$(printf "$current_command" "'$*'") || true"
 # shellcheck disable=SC2059
-reload_command="$(printf "$base_command" '{q}') || true"
+log_reload_command="$(printf "$log_command" '{q}') || true"
+# shellcheck disable=SC2059
+string_reload_command="$(printf "$string_command" '{q}') || true"
+# shellcheck disable=SC2059
+regex_reload_command="$(printf "$regex_command" '{q}') || true"
+# shellcheck disable=SC2059
+initial_reload_command="$(printf "$current_command" '{q}') || true"
+
+border_label=" Mode: $mode "
+reload_command="
+case \"\$FZF_BORDER_LABEL\" in
+  ' Mode: log ') $log_reload_command ;;
+  ' Mode: string ') $string_reload_command ;;
+  ' Mode: regex ') $regex_reload_command ;;
+  *) $initial_reload_command ;;
+esac
+"
+git_search_actions='unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+rebind(change,ctrl-f)'
 
 # Setup preview
 # default preview patch
@@ -246,13 +272,15 @@ help_cmd="
   Modes keys:
     ctrl-r: Interactive git search based on mode
     ctrl-f: Fuzzy filtering current results
+    alt-e: Search patches by exact string
+    alt-r: Search patches by regex
+    alt-t: Search commit messages
 
   Utility keys:
     ctrl-y: Copy selected hash(es)
     ctrl-o: Exit and print selected hash(es) with \`git show\`
     ctrl-e: Exit and open selected hash(es) in editor
     alt-x: Drop selected hash(es) from result
-    alt-r: Reload search
 
   Cursor keys:
     alt-a: Select all
@@ -278,21 +306,25 @@ mapfile -t commits < <(fzf \
     --bind 'shift-up:preview-up,shift-down:preview-down' \
     --bind "change:reload:$reload_command" \
     --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)" \
-    --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)" \
+    --bind "ctrl-r:$git_search_actions+reload:$reload_command" \
+    --bind "alt-e:change-border-label( Mode: string )+$git_search_actions+reload:$reload_command" \
+    --bind "alt-r:change-border-label( Mode: regex )+$git_search_actions+reload:$reload_command" \
+    --bind "alt-t:change-border-label( Mode: log )+$git_search_actions+reload:$reload_command" \
     --bind "ctrl-d:change-preview:$fzf_preview" \
     --bind "alt-g:change-preview:$fzf_preview_names" \
     --bind "ctrl-y:execute-silent($copy)+bell" \
     --bind "start:reload:$source_command" \
     --expect=ctrl-o,ctrl-e \
     --bind 'alt-x:exclude-multi' \
-    --bind "alt-r:reload:$source_command" \
     --bind "alt-h:preview:$help_cmd" \
     --disabled \
-    --header "Mode: $mode | alt-h: Help" \
+    --header 'alt-e: Exact | alt-r: Regex | alt-t: Timeline | alt-h: Help' \
     --history="$history_file" \
     --input-border \
     --layout=reverse \
     --min-height 20 --border \
+    --border-label "$border_label" \
+    --border-label-pos 2 \
     --preview "$fzf_preview" \
     --prompt 'GitSearch> ' \
     --query "$*" \
@@ -345,4 +377,3 @@ fi
 
 # Print selected hashes
 printf '%s\n' "${commits[@]:1}"
-

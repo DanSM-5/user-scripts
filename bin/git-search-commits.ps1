@@ -121,6 +121,7 @@ function showHelp {
       Target the files you are interested in to narrow the search (see '-File').
       Use ctrl-r to search with git interactively (default mode).
       Use ctrl-f to filter result with fuzzy matches.
+      Use alt-e, alt-r, and alt-t to switch search modes without leaving fzf.
       Use ctrl-y to copy hashes to clipboard (require dependencies on linux).
 
     Modes:
@@ -213,21 +214,33 @@ if ($File.Length -gt 0) {
   $format_files = "{0} -- $files"
 }
 
-# Git command to perform
-switch ($cmd_mode) {
-  'regex' {
-    $base_command = $base_command -f "-G $format_files"
-  }
-  'string' {
-    $base_command = $base_command -f "-G $format_files"
-  }
-  Default {
-    $base_command = $base_command -f "--grep $format_files"
-  }
+# Git commands for each search mode
+$log_command = $base_command -f "--grep $format_files"
+$string_command = $base_command -f "-S $format_files"
+$regex_command = $base_command -f "-G $format_files"
+
+$current_command = switch ($cmd_mode) {
+  'regex' { $regex_command }
+  'string' { $string_command }
+  Default { $log_command }
 }
 
-$source_command = $base_command -f "'$Query'"
-$reload_command = "$($base_command -f "{q}") || $trueCmd"
+$source_command = $current_command -f "'$Query'"
+$log_reload_command = "$($log_command -f "{q}") || $trueCmd"
+$string_reload_command = "$($string_command -f "{q}") || $trueCmd"
+$regex_reload_command = "$($regex_command -f "{q}") || $trueCmd"
+$initial_reload_command = "$($current_command -f "{q}") || $trueCmd"
+
+$border_label = " Mode: $cmd_mode "
+$reload_command = @"
+switch (`$env:FZF_BORDER_LABEL) {
+  ' Mode: log ' { $log_reload_command }
+  ' Mode: string ' { $string_reload_command }
+  ' Mode: regex ' { $regex_reload_command }
+  Default { $initial_reload_command }
+}
+"@
+$git_search_actions = 'unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+rebind(change,ctrl-f)'
 
 # Setup preview
 # default preview patch
@@ -300,13 +313,15 @@ Write-Output '
   Modes keys:
     ctrl-r: Interactive git search based on mode
     ctrl-f: Fuzzy filtering current results
+    alt-e: Search patches by exact string
+    alt-r: Search patches by regex
+    alt-t: Search commit messages
 
   Utility keys:
     ctrl-y: Copy selected hash(es)
     ctrl-o: Exit and print selected hash(es) with \`git show\`
     ctrl-e: Exit and open selected hash(es) in editor
     alt-x: Drop selected hash(es) from result
-    alt-r: Reload search
 
   Cursor keys:
     alt-a: Select all
@@ -337,20 +352,24 @@ $source_command | Invoke-Expression | fzf `
     --bind 'shift-up:preview-up,shift-down:preview-down' `
     --bind "change:reload:$reload_command" `
     --bind "ctrl-f:unbind(change,ctrl-f)+change-prompt(FzfFilter> )+enable-search+clear-query+rebind(ctrl-r)" `
-    --bind "ctrl-r:unbind(ctrl-r)+change-prompt(GitSearch> )+disable-search+reload($reload_command)+rebind(change,ctrl-f)" `
+    --bind "ctrl-r:$git_search_actions+reload:$reload_command" `
+    --bind "alt-e:change-border-label( Mode: string )+$git_search_actions+reload:$reload_command" `
+    --bind "alt-r:change-border-label( Mode: regex )+$git_search_actions+reload:$reload_command" `
+    --bind "alt-t:change-border-label( Mode: log )+$git_search_actions+reload:$reload_command" `
     --bind "ctrl-d:change-preview:$fzf_preview" `
     --bind "alt-g:change-preview:$fzf_preview_names" `
     --bind "ctrl-y:execute-silent($copy)+bell" `
     --expect 'ctrl-o,ctrl-e' `
     --bind 'alt-x:exclude-multi' `
-    --bind "alt-r:reload:$source_command" `
     --bind "alt-h:preview:$help_cmd" `
     --disabled `
-    --header "Mode: $cmd_mode | alt-h: Help" `
+    --header 'alt-e: Exact | alt-r: Regex | alt-t: Timeline | alt-h: Help' `
     --history="$history_file" `
     --input-border `
     --layout=reverse `
     --min-height 20 --border `
+    --border-label="$border_label" `
+    --border-label-pos 2 `
     --preview "$fzf_preview" `
     --prompt 'GitSearch> ' `
     --query "$Query" `
@@ -406,4 +425,3 @@ if ($Edit) {
 
 # Print selected hashes
 Write-Output @hashes
-
