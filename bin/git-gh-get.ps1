@@ -19,6 +19,8 @@
   Skip gh for GitHub. This is a no-op for other forges.
 .PARAMETER DryRun
   Print each resolved URL and destination without downloading.
+.PARAMETER Color
+  Select auto, always, or never for Gum-formatted dry-run output.
 #>
 
 . (Join-Path $PSScriptRoot 'lib/GitForge.ps1')
@@ -41,6 +43,10 @@ $script:SourcePath = ''
 $script:RemoteUrl = ''
 $script:UseGh = $true
 $script:DryRun = $false
+$script:ColorMode = 'auto'
+$script:DryRunUrls = [System.Collections.Generic.List[string]]::new()
+$script:DryRunDestinations = [System.Collections.Generic.List[string]]::new()
+$script:DryRunWarningPaths = [System.Collections.Generic.List[string]]::new()
 
 function Write-Info { param([string]$Message); [Console]::Error.WriteLine("${PROG}: $Message") }
 function Die { param([string]$Message); Write-Info $Message; exit 1 }
@@ -79,6 +85,10 @@ Arguments:
 Options:
   -c, -Container, --container   Download a directory recursively
   --dry-run, -DryRun            Print resolved URLs and destinations
+  --color=<mode>                Dry-run table mode: auto, always, or never.
+                                auto uses gum on a TTY when available; always
+                                uses gum when available even if redirected;
+                                never emits parseable TSV.
   --forge, -Forge <host|name>   Identify the forge for a hostless source
   --gh, -Gh                     Use gh for GitHub if available (default)
   --no-gh, -NoGh                Skip gh for GitHub
@@ -126,6 +136,12 @@ for ($index = 0; $index -lt $InputArguments.Count; $index++) {
     $Container = $true
   } elseif ($key -in @('-dry-run', '-dryrun')) {
     $script:DryRun = $true
+  } elseif ($key -eq '-color') {
+    if ($index + 1 -ge $InputArguments.Count) { Die 'Missing value for --color' }
+    $index++
+    $script:ColorMode = ([string]$InputArguments[$index]).ToLowerInvariant()
+  } elseif ($argument -match '^-{1,2}color=(.*)$') {
+    $script:ColorMode = $Matches[1].ToLowerInvariant()
   } elseif ($key -eq '-gh') {
     $script:UseGh = $true
   } elseif ($key -in @('-no-gh', '-nogh')) {
@@ -144,6 +160,9 @@ for ($index = 0; $index -lt $InputArguments.Count; $index++) {
 }
 
 if ($Help) { Show-Help; exit 0 }
+if ($script:ColorMode -notin @('auto', 'always', 'never')) {
+  Die "Invalid --color value '$($script:ColorMode)' (expected auto, always, or never)"
+}
 if ($Positionals.Count -eq 0) { Show-Help; exit 1 }
 if ($Positionals.Count -gt 2) { Die 'Too many positional arguments' }
 
@@ -568,13 +587,165 @@ function Get-ResolvedFileUrl {
   }
 }
 
-function Write-DownloadPlan {
+function Add-DownloadPlan {
   param([string]$Path, [string]$Output)
-  $url = Get-ResolvedFileUrl $Path
-  [Console]::Out.WriteLine("${PROG}: Would download $url to $Output")
+  $script:DryRunUrls.Add((Get-ResolvedFileUrl $Path))
+  $script:DryRunDestinations.Add($Output)
   if (Test-Path -LiteralPath $Output) {
-    Write-Info "Warning: $Output already exists and would be overwritten"
+    $script:DryRunWarningPaths.Add($Output)
   }
+}
+
+function ConvertTo-MarkdownCodeSpan {
+  param([AllowEmptyString()][string]$Value)
+  $fence = '`'
+  while ($Value.Contains($fence)) { $fence += '`' }
+  return "$fence $Value $fence"
+}
+
+function ConvertTo-MarkdownTableCodeSpan {
+  param([AllowEmptyString()][string]$Value)
+  $escaped = $Value.Replace('\', '\\').Replace('|', '\|')
+  return ConvertTo-MarkdownCodeSpan $escaped
+}
+
+function Get-GumCommand {
+  foreach ($commandName in @('gum', 'gum.exe')) {
+    $command = Get-Command $commandName -CommandType Application -ErrorAction SilentlyContinue |
+      Select-Object -First 1
+    if ($null -ne $command) { return $command }
+  }
+  return $null
+}
+
+function Get-FoldCommand {
+  foreach ($commandName in @('fold', 'fold.exe')) {
+    $command = Get-Command $commandName -CommandType Application -ErrorAction SilentlyContinue |
+      Select-Object -First 1
+    if ($null -ne $command) { return $command }
+  }
+  return $null
+}
+
+function Get-DryRunOutputWidth {
+  $width = 0
+  if (-not [Console]::IsOutputRedirected) {
+    try { $width = [Console]::WindowWidth } catch { $width = 0 }
+  }
+  if ($width -lt 20 -and $env:COLUMNS -match '^\d+$') { $width = [int]$env:COLUMNS }
+  if ($width -lt 20) { $width = 120 }
+  return $width
+}
+
+function Split-PrettyValue {
+  param(
+    [AllowEmptyString()][string]$Value,
+    [int]$Width,
+    [AllowNull()][object]$FoldCommand
+  )
+  if ($null -eq $FoldCommand) { return ,$Value }
+
+  $prepared = $Value
+  $useSeparatorBreaks = $Value.Contains('/') -or $Value.Contains('\')
+  if ($useSeparatorBreaks) {
+    if ($Value -match '^(?<prefix>[A-Za-z][A-Za-z0-9+.-]*://)(?<remaining>.*)$') {
+      # Preserve :// as a unit while still offering a preferred break before
+      # the hostname when the output column is especially narrow.
+      $prepared = $Matches.prefix + ' ' + $Matches.remaining.Replace('/', '/ ').Replace('\', '\ ')
+    } else {
+      $prepared = $Value.Replace('/', '/ ').Replace('\', '\ ')
+    }
+  }
+
+  if ($useSeparatorBreaks) {
+    $lines = @($prepared | & $FoldCommand.Source -s -w $Width)
+  } else {
+    $lines = @($prepared | & $FoldCommand.Source -w $Width)
+  }
+  if ($LASTEXITCODE -ne 0) { return ,$Value }
+  if ($lines.Count -eq 0) { return ,'' }
+  foreach ($line in $lines) { ([string]$line).Replace('/ ', '/').Replace('\ ', '\') }
+}
+
+function Write-TsvDownloadPlan {
+  [Console]::Out.WriteLine("Download files`tDestination")
+  for ($index = 0; $index -lt $script:DryRunUrls.Count; $index++) {
+    $url = $script:DryRunUrls[$index]
+    $destination = $script:DryRunDestinations[$index]
+    [Console]::Out.WriteLine("$url`t$destination")
+  }
+  foreach ($warningPath in $script:DryRunWarningPaths) {
+    Write-Info "Warning: $warningPath already exists and would be overwritten"
+  }
+}
+
+function Get-MarkdownDownloadPlan {
+  param([AllowNull()][object]$FoldCommand)
+  $width = Get-DryRunOutputWidth
+  $columnWidth = [Math]::Max(20, [Math]::Floor(($width - 16) / 2))
+  $lines = [System.Collections.Generic.List[string]]::new()
+  $lines.Add('| Download files | Destination |')
+  $lines.Add('| -------------- | ----------- |')
+
+  for ($index = 0; $index -lt $script:DryRunUrls.Count; $index++) {
+    $urlChunks = @(Split-PrettyValue $script:DryRunUrls[$index] $columnWidth $FoldCommand)
+    $destinationChunks = @(Split-PrettyValue $script:DryRunDestinations[$index] $columnWidth $FoldCommand)
+    $rowCount = [Math]::Max($urlChunks.Count, $destinationChunks.Count)
+    for ($row = 0; $row -lt $rowCount; $row++) {
+      $urlCell = if ($row -lt $urlChunks.Count) { ConvertTo-MarkdownTableCodeSpan $urlChunks[$row] } else { '' }
+      $destinationCell = if ($row -lt $destinationChunks.Count) {
+        ConvertTo-MarkdownTableCodeSpan $destinationChunks[$row]
+      } else { '' }
+      $lines.Add("| $urlCell | $destinationCell |")
+    }
+  }
+
+  foreach ($warningPath in $script:DryRunWarningPaths) {
+    $lines.Add('')
+    $lines.Add('> **Warning:** Destination already exists and would be overwritten.')
+    foreach ($chunk in @(Split-PrettyValue $warningPath $columnWidth $FoldCommand)) {
+      $lines.Add('')
+      $lines.Add("> $(ConvertTo-MarkdownCodeSpan $chunk)")
+    }
+  }
+  return $lines
+}
+
+function Write-PrettyDownloadPlan {
+  param([object]$GumCommand)
+  $foldCommand = Get-FoldCommand
+  $markdown = @(Get-MarkdownDownloadPlan $foldCommand)
+  $previousColorForce = $env:CLICOLOR_FORCE
+  try {
+    $env:CLICOLOR_FORCE = '1'
+    $formatted = @($markdown | & $GumCommand.Source format --language markdown)
+    $exitCode = $LASTEXITCODE
+  } finally {
+    if ($null -eq $previousColorForce) {
+      Remove-Item Env:CLICOLOR_FORCE -ErrorAction SilentlyContinue
+    } else {
+      $env:CLICOLOR_FORCE = $previousColorForce
+    }
+  }
+  if ($exitCode -ne 0) { return $false }
+  foreach ($line in $formatted) { [Console]::Out.WriteLine($line) }
+  return $true
+}
+
+function Write-DownloadPlan {
+  if ($script:DryRunUrls.Count -eq 0) { return }
+  $gumCommand = $null
+  if ($script:ColorMode -eq 'always' -or (
+    $script:ColorMode -eq 'auto' -and -not [Console]::IsOutputRedirected
+  )) {
+    $gumCommand = Get-GumCommand
+  }
+
+  if ($null -ne $gumCommand) {
+    $rendered = Write-PrettyDownloadPlan $gumCommand
+    if ($rendered) { return }
+  }
+  Write-TsvDownloadPlan
 }
 
 function Invoke-GhApiToFile {
@@ -734,7 +905,7 @@ function Download-Container {
     $output = Join-Path $OutputDir $relative
 
     if ($script:DryRun) {
-      Write-DownloadPlan $blobPath $output
+      Add-DownloadPlan $blobPath $output
     } else {
       $parent = Split-Path $output -Parent
       if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
@@ -745,6 +916,7 @@ function Download-Container {
   }
 
   if ($script:DryRun) {
+    Write-DownloadPlan
     Write-Info "Dry run: $count file(s) would be downloaded to $OutputDir"
   } else {
     Write-Info "Downloaded $count file(s) to $OutputDir"
@@ -774,7 +946,8 @@ if ($Container) {
   if (-not $filename -or $filename -eq '.') { Die "Could not determine filename from: $($script:SourcePath)" }
   $output = Resolve-FileOutput $DestArg $filename
   if ($script:DryRun) {
-    Write-DownloadPlan $script:SourcePath $output
+    Add-DownloadPlan $script:SourcePath $output
+    Write-DownloadPlan
   } else {
     $parent = Split-Path $output -Parent
     if ($parent -and $parent -ne '.') { New-Item -ItemType Directory -Force -Path $parent | Out-Null }

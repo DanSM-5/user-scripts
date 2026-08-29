@@ -38,6 +38,10 @@ SOURCE_PATH=''
 REMOTE_URL=''
 USE_GH=true
 DRY_RUN=false
+COLOR_MODE='auto'
+DRY_RUN_URLS=()
+DRY_RUN_DESTINATIONS=()
+DRY_RUN_WARNING_PATHS=()
 
 die()  { printf '%s: %s\n' "$PROG" "$*" >&2; exit 1; }
 info() { printf '%s: %s\n' "$PROG" "$*" >&2; }
@@ -80,6 +84,9 @@ Arguments:
 Options:
   -c, --container       Download a directory recursively (requires jq or Python)
   --dry-run             Print each resolved URL and destination without downloading
+  --color=<mode>        Dry-run table mode: auto, always, or never (default: auto).
+                       auto uses gum on a TTY when available; always uses gum when
+                       available even if redirected; never emits parseable TSV.
   --forge <host|name>   Identify the forge for a hostless source. Known names are
                        github, gitlab, forgejo, and gitea; a known hostname is
                        preferred when it identifies the intended public instance.
@@ -663,13 +670,167 @@ resolved_file_url() {
     die "Could not construct a raw URL for $FORGE_TYPE"
 }
 
-print_download_plan() {
-  local path="$1" output="$2" url
-  url=$(resolved_file_url "$path")
-  printf '%s: Would download %s to %s\n' "$PROG" "$url" "$output"
+queue_download_plan() {
+  local path="$1" output="$2"
+  DRY_RUN_URLS+=("$(resolved_file_url "$path")")
+  DRY_RUN_DESTINATIONS+=("$output")
   if [[ -e $output || -L $output ]]; then
-    printf '%s: Warning: %s already exists and would be overwritten\n' "$PROG" "$output" >&2
+    DRY_RUN_WARNING_PATHS+=("$output")
   fi
+}
+
+markdown_code_span() {
+  local value="$1" fence='`'
+  while [[ $value == *"$fence"* ]]; do
+    fence+='`'
+  done
+  printf '%s %s %s' "$fence" "$value" "$fence"
+}
+
+markdown_table_code_span() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//|/\\|}"
+  markdown_code_span "$value"
+}
+
+find_gum_command() {
+  local executable
+  executable=$(command -v gum 2>/dev/null) ||
+    executable=$(command -v gum.exe 2>/dev/null) || return 1
+  printf '%s' "$executable"
+}
+
+find_fold_command() {
+  local executable
+  executable=$(command -v fold 2>/dev/null) ||
+    executable=$(command -v fold.exe 2>/dev/null) || return 1
+  printf '%s' "$executable"
+}
+
+dry_run_output_width() {
+  local width="${COLUMNS:-}"
+  if [[ -t 1 ]] && command -v tput &>/dev/null; then
+    width=$(tput cols 2>/dev/null) || true
+  fi
+  [[ $width =~ ^[0-9]+$ && $width -ge 20 ]] || width=120
+  printf '%s' "$width"
+}
+
+fold_pretty_value() {
+  local value="$1" width="$2" fold_command="$3" prepared="$1" folded
+  if [[ -z $fold_command ]]; then
+    printf '%s\n' "$value"
+  elif [[ $value == */* ]] && command -v sed &>/dev/null; then
+    # Temporary spaces after separators give fold preferred break points. The
+    # hard width still applies to an individual path segment with no slashes.
+    if [[ $value =~ ^([A-Za-z][A-Za-z0-9+.-]*://)(.*)$ ]]; then
+      # Keep the scheme delimiter intact, but allow a break immediately after
+      # it so a narrow column does not force a split inside the hostname.
+      prepared="${BASH_REMATCH[1]} ${BASH_REMATCH[2]//\//\/ }"
+    else
+      prepared="${value//\//\/ }"
+    fi
+    if folded=$(printf '%s' "$prepared" |
+      "$fold_command" -s -w "$width" |
+      sed 's#/ #/#g'); then
+      printf '%s\n' "$folded"
+    else
+      printf '%s\n' "$value"
+    fi
+  else
+    if folded=$(printf '%s' "$value" | "$fold_command" -w "$width"); then
+      printf '%s\n' "$folded"
+    else
+      printf '%s\n' "$value"
+    fi
+  fi
+}
+
+write_tsv_download_plan() {
+  local index warning_path
+  printf 'Download files\tDestination\n'
+  for ((index = 0; index < ${#DRY_RUN_URLS[@]}; index++)); do
+    printf '%s\t%s\n' "${DRY_RUN_URLS[index]}" "${DRY_RUN_DESTINATIONS[index]}"
+  done
+  for warning_path in "${DRY_RUN_WARNING_PATHS[@]}"; do
+    printf '%s: Warning: %s already exists and would be overwritten\n' \
+      "$PROG" "$warning_path" >&2
+  done
+}
+
+write_markdown_download_plan() {
+  local fold_command="$1" width column_width index row row_count warning_path
+  local -a url_chunks=() destination_chunks=() warning_chunks=()
+  width=$(dry_run_output_width)
+  column_width=$(((width - 16) / 2))
+  ((column_width >= 20)) || column_width=20
+
+  printf '| Download files | Destination |\n'
+  printf '| -------------- | ----------- |\n'
+  for ((index = 0; index < ${#DRY_RUN_URLS[@]}; index++)); do
+    url_chunks=()
+    destination_chunks=()
+    if [[ -n $fold_command ]]; then
+      mapfile -t url_chunks < <(fold_pretty_value "${DRY_RUN_URLS[index]}" "$column_width" "$fold_command")
+      mapfile -t destination_chunks < <(fold_pretty_value "${DRY_RUN_DESTINATIONS[index]}" "$column_width" "$fold_command")
+    else
+      url_chunks=("${DRY_RUN_URLS[index]}")
+      destination_chunks=("${DRY_RUN_DESTINATIONS[index]}")
+    fi
+    ((${#url_chunks[@]})) || url_chunks=('')
+    ((${#destination_chunks[@]})) || destination_chunks=('')
+    row_count=${#url_chunks[@]}
+    ((${#destination_chunks[@]} > row_count)) && row_count=${#destination_chunks[@]}
+    for ((row = 0; row < row_count; row++)); do
+      local url_cell='' destination_cell=''
+      [[ -z ${url_chunks[row]+set} ]] || url_cell=$(markdown_table_code_span "${url_chunks[row]}")
+      [[ -z ${destination_chunks[row]+set} ]] || destination_cell=$(markdown_table_code_span "${destination_chunks[row]}")
+      printf '| %s | %s |\n' "$url_cell" "$destination_cell"
+    done
+  done
+
+  for warning_path in "${DRY_RUN_WARNING_PATHS[@]}"; do
+    printf '\n> **Warning:** Destination already exists and would be overwritten.\n'
+    warning_chunks=()
+    if [[ -n $fold_command ]]; then
+      mapfile -t warning_chunks < <(fold_pretty_value "$warning_path" "$column_width" "$fold_command")
+    else
+      warning_chunks=("$warning_path")
+    fi
+    for row in "${warning_chunks[@]}"; do
+      printf '\n> %s\n' "$(markdown_code_span "$row")"
+    done
+  done
+}
+
+write_pretty_download_plan() {
+  local gum_command="$1" markdown formatted fold_command=''
+  fold_command=$(find_fold_command) || fold_command=''
+  markdown=$(write_markdown_download_plan "$fold_command")
+
+  if ! formatted=$(printf '%s\n' "$markdown" | CLICOLOR_FORCE=1 "$gum_command" format --language markdown); then
+    return 1
+  fi
+  printf '%s\n' "$formatted"
+}
+
+render_download_plan() {
+  ((${#DRY_RUN_URLS[@]})) || return 0
+  local gum_command=''
+  case "$COLOR_MODE" in
+    always) gum_command=$(find_gum_command) || gum_command='' ;;
+    auto)
+      if [[ -t 1 ]]; then
+        gum_command=$(find_gum_command) || gum_command=''
+      fi
+      ;;
+  esac
+
+  if [[ -n $gum_command ]] && write_pretty_download_plan "$gum_command"; then
+    return 0
+  fi
+  write_tsv_download_plan
 }
 
 download_file() {
@@ -780,7 +941,7 @@ download_container() {
     out="$output_dir/$rel"
 
     if $DRY_RUN; then
-      print_download_plan "$file_path" "$out"
+      queue_download_plan "$file_path" "$out"
     else
       mkdir -p "$(dirname "$out")"
       info "downloading $rel"
@@ -790,6 +951,7 @@ download_container() {
   done <<< "$files"
 
   if $DRY_RUN; then
+    render_download_plan
     info "Dry run: $count file(s) would be downloaded to $output_dir"
   else
     info "Downloaded $count file(s) to $output_dir"
@@ -807,6 +969,12 @@ main() {
       -h|--help|help) help=true ;;
       -c|--container) container=true ;;
       --dry-run) DRY_RUN=true ;;
+      --color)
+        (($# >= 2)) || die 'Missing value for --color'
+        COLOR_MODE="$2"
+        shift
+        ;;
+      --color=*) COLOR_MODE="${1#*=}" ;;
       --gh) USE_GH=true ;;
       --no-gh) USE_GH=false ;;
       --forge)
@@ -823,6 +991,10 @@ main() {
   done
 
   $help && { show_help; exit 0; }
+  case "$COLOR_MODE" in
+    auto|always|never) ;;
+    *) die "Invalid --color value '$COLOR_MODE' (expected auto, always, or never)" ;;
+  esac
   [[ ${#positional[@]} -gt 0 ]] || { show_help; exit 1; }
   [[ ${#positional[@]} -le 2 ]] || die 'Too many positional arguments'
 
@@ -854,7 +1026,8 @@ main() {
     [[ -n $filename && $filename != . ]] || die "Could not determine filename from: $SOURCE_PATH"
     output=$(resolve_file_output "$dest" "$filename")
     if $DRY_RUN; then
-      print_download_plan "$SOURCE_PATH" "$output"
+      queue_download_plan "$SOURCE_PATH" "$output"
+      render_download_plan
     else
       parent=$(dirname "$output")
       [[ $parent == . ]] || mkdir -p "$parent"
