@@ -10,6 +10,8 @@
 
 $ProgramName = 'git-resolve-ref'
 
+. (Join-Path $PSScriptRoot 'lib/GitForge.ps1')
+
 # Custom resolver configuration ------------------------------------------------
 #
 # Entries are ordered. Host supports PowerShell wildcard syntax. Keep matches
@@ -26,13 +28,7 @@ $CustomResolvers = @(
 )
 
 # Built-in public forge mappings. Custom entries always take precedence.
-$BuiltinResolvers = @(
-  [pscustomobject]@{ Host = 'github.com';    Forge = 'github';          WebOrigin = 'https://github.com' }
-  [pscustomobject]@{ Host = 'gitlab.com';    Forge = 'gitlab';          WebOrigin = 'https://gitlab.com' }
-  [pscustomobject]@{ Host = 'codeberg.org';  Forge = 'forgejo';         WebOrigin = 'https://codeberg.org' }
-  [pscustomobject]@{ Host = 'gitea.com';     Forge = 'gitea';           WebOrigin = 'https://gitea.com' }
-  [pscustomobject]@{ Host = 'bitbucket.org'; Forge = 'bitbucket-cloud'; WebOrigin = 'https://bitbucket.org' }
-)
+$BuiltinResolvers = @($GitForgeBuiltinResolvers)
 
 function Fail {
   param([string]$Message)
@@ -496,13 +492,7 @@ function Resolve-SshHostname {
 
 function Find-Resolver {
   param([string]$HostName, [object[]]$Resolvers)
-  $candidate = $HostName.ToLowerInvariant()
-  foreach ($resolver in @($Resolvers)) {
-    if ($candidate -like ([string]$resolver.Host).ToLowerInvariant()) {
-      return $resolver
-    }
-  }
-  return $null
+  return Find-GitForgeResolver $HostName $Resolvers $false
 }
 
 function Parse-RemoteUrl {
@@ -600,13 +590,12 @@ Write-DebugMessage "repository=$RepositoryWebUrl"
 
 function Encode-UrlComponent {
   param([AllowEmptyString()][string]$Value)
-  return [Uri]::EscapeDataString($Value)
+  return ConvertTo-GitForgeUrlComponent $Value
 }
 
 function Encode-UrlPath {
   param([AllowEmptyString()][string]$Value)
-  $normalized = $Value.Replace('\', '/')
-  return (($normalized -split '/') | ForEach-Object { Encode-UrlComponent $_ }) -join '/'
+  return ConvertTo-GitForgeUrlPath $Value
 }
 
 function Get-CommitForRef {

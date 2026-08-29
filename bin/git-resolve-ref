@@ -5,6 +5,20 @@
 
 set -uo pipefail
 
+_script_dir() {
+  local source_file="${BASH_SOURCE[0]}" directory
+  while [[ -h $source_file ]]; do
+    directory=$(cd -P "$(dirname "$source_file")" && pwd)
+    source_file=$(readlink "$source_file")
+    [[ $source_file == /* ]] || source_file="$directory/$source_file"
+  done
+  cd -P "$(dirname "$source_file")" && pwd
+}
+
+readonly SCRIPT_DIR=$(_script_dir)
+# shellcheck source=lib/git-forge.sh
+source "$SCRIPT_DIR/lib/git-forge.sh"
+
 readonly PROGRAM_NAME='git-resolve-ref'
 
 # Custom resolver configuration ------------------------------------------------
@@ -27,13 +41,7 @@ CUSTOM_RESOLVERS=(
 )
 
 # Built-in public forge mappings. Custom entries always take precedence.
-BUILTIN_RESOLVERS=(
-  'github.com|github|https://github.com'
-  'gitlab.com|gitlab|https://gitlab.com'
-  'codeberg.org|forgejo|https://codeberg.org'
-  'gitea.com|gitea|https://gitea.com'
-  'bitbucket.org|bitbucket-cloud|https://bitbucket.org'
-)
+BUILTIN_RESOLVERS=("${GIT_FORGE_BUILTIN_RESOLVERS[@]}")
 
 OPEN_URL=0
 REPOSITORY_PATH=''
@@ -459,33 +467,12 @@ resolve_ssh_hostname() {
   printf '%s' "$resolved"
 }
 
-trim() {
-  local value="$1"
-  value="${value#"${value%%[![:space:]]*}"}"
-  value="${value%"${value##*[![:space:]]}"}"
-  printf '%s' "$value"
-}
-
 MATCHED_FORGE=''
 MATCHED_ORIGIN=''
 match_resolver() {
-  local candidate="${1,,}" array_name="$2" entry pattern forge origin
-  local -n rules="$array_name"
-  for entry in "${rules[@]}"; do
-    IFS='|' read -r pattern forge origin <<< "$entry"
-    pattern=$(trim "$pattern")
-    forge=$(trim "$forge")
-    origin=$(trim "${origin:-}")
-    # shellcheck disable=SC2254
-    case "$candidate" in
-      ${pattern,,})
-        MATCHED_FORGE="${forge,,}"
-        MATCHED_ORIGIN="${origin%/}"
-        return 0
-        ;;
-    esac
-  done
-  return 1
+  git_forge_find_resolver_in "$1" "$2" || return 1
+  MATCHED_FORGE="$GIT_FORGE_MATCHED_TYPE"
+  MATCHED_ORIGIN="$GIT_FORGE_MATCHED_ORIGIN"
 }
 
 REMOTE_TRANSPORT=''
@@ -585,31 +572,11 @@ debug "forge=${FORGE:-unknown}"
 debug "repository=$REPOSITORY_WEB_URL"
 
 urlencode_component() {
-  local LC_ALL=C value="$1" encoded='' character hex
-  local -i index
-  for (( index = 0; index < ${#value}; index++ )); do
-    character="${value:index:1}"
-    case "$character" in
-      [a-zA-Z0-9.~_-]) encoded+="$character" ;;
-      *)
-        printf -v hex '%%%02X' "'$character"
-        encoded+="$hex"
-        ;;
-    esac
-  done
-  printf '%s' "$encoded"
+  git_forge_urlencode_component "$1"
 }
 
 urlencode_path() {
-  local path="$1" segment result='' separator=''
-  local -a segments=()
-  local IFS='/'
-  read -r -a segments <<< "$path"
-  for segment in "${segments[@]}"; do
-    result+="$separator$(urlencode_component "$segment")"
-    separator='/'
-  done
-  printf '%s' "$result"
+  git_forge_urlencode_path "$1"
 }
 
 commit_for_ref() {
