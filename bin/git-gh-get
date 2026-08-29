@@ -2,7 +2,7 @@
 #
 # git-gh-get — Download files from GitHub without cloning
 #
-# Usage: git gh-get <source> [dest] [--container] [--gh|--no-gh] [--help]
+# Usage: git gh-get <source> [dest] [--container] [--dry-run] [--gh|--no-gh] [--help]
 #
 # source: username/repo/path/to/file
 #         https://github.com/user/repo/blob/ref/path/to/file
@@ -19,6 +19,7 @@ readonly GITHUB_API="https://api.github.com"
 
 GH_OWNER="" GH_REPO="" GH_REF="" GH_PATH=""
 USE_GH=true  # set to false via --no-gh to skip gh CLI and use curl/wget
+DRY_RUN=false
 
 die()  { printf '%s: %s\n' "$PROG" "$*" >&2; exit 1; }
 info() { printf '%s: %s\n' "$PROG" "$*" >&2; }
@@ -48,6 +49,7 @@ Arguments:
 
 Options:
   -c, --container   Download directory recursively (requires jq or python3)
+  --dry-run         Print each resolved URL and destination without downloading
   --gh              Use gh CLI if available (default)
   --no-gh           Skip gh CLI; use curl/wget instead
   -h, --help        Show this help
@@ -68,6 +70,7 @@ Examples:
   git gh-get username/repo/main/src/main.js
   git gh-get https://github.com/user/repo/blob/main/README.md ./docs/
   git gh-get https://github.com/user/repo/main/README.md ./docs/
+  git gh-get username/repo/src/main.js ./main.js --dry-run
   git gh-get -c username/repo/src/ ./local-src/
   git gh-get -c https://github.com/user/repo/tree/main/cli/src/bin ./bin/
 EOF
@@ -383,13 +386,10 @@ resolve_file_output() {
   if [[ -z "$dest" ]]; then
     printf './%s' "$filename"
   elif [[ "$dest" == */ ]]; then
-    mkdir -p "$dest"
     printf '%s%s' "$dest" "$filename"
   elif [[ -d "$dest" ]]; then
     printf '%s/%s' "${dest%/}" "$filename"
   else
-    local parent; parent=$(dirname "$dest")
-    [[ "$parent" != "." ]] && mkdir -p "$parent"
     printf '%s' "$dest"
   fi
 }
@@ -409,6 +409,23 @@ resolve_dir_output() {
 
 # ── Download ──────────────────────────────────────────────────────────────────
 
+resolved_file_url() {
+  local path="$1"
+  printf 'https://raw.githubusercontent.com/%s/%s/%s/%s' \
+    "$GH_OWNER" "$GH_REPO" "$GH_REF" "$path"
+}
+
+print_download_plan() {
+  local path="$1" output="$2"
+  local url; url=$(resolved_file_url "$path")
+
+  printf '%s: Would download %s to %s\n' "$PROG" "$url" "$output"
+  if [[ -e "$output" || -L "$output" ]]; then
+    printf '%s: Warning: %s already exists and would be overwritten\n' \
+      "$PROG" "$output" >&2
+  fi
+}
+
 download_file() {
   local path="$1" output="$2"
   local token="${GITHUB_TOKEN:-}"
@@ -418,12 +435,12 @@ download_file() {
     local api_path="repos/$GH_OWNER/$GH_REPO/contents/$path?ref=$encoded_ref"
     gh api "$api_path" -H "Accept: application/vnd.github.raw+json" > "$output"
   elif command -v curl &>/dev/null; then
-    local url="https://raw.githubusercontent.com/$GH_OWNER/$GH_REPO/$GH_REF/$path"
+    local url; url=$(resolved_file_url "$path")
     local args=(-fsSL "$url" -o "$output")
     [[ -n "$token" ]] && args+=(-H "Authorization: Bearer $token")
     curl "${args[@]}"
   elif command -v wget &>/dev/null; then
-    local url="https://raw.githubusercontent.com/$GH_OWNER/$GH_REPO/$GH_REF/$path"
+    local url; url=$(resolved_file_url "$path")
     local args=(-qO "$output")
     [[ -n "$token" ]] && args+=(--header="Authorization: Bearer $token")
     wget "${args[@]}" "$url"
@@ -460,13 +477,21 @@ download_container() {
     [[ -z "$rel" ]] && rel=$(basename "$file_path")
 
     local out="$output_dir/$rel"
-    mkdir -p "$(dirname "$out")"
-    info "↓ $rel"
-    download_file "$file_path" "$out"
+    if $DRY_RUN; then
+      print_download_plan "$file_path" "$out"
+    else
+      mkdir -p "$(dirname "$out")"
+      info "↓ $rel"
+      download_file "$file_path" "$out"
+    fi
     count=$((count + 1))
   done <<< "$files"
 
-  info "Downloaded $count file(s) to $output_dir"
+  if $DRY_RUN; then
+    info "Dry run: $count file(s) would be downloaded to $output_dir"
+  else
+    info "Downloaded $count file(s) to $output_dir"
+  fi
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -479,6 +504,7 @@ main() {
     case "$arg" in
       -h|--help|help) help=true ;;
       -c|--container) container=true ;;
+      --dry-run)      DRY_RUN=true ;;
       --gh)           USE_GH=true ;;
       --no-gh)        USE_GH=false ;;
       -*) die "Unknown option: $arg" ;;
@@ -511,7 +537,7 @@ main() {
     [[ -z "$dir_name" || "$dir_name" == "." ]] && dir_name="$GH_REPO"
 
     local out_dir; out_dir=$(resolve_dir_output "$dest" "$dir_name")
-    mkdir -p "$out_dir"
+    $DRY_RUN || mkdir -p "$out_dir"
     download_container "$out_dir"
   else
     [[ -z "$GH_PATH" ]] && \
@@ -520,8 +546,14 @@ main() {
     [[ -z "$filename" || "$filename" == "." ]] && \
       die "Could not determine filename from: $GH_PATH"
     local output; output=$(resolve_file_output "$dest" "$filename")
-    download_file "$GH_PATH" "$output"
-    info "Downloaded to $output"
+    if $DRY_RUN; then
+      print_download_plan "$GH_PATH" "$output"
+    else
+      local parent; parent=$(dirname "$output")
+      [[ "$parent" != "." ]] && mkdir -p "$parent"
+      download_file "$GH_PATH" "$output"
+      info "Downloaded to $output"
+    fi
   fi
 }
 

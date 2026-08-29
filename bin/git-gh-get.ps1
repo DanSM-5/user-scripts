@@ -25,12 +25,16 @@
   Use the gh CLI when it is available. This is the default.
 .PARAMETER NoGh
   Skip the gh CLI and use curl, wget, or Invoke-WebRequest.
+.PARAMETER DryRun
+  Print each resolved URL and destination without downloading.
 .PARAMETER Help
   Show this help message and exit.
 .EXAMPLE
   git gh-get username/repo/src/main.js
 .EXAMPLE
   git gh-get https://github.com/user/repo/blob/main/README.md ./docs/
+.EXAMPLE
+  git gh-get username/repo/src/main.js ./main.js --dry-run
 .EXAMPLE
   git gh-get username/repo/src/ ./local-src/ -Container
 .EXAMPLE
@@ -43,6 +47,7 @@ $PROG       = 'git-gh-get'
 $GithubApi  = 'https://api.github.com'
 $GhOwner    = ''; $GhRepo = ''; $GhRef = ''; $GhPath = ''
 $UseGh      = $true  # set to $false via --no-gh / -NoGh to skip gh CLI
+$DryRun     = $false
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -72,6 +77,7 @@ Arguments:
 
 Options:
   -c, -Container, --container   Download directory recursively
+  --dry-run, -DryRun            Print resolved URLs and destinations without downloading
   --gh, -Gh                     Use gh CLI if available (default)
   --no-gh, -NoGh                Skip gh CLI; use curl/wget/Invoke-WebRequest
   -h, -Help, --help             Show this help
@@ -92,6 +98,7 @@ Examples:
   git gh-get username/repo/main/src/main.js
   git gh-get https://github.com/user/repo/blob/main/README.md ./docs/
   git gh-get https://github.com/user/repo/main/README.md ./docs/
+  git gh-get username/repo/src/main.js ./main.js --dry-run
   git gh-get -Container username/repo/src/ ./local-src/
 '@
 }
@@ -107,6 +114,7 @@ foreach ($a in $args) {
   $key = $a -replace '^--', '-'
   if     ($key -in '-h', '-help' -or $a -eq 'help') { $Help      = $true }
   elseif ($key -in '-c', '-container')               { $Container = $true }
+  elseif ($key -in '-dry-run', '-dryrun')             { $DryRun    = $true }
   elseif ($key -in '-gh')                            { $UseGh     = $true }
   elseif ($key -in '-no-gh', '-nogh')                { $UseGh     = $false }
   elseif ($key.StartsWith('-'))                      { Die "Unknown option: $a" }
@@ -333,15 +341,10 @@ function Resolve-FileOutput {
     return ".\$Filename"
   }
   if ($Dest -match '[\\/]$') {
-    New-Item -ItemType Directory -Force -Path $Dest | Out-Null
     return Join-Path $Dest $Filename
   }
-  if (Test-Path $Dest -PathType Container) {
+  if (Test-Path -LiteralPath $Dest -PathType Container) {
     return Join-Path $Dest $Filename
-  }
-  $parent = Split-Path $Dest -Parent
-  if ($parent -and $parent -ne '.') {
-    New-Item -ItemType Directory -Force -Path $parent | Out-Null
   }
   return $Dest
 }
@@ -354,13 +357,28 @@ function Resolve-DirOutput {
   if ($Dest -match '[\\/]$') {
     return Join-Path $Dest $DirName
   }
-  if (Test-Path $Dest -PathType Container) {
+  if (Test-Path -LiteralPath $Dest -PathType Container) {
     return Join-Path $Dest $DirName
   }
   return $Dest
 }
 
 # ── Download ──────────────────────────────────────────────────────────────────
+
+function Get-ResolvedFileUrl {
+  param([string]$Path)
+  return "https://raw.githubusercontent.com/$GhOwner/$GhRepo/$GhRef/$Path"
+}
+
+function Write-DownloadPlan {
+  param([string]$Path, [string]$Output)
+  $url = Get-ResolvedFileUrl $Path
+
+  [Console]::Out.WriteLine("${PROG}: Would download $url to $Output")
+  if (Test-Path -LiteralPath $Output) {
+    Write-Info "Warning: $Output already exists and would be overwritten"
+  }
+}
 
 function Invoke-GhApiToFile {
   param(
@@ -415,7 +433,7 @@ function Download-File {
     return
   }
 
-  $url = "https://raw.githubusercontent.com/$GhOwner/$GhRepo/$GhRef/$Path"
+  $url = Get-ResolvedFileUrl $Path
   $headers = Get-AuthHeaders
 
   if (Get-HasCurl) {
@@ -469,15 +487,23 @@ function Download-Container {
     if (-not $rel) { $rel = Split-Path $blob.path -Leaf }
 
     $out    = Join-Path $OutputDir $rel
-    $outDir = Split-Path $out -Parent
-    if ($outDir) { New-Item -ItemType Directory -Force -Path $outDir | Out-Null }
+    if ($DryRun) {
+      Write-DownloadPlan $blob.path $out
+    } else {
+      $parentDir = Split-Path $out -Parent
+      if ($parentDir) { New-Item -ItemType Directory -Force -Path $parentDir | Out-Null }
 
-    Write-Info "v $rel"
-    Download-File $blob.path $out
+      Write-Info "v $rel"
+      Download-File $blob.path $out
+    }
     $count++
   }
 
-  Write-Info "Downloaded $count file(s) to $OutputDir"
+  if ($DryRun) {
+    Write-Info "Dry run: $count file(s) would be downloaded to $OutputDir"
+  } else {
+    Write-Info "Downloaded $count file(s) to $OutputDir"
+  }
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -497,7 +523,9 @@ if ($Container) {
   if (-not $dirName -or $dirName -eq '.') { $dirName = $GhRepo }
 
   $outDir = Resolve-DirOutput $DestArg $dirName
-  New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+  if (-not $DryRun) {
+    New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+  }
   Download-Container $outDir
 } else {
   if (-not $GhPath) {
@@ -508,6 +536,14 @@ if ($Container) {
     Die "Could not determine filename from: $GhPath"
   }
   $output = Resolve-FileOutput $DestArg $filename
-  Download-File $GhPath $output
-  Write-Info "Downloaded to $output"
+  if ($DryRun) {
+    Write-DownloadPlan $GhPath $output
+  } else {
+    $outputDir = Split-Path $output -Parent
+    if ($outputDir -and $outputDir -ne '.') {
+      New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+    }
+    Download-File $GhPath $output
+    Write-Info "Downloaded to $output"
+  }
 }
