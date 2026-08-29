@@ -688,7 +688,9 @@ function Get-MarkdownDownloadPlan {
   $lines.Add('| -------------- | ----------- |')
 
   for ($index = 0; $index -lt $script:DryRunUrls.Count; $index++) {
-    $urlChunks = @(Split-PrettyValue $script:DryRunUrls[$index] $columnWidth $FoldCommand)
+    # Keep the resolved URL contiguous so terminal URL detection can recognize
+    # it as one clickable link. Destination paths may still be folded.
+    $urlChunks = @($script:DryRunUrls[$index])
     $destinationChunks = @(Split-PrettyValue $script:DryRunDestinations[$index] $columnWidth $FoldCommand)
     $rowCount = [Math]::Max($urlChunks.Count, $destinationChunks.Count)
     for ($row = 0; $row -lt $rowCount; $row++) {

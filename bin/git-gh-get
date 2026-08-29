@@ -769,13 +769,13 @@ write_markdown_download_plan() {
   printf '| Download files | Destination |\n'
   printf '| -------------- | ----------- |\n'
   for ((index = 0; index < ${#DRY_RUN_URLS[@]}; index++)); do
-    url_chunks=()
+    # Keep the resolved URL contiguous so terminal URL detection can recognize
+    # it as one clickable link. Destination paths may still be folded.
+    url_chunks=("${DRY_RUN_URLS[index]}")
     destination_chunks=()
     if [[ -n $fold_command ]]; then
-      mapfile -t url_chunks < <(fold_pretty_value "${DRY_RUN_URLS[index]}" "$column_width" "$fold_command")
       mapfile -t destination_chunks < <(fold_pretty_value "${DRY_RUN_DESTINATIONS[index]}" "$column_width" "$fold_command")
     else
-      url_chunks=("${DRY_RUN_URLS[index]}")
       destination_chunks=("${DRY_RUN_DESTINATIONS[index]}")
     fi
     ((${#url_chunks[@]})) || url_chunks=('')
