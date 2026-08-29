@@ -1,393 +1,642 @@
 #!/usr/bin/env bash
 #
-# git-gh-get — Download files from GitHub without cloning
+# git-gh-get — Download files from Git forges without cloning
 #
-# Usage: git gh-get <source> [dest] [--container] [--dry-run] [--gh|--no-gh] [--help]
-#
-# source: username/repo/path/to/file
-#         https://github.com/user/repo/blob/ref/path/to/file
-#         https://raw.githubusercontent.com/user/repo/ref/path/to/file
-# dest:   optional output path (default: current directory)
-#
-# Backends (priority): gh CLI → curl → wget
-# Auth:   GITHUB_TOKEN environment variable for private repos
+# Usage: git gh-get <source> [dest] [options]
 
 set -euo pipefail
 
-readonly PROG="git-gh-get"
-readonly GITHUB_API="https://api.github.com"
+_script_dir() {
+  local source_file="${BASH_SOURCE[0]}" directory
+  while [[ -h $source_file ]]; do
+    directory=$(cd -P "$(dirname "$source_file")" && pwd)
+    source_file=$(readlink "$source_file")
+    [[ $source_file == /* ]] || source_file="$directory/$source_file"
+  done
+  cd -P "$(dirname "$source_file")" && pwd
+}
 
-GH_OWNER="" GH_REPO="" GH_REF="" GH_PATH=""
-USE_GH=true  # set to false via --no-gh to skip gh CLI and use curl/wget
+readonly SCRIPT_DIR=$(_script_dir)
+# shellcheck source=lib/git-forge.sh
+source "$SCRIPT_DIR/lib/git-forge.sh"
+
+readonly PROG='git-gh-get'
+readonly GITHUB_API='https://api.github.com'
+
+FORGE_TYPE=''
+FORGE_HOST=''
+FORGE_ORIGIN=''
+FORGE_OPTION=''
+OPTION_FORGE_TYPE=''
+OPTION_FORGE_HOST=''
+OPTION_FORGE_ORIGIN=''
+REPOSITORY_PATH=''
+SOURCE_REF=''
+SOURCE_REF_KIND=''
+SOURCE_OID=''
+SOURCE_PATH=''
+REMOTE_URL=''
+USE_GH=true
 DRY_RUN=false
 
 die()  { printf '%s: %s\n' "$PROG" "$*" >&2; exit 1; }
 info() { printf '%s: %s\n' "$PROG" "$*" >&2; }
 
-_has_gh() { [[ "$USE_GH" == "true" ]] && command -v gh &>/dev/null; }
+_has_gh() {
+  [[ $FORGE_TYPE == github && $USE_GH == true ]] && command -v gh &>/dev/null
+}
 
 show_help() {
   cat <<'EOF'
 Usage: git gh-get <source> [dest] [options]
 
-Download a file or directory from GitHub without cloning.
+Download a file or directory from GitHub or a public GitLab, Forgejo, or Gitea
+repository without cloning it.
 
 Arguments:
-  source   GitHub source, one of:
+  source   A native forge URL, or a path whose forge is supplied by --forge.
+           Existing GitHub shortcuts remain supported.
+
+           GitHub:
              username/repo/path/to/file.txt
-             username/repo/main/path/to/file.txt
-             username/repo/blob/main/path/to/file.txt
              https://github.com/user/repo/blob/main/path/to/file.txt
-             https://github.com/user/repo/main/path/to/file.txt
              https://raw.githubusercontent.com/user/repo/main/path/to/file.txt
-           blob/tree/raw are optional. Without one, a matching branch or tag
-           prefix is used; otherwise the path is read from the default branch.
+
+           GitLab (nested groups are supported):
+             https://gitlab.com/group/repo/-/blob/main/path/to/file.txt
+             https://gitlab.com/group/subgroup/repo/-/tree/main/path
+             --forge gitlab.com group/repo/-/raw/main/path/to/file.txt
+
+           Forgejo/Gitea:
+             https://codeberg.org/owner/repo/src/branch/main/path/to/file.txt
+             https://gitea.com/owner/repo/src/tag/v1.0.0/path/to/file.txt
+             --forge codeberg.org owner/repo/src/branch/main/path/to/file.txt
+
   dest     Output path (default: current directory).
-             Trailing slash  → save inside directory, preserve original name.
-             Existing dir    → save inside directory, preserve original name.
-             Non-existing    → use as the output filename (parent dirs created).
+             Trailing slash  -> save inside directory, preserve original name.
+             Existing dir    -> save inside directory, preserve original name.
+             Non-existing    -> use as the output filename (parent dirs created).
 
 Options:
-  -c, --container   Download directory recursively (requires jq or python3)
-  --dry-run         Print each resolved URL and destination without downloading
-  --gh              Use gh CLI if available (default)
-  --no-gh           Skip gh CLI; use curl/wget instead
-  -h, --help        Show this help
+  -c, --container       Download a directory recursively (requires jq or Python)
+  --dry-run             Print each resolved URL and destination without downloading
+  --forge <host|name>   Identify the forge for a hostless source. Known names are
+                       github, gitlab, forgejo, and gitea; a known hostname is
+                       preferred when it identifies the intended public instance.
+  --gh                  Use gh CLI for GitHub if available (default)
+  --no-gh               Skip gh CLI for GitHub; use curl/wget instead
+                       (both options are no-ops for non-GitHub forges)
+  -h, --help            Show this help
 
 Environment:
-  GITHUB_TOKEN   Personal access token for private repos
+  GITHUB_TOKEN   Personal access token for private GitHub repositories
 
-Ambiguities:
+Notes:
+  Non-GitHub support currently targets public repositories. Native blob/raw/tree
+  URL forms are supported; ambiguous markerless non-GitHub file shortcuts are not.
   A matching branch/tag prefix wins over a same-named default-branch path.
-  Use blob/<default-ref>/path to force default-branch path interpretation.
-  If ref lookup is unavailable, markerless input uses the default branch; an
-  explicit ref containing "/" may be split after its first component.
   A leading 7-40 character hexadecimal component is treated as a commit SHA.
   When a branch and tag share a name, the branch is preferred.
 
 Examples:
   git gh-get username/repo/src/main.js
-  git gh-get username/repo/main/src/main.js
-  git gh-get https://github.com/user/repo/blob/main/README.md ./docs/
-  git gh-get https://github.com/user/repo/main/README.md ./docs/
-  git gh-get username/repo/src/main.js ./main.js --dry-run
-  git gh-get -c username/repo/src/ ./local-src/
-  git gh-get -c https://github.com/user/repo/tree/main/cli/src/bin ./bin/
+  git gh-get https://gitlab.com/group/repo/-/blob/main/README.md ./docs/
+  git gh-get --forge codeberg.org owner/repo/src/branch/main/README.md
+  git gh-get -c https://codeberg.org/owner/repo/src/branch/main/docs ./docs/
+  git gh-get --dry-run https://gitlab.com/group/repo/-/raw/main/file.txt
 EOF
 }
 
 # ── JSON helpers ──────────────────────────────────────────────────────────────
 
-# Read one top-level string field from JSON on stdin
 json_field() {
   local key="$1"
   if command -v jq &>/dev/null; then
-    jq -r --arg k "$key" '.[$k] // empty'
+    jq -r --arg key "$key" '.[$key] | if . == null then empty else tostring end'
   elif command -v python3 &>/dev/null; then
-    python3 -c "import sys,json; v=json.load(sys.stdin).get('$key',''); print(v) if v else exit(0)"
+    python3 -c 'import json,sys
+value=json.load(sys.stdin).get(sys.argv[1])
+if value is not None:
+ print(str(value).lower() if isinstance(value,bool) else value)' "$key"
   elif command -v python &>/dev/null; then
-    python -c "import sys,json; v=json.load(sys.stdin).get('$key',''); print(v) if v else exit(0)"
+    python -c 'import json,sys
+value=json.load(sys.stdin).get(sys.argv[1])
+if value is not None:
+ print(str(value).lower() if isinstance(value,bool) else value)' "$key"
   else
-    grep -o "\"$key\":\"[^\"]*\"" | head -1 | sed "s/\"$key\":\"//;s/\"//"
+    grep -o "\"$key\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" |
+      head -1 | sed -E "s/^\"$key\"[[:space:]]*:[[:space:]]*\"//; s/\"$//"
   fi
 }
 
-# List blob paths under a prefix from GitHub tree JSON on stdin
-# Empty prefix → all blobs in the repo
+json_array_length() {
+  if command -v jq &>/dev/null; then
+    jq -r 'length'
+  elif command -v python3 &>/dev/null; then
+    python3 -c 'import json,sys; print(len(json.load(sys.stdin)))'
+  elif command -v python &>/dev/null; then
+    python -c 'import json,sys; print(len(json.load(sys.stdin)))'
+  else
+    die 'jq or Python is required for directory downloads'
+  fi
+}
+
+# Read GitHub/Forgejo tree JSON and list blob paths below a prefix.
 json_tree_paths() {
   local prefix="$1"
   if command -v jq &>/dev/null; then
-    if [[ -z "$prefix" ]]; then
-      jq -r '.tree[] | select(.type == "blob") | .path'
-    else
-      jq -r --arg p "$prefix" \
-        '.tree[] | select(.type == "blob") | select(.path == $p or (.path | startswith($p + "/"))) | .path'
-    fi
+    jq -r --arg prefix "$prefix" '
+      (.tree // [])[]
+      | select(.type == "blob")
+      | select($prefix == "" or .path == $prefix or (.path | startswith($prefix + "/")))
+      | .path'
   elif command -v python3 &>/dev/null; then
     python3 - "$prefix" <<'PYEOF'
-import sys, json
+import json, sys
 prefix = sys.argv[1]
-for item in json.load(sys.stdin).get('tree', []):
-    if item.get('type') == 'blob':
-        p = item.get('path', '')
-        if not prefix or p == prefix or p.startswith(prefix + '/'):
-            print(p)
+for item in (json.load(sys.stdin).get('tree') or []):
+    path = item.get('path', '')
+    if item.get('type') == 'blob' and (not prefix or path == prefix or path.startswith(prefix + '/')):
+        print(path)
 PYEOF
   elif command -v python &>/dev/null; then
     python - "$prefix" <<'PYEOF'
-import sys, json
+import json, sys
 prefix = sys.argv[1]
-for item in json.load(sys.stdin).get('tree', []):
-    if item.get('type') == 'blob':
-        p = item.get('path', '')
-        if not prefix or p == prefix or p.startswith(prefix + '/'):
-            print(p)
+for item in (json.load(sys.stdin).get('tree') or []):
+    path = item.get('path', '')
+    if item.get('type') == 'blob' and (not prefix or path == prefix or path.startswith(prefix + '/')):
+        print(path)
 PYEOF
   else
-    die "jq or python3 required for directory downloads"
+    die 'jq or Python is required for directory downloads'
   fi
 }
 
-# ── Input parsing ─────────────────────────────────────────────────────────────
+# Read one GitLab repository-tree page and list blob paths.
+json_gitlab_tree_paths() {
+  if command -v jq &>/dev/null; then
+    jq -r '.[] | select(.type == "blob") | .path'
+  elif command -v python3 &>/dev/null; then
+    python3 -c 'import json,sys
+for item in json.load(sys.stdin):
+ if item.get("type") == "blob": print(item.get("path", ""))'
+  elif command -v python &>/dev/null; then
+    python -c 'import json,sys
+for item in json.load(sys.stdin):
+ if item.get("type") == "blob": print(item.get("path", ""))'
+  else
+    die 'jq or Python is required for directory downloads'
+  fi
+}
+
+# ── Forge and source parsing ──────────────────────────────────────────────────
 
 _join_with_slash() {
   local IFS='/'
   printf '%s' "$*"
 }
 
-# Percent-encode a single URL component. LC_ALL=C makes the loop byte-oriented
-# so UTF-8 ref names are encoded correctly as well.
-_urlencode_component() {
-  local LC_ALL=C value="$1" encoded="" char hex
-  local i
-  for ((i = 0; i < ${#value}; i++)); do
-    char="${value:i:1}"
-    case "$char" in
-      [a-zA-Z0-9.~_-]) encoded+="$char" ;;
-      *)
-        printf -v hex '%%%02X' "'$char"
-        encoded+="$hex"
-        ;;
-    esac
-  done
-  printf '%s' "$encoded"
+_url_authority() {
+  local value="${1#*://}"
+  printf '%s' "${value%%/*}"
 }
 
-# Extract ref names from a GitHub matching-refs JSON response, stripping the
-# given prefix (e.g. "refs/heads/").  Reads JSON from stdin.
-_refs_names_from_json() {
-  local prefix="$1"
-  if command -v jq &>/dev/null; then
-    jq -r --arg p "$prefix" '.[].ref | ltrimstr($p)' 2>/dev/null || true
-  elif command -v python3 &>/dev/null; then
-    python3 -c "
-import sys, json
-p = sys.argv[1]
-try:
-    for item in json.load(sys.stdin):
-        r = item.get('ref', '')
-        print(r[len(p):] if r.startswith(p) else r)
-except Exception: pass
-" "$prefix" 2>/dev/null || true
-  elif command -v python &>/dev/null; then
-    python -c "
-import sys, json
-p = sys.argv[1]
-try:
-    for item in json.load(sys.stdin):
-        r = item.get('ref', '')
-        print(r[len(p):] if r.startswith(p) else r)
-except Exception: pass
-" "$prefix" 2>/dev/null || true
+_url_host() {
+  local authority
+  authority=$(_url_authority "$1")
+  authority="${authority##*@}"
+  if [[ $authority == \[*\]* ]]; then
+    authority="${authority#\[}"
+    printf '%s' "${authority%%\]*}"
   else
-    grep -o '"ref"[[:space:]]*:[[:space:]]*"[^"]*"' \
-      | sed -E 's/^"ref"[[:space:]]*:[[:space:]]*"//; s/"$//' \
-      | sed "s#^$prefix##"
+    printf '%s' "${authority%%:*}"
   fi
 }
 
-# Fetch matching refs without making lookup failures fatal. Reads the backend
-# preference set by --gh/--no-gh.
-_matching_refs_json() {
+_url_origin() {
+  local scheme="${1%%://*}" authority
+  authority=$(_url_authority "$1")
+  printf '%s://%s' "$scheme" "$authority"
+}
+
+_url_path() {
+  local value="${1#*://}"
+  if [[ $value == */* ]]; then
+    printf '%s' "${value#*/}"
+  fi
+}
+
+resolve_forge_option() {
+  [[ -n $FORGE_OPTION ]] || return 0
+
+  local specification="${FORGE_OPTION%/}" lookup="$FORGE_OPTION"
+  if [[ $specification == *://* ]]; then
+    lookup=$(_url_host "$specification")
+  fi
+
+  git_forge_find_named_resolver "$lookup" ||
+    die "Unknown forge '$FORGE_OPTION' (use a known host or github/gitlab/forgejo/gitea)"
+
+  OPTION_FORGE_TYPE="$GIT_FORGE_MATCHED_TYPE"
+  OPTION_FORGE_ORIGIN="$GIT_FORGE_MATCHED_ORIGIN"
+  if [[ $specification == *://* ]]; then
+    OPTION_FORGE_ORIGIN=$(_url_origin "$specification")
+    OPTION_FORGE_HOST=$(_url_host "$specification")
+  else
+    OPTION_FORGE_HOST=$(_url_host "$OPTION_FORGE_ORIGIN")
+  fi
+}
+
+set_source_forge() {
+  local host="$1" origin="$2" detected_type='' detected_origin=''
+
+  if git_forge_find_resolver "$host"; then
+    detected_type="$GIT_FORGE_MATCHED_TYPE"
+    detected_origin="$GIT_FORGE_MATCHED_ORIGIN"
+  elif [[ -n $OPTION_FORGE_TYPE ]]; then
+    detected_type="$OPTION_FORGE_TYPE"
+  else
+    die "Unsupported forge host '$host'; pass --forge with a supported forge type"
+  fi
+
+  if [[ -n $OPTION_FORGE_TYPE && $detected_type != "$OPTION_FORGE_TYPE" ]]; then
+    die "Source host '$host' does not match --forge '$FORGE_OPTION'"
+  fi
+
+  FORGE_TYPE="$detected_type"
+  FORGE_HOST="$host"
+  FORGE_ORIGIN="${origin:-$detected_origin}"
+}
+
+github_matching_refs_json() {
   local ref_type="$1" first="$2"
-  local endpoint="repos/$GH_OWNER/$GH_REPO/git/matching-refs/$ref_type/$first"
-  local token="${GITHUB_TOKEN:-}"
-  local response=""
+  local owner="${REPOSITORY_PATH%%/*}" repository="${REPOSITORY_PATH#*/}"
+  local endpoint="repos/$owner/$repository/git/matching-refs/$ref_type/$first"
+  local token="${GITHUB_TOKEN:-}" response=''
 
   if _has_gh; then
     response=$(gh api "$endpoint" 2>/dev/null) || response='[]'
   elif command -v curl &>/dev/null; then
-    local cargs=(-sf)
-    [[ -n "$token" ]] && cargs+=(-H "Authorization: Bearer $token")
-    response=$(curl "${cargs[@]}" "$GITHUB_API/$endpoint" 2>/dev/null) || response='[]'
+    local args=(-sf)
+    [[ -n $token ]] && args+=(-H "Authorization: Bearer $token")
+    response=$(curl "${args[@]}" "$GITHUB_API/$endpoint" 2>/dev/null) || response='[]'
   elif command -v wget &>/dev/null; then
-    local wargs=(-qO-)
-    [[ -n "$token" ]] && wargs+=(--header="Authorization: Bearer $token")
-    response=$(wget "${wargs[@]}" "$GITHUB_API/$endpoint" 2>/dev/null) || response='[]'
+    local args=(-qO-)
+    [[ -n $token ]] && args+=(--header="Authorization: Bearer $token")
+    response=$(wget "${args[@]}" "$GITHUB_API/$endpoint" 2>/dev/null) || response='[]'
   else
     response='[]'
   fi
-
   printf '%s' "$response"
 }
 
-# Resolve an ambiguous "ref[/with/slashes]/path/to/file" string into GH_REF
-# and GH_PATH by querying GitHub's matching-refs API. If assume_ref is true,
-# an unresolved value falls back to treating its first component as the ref.
-# Otherwise, an unresolved value is a path on the repository's default branch.
-# Requires GH_OWNER and GH_REPO to already be set.
-_resolve_ref_path() {
-  local remaining="${1%/}"
-  local assume_ref="${2:-true}"
+github_ref_names_from_json() {
+  local prefix="$1"
+  if command -v jq &>/dev/null; then
+    jq -r --arg prefix "$prefix" '.[].ref | ltrimstr($prefix)' 2>/dev/null || true
+  elif command -v python3 &>/dev/null; then
+    python3 -c 'import json,sys
+prefix=sys.argv[1]
+try:
+ for item in json.load(sys.stdin):
+  ref=item.get("ref", "")
+  print(ref[len(prefix):] if ref.startswith(prefix) else ref)
+except Exception: pass' "$prefix" 2>/dev/null || true
+  elif command -v python &>/dev/null; then
+    python -c 'import json,sys
+prefix=sys.argv[1]
+try:
+ for item in json.load(sys.stdin):
+  ref=item.get("ref", "")
+  print(ref[len(prefix):] if ref.startswith(prefix) else ref)
+except Exception: pass' "$prefix" 2>/dev/null || true
+  else
+    grep -o '"ref"[[:space:]]*:[[:space:]]*"[^"]*"' |
+      sed -E 's/^"ref"[[:space:]]*:[[:space:]]*"//; s/"$//' |
+      sed "s#^$prefix##"
+  fi
+}
 
-  if [[ -z "$remaining" ]]; then
-    GH_REF=""
-    GH_PATH=""
+# Emit kind, name, object ID, and peeled marker as tab-separated records.
+matching_ref_records() {
+  local first="$1" only_kind="${2:-}" ref_type kind response ref_name oid full_ref peeled
+
+  if [[ $FORGE_TYPE == github ]]; then
+    for ref_type in heads tags; do
+      kind=${ref_type%?}
+      [[ $ref_type == heads ]] && kind='branch'
+      [[ -n $only_kind && $only_kind != "$kind" ]] && continue
+      response=$(github_matching_refs_json "$ref_type" "$first")
+      while IFS= read -r ref_name; do
+        [[ -n $ref_name ]] && printf '%s\t%s\t\tfalse\n' "$kind" "$ref_name"
+      done < <(printf '%s' "$response" | github_ref_names_from_json "refs/$ref_type/")
+    done
     return
   fi
 
-  IFS='/' read -ra rparts <<< "$remaining"
-  local rn=${#rparts[@]}
-
-  if [[ "$assume_ref" == "true" && $rn -eq 1 ]]; then
-    GH_REF="${rparts[0]}"
-    GH_PATH=""
-    return
-  fi
-
-  # SHA fingerprint (7–40 hex chars): unambiguously the complete ref
-  if [[ "${rparts[0]}" =~ ^[0-9a-f]{7,40}$ ]]; then
-    GH_REF="${rparts[0]}"
-    GH_PATH=$(_join_with_slash "${rparts[@]:1}")
-    return
-  fi
-
-  local first="${rparts[0]}"
-  local found_ref="" found_path=""
-
-  # Query branches and tags and keep the longest matching ref. Branches win a
-  # tie because they are visited first.
   for ref_type in heads tags; do
-    local refs_json
-    refs_json=$(_matching_refs_json "$ref_type" "$first")
-
-    local ref_names
-    ref_names=$(printf '%s' "$refs_json" | _refs_names_from_json "refs/$ref_type/") || true
-
-    while IFS= read -r ref_name; do
-      [[ -z "$ref_name" ]] && continue
-      if [[ "$remaining" == "$ref_name" && ${#ref_name} -gt ${#found_ref} ]]; then
-        found_ref="$ref_name"; found_path=""
-      elif [[ "$remaining" == "$ref_name/"* ]] && [[ ${#ref_name} -gt ${#found_ref} ]]; then
-        found_ref="$ref_name"
-        found_path="${remaining#"$ref_name/"}"
+    kind=${ref_type%?}
+    [[ $ref_type == heads ]] && kind='branch'
+    [[ -n $only_kind && $only_kind != "$kind" ]] && continue
+    response=$(git ls-remote "--$ref_type" "$REMOTE_URL" "refs/$ref_type/$first*" 2>/dev/null) || response=''
+    while read -r oid full_ref; do
+      [[ -n ${full_ref:-} ]] || continue
+      peeled=false
+      if [[ $full_ref == *'^{}' ]]; then
+        full_ref="${full_ref%'^{}'}"
+        peeled=true
       fi
-    done <<< "$ref_names"
+      ref_name="${full_ref#"refs/$ref_type/"}"
+      printf '%s\t%s\t%s\t%s\n' "$kind" "$ref_name" "$oid" "$peeled"
+    done <<< "$response"
+  done
+}
+
+# Split ref[/with/slashes]/path using the longest branch/tag prefix. When an
+# explicit native URL marker is present, assume_ref makes an unresolved first
+# component the ref. Otherwise the value is a default-branch path.
+resolve_ref_path() {
+  local remaining="${1%/}" assume_ref="${2:-true}" only_kind="${3:-}"
+  SOURCE_REF=''
+  SOURCE_REF_KIND=''
+  SOURCE_OID=''
+  SOURCE_PATH=''
+
+  [[ -n $remaining ]] || return 0
+
+  local -a parts=()
+  IFS='/' read -ra parts <<< "$remaining"
+  local count=${#parts[@]} first="${parts[0]}"
+
+  if [[ $first =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+    SOURCE_REF="$first"
+    SOURCE_REF_KIND='commit'
+    SOURCE_OID="$first"
+    SOURCE_PATH=$(_join_with_slash "${parts[@]:1}")
+    return
+  fi
+
+  # Preserve the original GitHub shortcut behavior for a lone explicit ref.
+  if [[ $FORGE_TYPE == github && $assume_ref == true && $count -eq 1 ]]; then
+    SOURCE_REF="$first"
+    SOURCE_REF_KIND="${only_kind:-ref}"
+    return
+  fi
+
+  local found_ref='' found_path='' found_kind='' found_oid=''
+  local kind name oid peeled
+  while IFS=$'\t' read -r kind name oid peeled; do
+    [[ -n $name ]] || continue
+    local candidate_path=''
+    if [[ $remaining == "$name" ]]; then
+      candidate_path=''
+    elif [[ $remaining == "$name/"* ]]; then
+      candidate_path="${remaining#"$name/"}"
+    else
+      continue
+    fi
+
+    if [[ ${#name} -gt ${#found_ref} ]]; then
+      found_ref="$name"
+      found_path="$candidate_path"
+      found_kind="$kind"
+      found_oid="$oid"
+    elif [[ $name == "$found_ref" && $kind == "$found_kind" && $peeled == true ]]; then
+      found_oid="$oid"
+    fi
+  done < <(matching_ref_records "$first" "$only_kind")
+
+  if [[ -n $found_ref ]]; then
+    SOURCE_REF="$found_ref"
+    SOURCE_REF_KIND="$found_kind"
+    SOURCE_OID="$found_oid"
+    SOURCE_PATH="$found_path"
+  elif [[ $assume_ref == true ]]; then
+    SOURCE_REF="$first"
+    SOURCE_REF_KIND="${only_kind:-ref}"
+    SOURCE_PATH=$(_join_with_slash "${parts[@]:1}")
+  else
+    SOURCE_PATH="$remaining"
+  fi
+}
+
+parse_github_path() {
+  local path="${1#/}" raw_host="${2:-false}"
+  local -a parts=()
+  IFS='/' read -ra parts <<< "$path"
+  [[ ${#parts[@]} -ge 2 ]] || die 'Invalid GitHub source: expected owner/repository'
+
+  parts[1]="${parts[1]%.git}"
+  REPOSITORY_PATH="${parts[0]}/${parts[1]}"
+  REMOTE_URL="$FORGE_ORIGIN/$REPOSITORY_PATH.git"
+
+  if [[ $raw_host == true ]]; then
+    resolve_ref_path "$(_join_with_slash "${parts[@]:2}")" true
+  elif [[ ${#parts[@]} -gt 3 && ${parts[2]} =~ ^(blob|tree|raw)$ ]]; then
+    resolve_ref_path "$(_join_with_slash "${parts[@]:3}")" true
+  elif [[ ${#parts[@]} -gt 2 ]]; then
+    resolve_ref_path "$(_join_with_slash "${parts[@]:2}")" false
+  else
+    SOURCE_REF=''
+    SOURCE_PATH=''
+  fi
+}
+
+parse_gitlab_path() {
+  local path="${1#/}" marker_index=-1 index
+  local -a parts=()
+  IFS='/' read -ra parts <<< "$path"
+
+  for ((index = 1; index + 2 < ${#parts[@]}; index++)); do
+    if [[ ${parts[index]} == '-' && ${parts[index + 1]} =~ ^(blob|raw|tree)$ ]]; then
+      marker_index=$index
+      break
+    fi
   done
 
-  if [[ -n "$found_ref" ]]; then
-    GH_REF="$found_ref"
-    GH_PATH="$found_path"
-  elif [[ "$assume_ref" == "true" ]]; then
-    # An explicit tree/blob/raw component (or the raw-content host) tells us
-    # that a ref is present even when lookup is unavailable.
-    GH_REF="${rparts[0]}"
-    GH_PATH=$(_join_with_slash "${rparts[@]:1}")
+  if ((marker_index >= 0)); then
+    ((marker_index >= 2)) || die 'Invalid GitLab source: expected namespace/repository before /-/'
+    REPOSITORY_PATH=$(_join_with_slash "${parts[@]:0:marker_index}")
+    REPOSITORY_PATH="${REPOSITORY_PATH%.git}"
+    REMOTE_URL="$FORGE_ORIGIN/$REPOSITORY_PATH.git"
+    resolve_ref_path "$(_join_with_slash "${parts[@]:marker_index+2}")" true
   else
-    GH_REF=""
-    GH_PATH="$remaining"
+    [[ ${#parts[@]} -ge 2 ]] || die 'Invalid GitLab source: expected namespace/repository'
+    REPOSITORY_PATH=$(_join_with_slash "${parts[@]}")
+    REPOSITORY_PATH="${REPOSITORY_PATH%.git}"
+    REMOTE_URL="$FORGE_ORIGIN/$REPOSITORY_PATH.git"
+    SOURCE_REF=''
+    SOURCE_PATH=''
   fi
 }
 
-parse_github_url() {
-  local url="${1%/}"
-  url="${url#https://github.com/}"
-  url="${url#http://github.com/}"
-  url="${url#github.com/}"
+parse_forgejo_path() {
+  local path="${1#/}" marker ref_kind
+  local -a parts=()
+  IFS='/' read -ra parts <<< "$path"
+  [[ ${#parts[@]} -ge 2 ]] || die 'Invalid Forgejo/Gitea source: expected owner/repository'
 
-  IFS='/' read -ra parts <<< "$url"
+  parts[1]="${parts[1]%.git}"
+  REPOSITORY_PATH="${parts[0]}/${parts[1]}"
+  REMOTE_URL="$FORGE_ORIGIN/$REPOSITORY_PATH.git"
 
-  GH_OWNER="${parts[0]:-}"
-  GH_REPO="${parts[1]:-}"
-  local seg="${parts[2]:-}"
-
-  if [[ ${#parts[@]} -gt 3 ]] && \
-     [[ "$seg" == "blob" || "$seg" == "tree" || "$seg" == "raw" ]]; then
-    _resolve_ref_path "$(_join_with_slash "${parts[@]:3}")" true
-  elif [[ ${#parts[@]} -gt 2 ]]; then
-    _resolve_ref_path "$(_join_with_slash "${parts[@]:2}")" false
-  else
-    GH_REF=""
-    GH_PATH=""
+  if [[ ${#parts[@]} -eq 2 ]]; then
+    SOURCE_REF=''
+    SOURCE_PATH=''
+    return
   fi
-}
 
-parse_raw_url() {
-  # https://raw.githubusercontent.com/user/repo/ref/path/to/file
-  local url="${1%/}"
-  url="${url#https://raw.githubusercontent.com/}"
-  url="${url#http://raw.githubusercontent.com/}"
+  marker="${parts[2]}"
+  if [[ ${#parts[@]} -lt 5 || ! $marker =~ ^(src|raw)$ || ! ${parts[3]} =~ ^(branch|tag|commit)$ ]]; then
+    die 'Unsupported Forgejo/Gitea source; use /src/{branch|tag|commit}/ref/path or /raw/{branch|tag|commit}/ref/path'
+  fi
 
-  IFS='/' read -ra parts <<< "$url"
-  GH_OWNER="${parts[0]:-}"
-  GH_REPO="${parts[1]:-}"
-  _resolve_ref_path "$(_join_with_slash "${parts[@]:2}")" true
-}
-
-parse_short_form() {
-  local input="${1#./}"
-  input="${input#/}"
-  input="${input%.git}"
-  input="${input%/}"
-
-  IFS='/' read -ra parts <<< "$input"
-  [[ ${#parts[@]} -lt 2 ]] && die "Invalid source: expected username/repo/... format"
-
-  GH_OWNER="${parts[0]}"
-  GH_REPO="${parts[1]}"
-
-  local seg="${parts[2]:-}"
-  if [[ ${#parts[@]} -gt 3 ]] && \
-     [[ "$seg" == "blob" || "$seg" == "tree" || "$seg" == "raw" ]]; then
-    # GitHub URL path form without the domain: owner/repo/blob/ref/path
-    _resolve_ref_path "$(_join_with_slash "${parts[@]:3}")" true
-  elif [[ ${#parts[@]} -gt 2 ]]; then
-    _resolve_ref_path "$(_join_with_slash "${parts[@]:2}")" false
+  ref_kind="${parts[3]}"
+  if [[ $ref_kind == commit ]]; then
+    local remaining
+    remaining=$(_join_with_slash "${parts[@]:4}")
+    IFS='/' read -ra parts <<< "$remaining"
+    SOURCE_REF="${parts[0]}"
+    SOURCE_REF_KIND='commit'
+    SOURCE_OID="${parts[0]}"
+    SOURCE_PATH=$(_join_with_slash "${parts[@]:1}")
   else
-    GH_REF=""
-    GH_PATH=""
+    resolve_ref_path "$(_join_with_slash "${parts[@]:4}")" true "$ref_kind"
   fi
 }
 
 parse_source() {
-  case "$1" in
+  local input="$1" path='' host='' origin='' first=''
+  input="${input%%#*}"
+  input="${input%%\?*}"
+  resolve_forge_option
+
+  case "$input" in
     https://raw.githubusercontent.com/*|http://raw.githubusercontent.com/*)
-      parse_raw_url "$1" ;;
-    https://github.com/*|http://github.com/*|github.com/*)
-      parse_github_url "$1" ;;
-    *)
-      parse_short_form "$1" ;;
+      host='github.com'
+      origin="${input%%://*}://github.com"
+      path=$(_url_path "$input")
+      set_source_forge "$host" "$origin"
+      path=$(git_forge_urldecode_path "$path")
+      parse_github_path "$path" true
+      return
+      ;;
+  esac
+
+  if [[ $input == *://* ]]; then
+    host=$(_url_host "$input")
+    origin=$(_url_origin "$input")
+    path=$(_url_path "$input")
+    set_source_forge "$host" "$origin"
+  else
+    first="${input%%/*}"
+    if [[ $first == *.* ]] && git_forge_find_resolver "$first"; then
+      host="$first"
+      origin="$GIT_FORGE_MATCHED_ORIGIN"
+      path="${input#*/}"
+      set_source_forge "$host" "$origin"
+    elif [[ -n $OPTION_FORGE_TYPE ]]; then
+      FORGE_TYPE="$OPTION_FORGE_TYPE"
+      FORGE_HOST="$OPTION_FORGE_HOST"
+      FORGE_ORIGIN="$OPTION_FORGE_ORIGIN"
+      path="${input#./}"
+      path="${path#/}"
+    else
+      FORGE_TYPE='github'
+      FORGE_HOST='github.com'
+      FORGE_ORIGIN='https://github.com'
+      path="${input#./}"
+      path="${path#/}"
+    fi
+  fi
+
+  path="${path%/}"
+  path=$(git_forge_urldecode_path "$path")
+  case "$FORGE_TYPE" in
+    github) parse_github_path "$path" ;;
+    gitlab) parse_gitlab_path "$path" ;;
+    forgejo|gitea) parse_forgejo_path "$path" ;;
+    *) die "Downloads are not implemented for forge '$FORGE_TYPE'" ;;
   esac
 }
 
-# ── GitHub API ────────────────────────────────────────────────────────────────
+# ── API and ref resolution ────────────────────────────────────────────────────
 
-# Fetch a JSON endpoint using the best available HTTP client
-api_json() {
-  local endpoint="$1"
-  local token="${GITHUB_TOKEN:-}"
-
-  if _has_gh; then
-    gh api "$endpoint"
-  elif command -v curl &>/dev/null; then
-    local args=(-sf "$GITHUB_API/$endpoint")
-    [[ -n "$token" ]] && args+=(-H "Authorization: Bearer $token")
-    curl "${args[@]}"
+http_get() {
+  local url="$1"
+  if command -v curl &>/dev/null; then
+    curl -fsSL "$url"
   elif command -v wget &>/dev/null; then
-    local args=(-qO-)
-    [[ -n "$token" ]] && args+=(--header="Authorization: Bearer $token")
-    wget "${args[@]}" "$GITHUB_API/$endpoint"
+    wget -qO- "$url"
   else
-    die "No HTTP client found. Install gh CLI, curl, or wget."
+    die 'No HTTP client found. Install curl or wget.'
   fi
 }
 
-get_default_branch() {
-  local branch
-  branch=$(api_json "repos/$GH_OWNER/$GH_REPO" | json_field "default_branch") || true
-  [[ -z "$branch" ]] && die "Could not determine default branch for $GH_OWNER/$GH_REPO"
-  printf '%s' "$branch"
+github_api_json() {
+  local endpoint="$1" token="${GITHUB_TOKEN:-}"
+  if _has_gh; then
+    gh api "$endpoint"
+  elif command -v curl &>/dev/null; then
+    local args=(-fsSL)
+    [[ -n $token ]] && args+=(-H "Authorization: Bearer $token")
+    curl "${args[@]}" "$GITHUB_API/$endpoint"
+  elif command -v wget &>/dev/null; then
+    local args=(-qO-)
+    [[ -n $token ]] && args+=(--header="Authorization: Bearer $token")
+    wget "${args[@]}" "$GITHUB_API/$endpoint"
+  else
+    die 'No HTTP client found. Install gh CLI, curl, or wget.'
+  fi
+}
+
+get_default_ref() {
+  if [[ $FORGE_TYPE == github ]]; then
+    local owner="${REPOSITORY_PATH%%/*}" repository="${REPOSITORY_PATH#*/}" branch
+    branch=$(github_api_json "repos/$owner/$repository" | json_field default_branch) || true
+    [[ -n $branch ]] || die "Could not determine default branch for $REPOSITORY_PATH"
+    SOURCE_REF_KIND='branch'
+    SOURCE_REF="$branch"
+    return
+  fi
+
+  local refs branch oid
+  refs=$(git ls-remote --symref "$REMOTE_URL" HEAD 2>/dev/null) || refs=''
+  branch=$(awk '$1 == "ref:" && $3 == "HEAD" { sub(/^refs\/heads\//, "", $2); print $2; exit }' <<< "$refs")
+  oid=$(awk '$2 == "HEAD" && $1 != "ref:" { print $1; exit }' <<< "$refs")
+  [[ -n $branch ]] || die "Could not determine default branch for $FORGE_HOST/$REPOSITORY_PATH"
+  SOURCE_REF_KIND='branch'
+  SOURCE_OID="$oid"
+  SOURCE_REF="$branch"
+}
+
+ensure_source_oid() {
+  [[ -n $SOURCE_OID ]] && return 0
+  if [[ $SOURCE_REF_KIND == commit && $SOURCE_REF =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+    SOURCE_OID="$SOURCE_REF"
+    return
+  fi
+
+  local kind name oid peeled
+  while IFS=$'\t' read -r kind name oid peeled; do
+    if [[ $name == "$SOURCE_REF" ]]; then
+      if [[ -z $SOURCE_OID || $peeled == true ]]; then
+        SOURCE_OID="$oid"
+      fi
+    fi
+  done < <(matching_ref_records "${SOURCE_REF%%/*}" "$SOURCE_REF_KIND")
 }
 
 # ── Output path resolution ────────────────────────────────────────────────────
 
 resolve_file_output() {
   local dest="$1" filename="$2"
-  if [[ -z "$dest" ]]; then
+  if [[ -z $dest ]]; then
     printf './%s' "$filename"
-  elif [[ "$dest" == */ ]]; then
+  elif [[ $dest == */ ]]; then
     printf '%s%s' "$dest" "$filename"
-  elif [[ -d "$dest" ]]; then
+  elif [[ -d $dest ]]; then
     printf '%s/%s' "${dest%/}" "$filename"
   else
     printf '%s' "$dest"
@@ -396,92 +645,145 @@ resolve_file_output() {
 
 resolve_dir_output() {
   local dest="$1" dirname="$2"
-  if [[ -z "$dest" ]]; then
+  if [[ -z $dest ]]; then
     printf './%s' "$dirname"
-  elif [[ "$dest" == */ ]]; then
+  elif [[ $dest == */ ]]; then
     printf '%s%s' "$dest" "$dirname"
-  elif [[ -d "$dest" ]]; then
+  elif [[ -d $dest ]]; then
     printf '%s/%s' "${dest%/}" "$dirname"
   else
     printf '%s' "$dest"
   fi
 }
 
-# ── Download ──────────────────────────────────────────────────────────────────
+# ── Download and tree adapters ────────────────────────────────────────────────
 
 resolved_file_url() {
-  local path="$1"
-  printf 'https://raw.githubusercontent.com/%s/%s/%s/%s' \
-    "$GH_OWNER" "$GH_REPO" "$GH_REF" "$path"
+  git_forge_raw_file_url "$FORGE_TYPE" "$FORGE_ORIGIN" "$REPOSITORY_PATH" "$SOURCE_REF" "$1" ||
+    die "Could not construct a raw URL for $FORGE_TYPE"
 }
 
 print_download_plan() {
-  local path="$1" output="$2"
-  local url; url=$(resolved_file_url "$path")
-
+  local path="$1" output="$2" url
+  url=$(resolved_file_url "$path")
   printf '%s: Would download %s to %s\n' "$PROG" "$url" "$output"
-  if [[ -e "$output" || -L "$output" ]]; then
-    printf '%s: Warning: %s already exists and would be overwritten\n' \
-      "$PROG" "$output" >&2
+  if [[ -e $output || -L $output ]]; then
+    printf '%s: Warning: %s already exists and would be overwritten\n' "$PROG" "$output" >&2
   fi
 }
 
 download_file() {
-  local path="$1" output="$2"
-  local token="${GITHUB_TOKEN:-}"
+  local path="$1" output="$2" token="${GITHUB_TOKEN:-}" url
 
   if _has_gh; then
-    local encoded_ref; encoded_ref=$(_urlencode_component "$GH_REF")
-    local api_path="repos/$GH_OWNER/$GH_REPO/contents/$path?ref=$encoded_ref"
-    gh api "$api_path" -H "Accept: application/vnd.github.raw+json" > "$output"
+    local owner="${REPOSITORY_PATH%%/*}" repository="${REPOSITORY_PATH#*/}"
+    local encoded_ref encoded_path
+    encoded_ref=$(git_forge_urlencode_component "$SOURCE_REF")
+    encoded_path=$(git_forge_urlencode_path "$path")
+    gh api "repos/$owner/$repository/contents/$encoded_path?ref=$encoded_ref" \
+      -H 'Accept: application/vnd.github.raw+json' > "$output"
   elif command -v curl &>/dev/null; then
-    local url; url=$(resolved_file_url "$path")
+    url=$(resolved_file_url "$path")
     local args=(-fsSL "$url" -o "$output")
-    [[ -n "$token" ]] && args+=(-H "Authorization: Bearer $token")
+    [[ $FORGE_TYPE == github && -n $token ]] && args+=(-H "Authorization: Bearer $token")
     curl "${args[@]}"
   elif command -v wget &>/dev/null; then
-    local url; url=$(resolved_file_url "$path")
+    url=$(resolved_file_url "$path")
     local args=(-qO "$output")
-    [[ -n "$token" ]] && args+=(--header="Authorization: Bearer $token")
+    [[ $FORGE_TYPE == github && -n $token ]] && args+=(--header="Authorization: Bearer $token")
     wget "${args[@]}" "$url"
   else
-    die "No HTTP client found. Install gh CLI, curl, or wget."
+    die 'No HTTP client found. Install gh CLI, curl, or wget.'
   fi
 }
 
+github_container_paths() {
+  local path="$1" encoded_ref tree_json truncated
+  encoded_ref=$(git_forge_urlencode_component "$SOURCE_REF")
+  tree_json=$(github_api_json "repos/$REPOSITORY_PATH/git/trees/$encoded_ref?recursive=1")
+  truncated=$(printf '%s' "$tree_json" | json_field truncated) || true
+  [[ $truncated == true ]] && info 'Warning: tree is truncated; some files may be missing'
+  printf '%s' "$tree_json" | json_tree_paths "$path"
+}
+
+gitlab_container_paths() {
+  local path="$1" encoded_repository encoded_ref encoded_path base page=1 page_json page_count page_files
+  local files=''
+  encoded_repository=$(git_forge_urlencode_component "$REPOSITORY_PATH")
+  encoded_ref=$(git_forge_urlencode_component "$SOURCE_REF")
+  base="$FORGE_ORIGIN/api/v4/projects/$encoded_repository/repository/tree?recursive=true&per_page=100&ref=$encoded_ref"
+  if [[ -n $path ]]; then
+    encoded_path=$(git_forge_urlencode_component "$path")
+    base+="&path=$encoded_path"
+  fi
+
+  while :; do
+    page_json=$(http_get "$base&page=$page") || die "Could not list GitLab tree at '$path'"
+    page_count=$(printf '%s' "$page_json" | json_array_length)
+    page_files=$(printf '%s' "$page_json" | json_gitlab_tree_paths)
+    if [[ -n $page_files ]]; then
+      [[ -n $files ]] && files+=$'\n'
+      files+="$page_files"
+    fi
+    ((page_count < 100)) && break
+    page=$((page + 1))
+  done
+  printf '%s' "$files"
+}
+
+forgejo_container_paths() {
+  local path="$1" treeish encoded_treeish base page=1 page_json page_files truncated
+  local files=''
+  ensure_source_oid
+  treeish="${SOURCE_OID:-$SOURCE_REF}"
+  encoded_treeish=$(git_forge_urlencode_component "$treeish")
+  base="$FORGE_ORIGIN/api/v1/repos/$REPOSITORY_PATH/git/trees/$encoded_treeish?recursive=true&per_page=1000"
+
+  while :; do
+    page_json=$(http_get "$base&page=$page") || die "Could not list $FORGE_TYPE tree at '$path'"
+    page_files=$(printf '%s' "$page_json" | json_tree_paths "$path")
+    if [[ -n $page_files ]]; then
+      [[ -n $files ]] && files+=$'\n'
+      files+="$page_files"
+    fi
+    truncated=$(printf '%s' "$page_json" | json_field truncated) || true
+    [[ $truncated == true ]] || break
+    page=$((page + 1))
+    ((page <= 1000)) || die 'Forgejo/Gitea tree pagination exceeded 1000 pages'
+  done
+  printf '%s' "$files"
+}
+
+container_paths() {
+  case "$FORGE_TYPE" in
+    github) github_container_paths "$1" ;;
+    gitlab) gitlab_container_paths "$1" ;;
+    forgejo|gitea) forgejo_container_paths "$1" ;;
+    *) die "Directory downloads are not implemented for forge '$FORGE_TYPE'" ;;
+  esac
+}
+
 download_container() {
-  local output_dir="$1"
-  local path="${GH_PATH%/}"
+  local output_dir="$1" path="${SOURCE_PATH%/}" files count=0
+  info "Fetching repository tree ($FORGE_HOST/$REPOSITORY_PATH @ $SOURCE_REF)..."
+  files=$(container_paths "$path")
+  [[ -n $files ]] || die "No files found at '$path'; check the source URL"
 
-  info "Fetching repository tree ($GH_OWNER/$GH_REPO @ $GH_REF)..."
-  local encoded_ref; encoded_ref=$(_urlencode_component "$GH_REF")
-  local tree_json
-  tree_json=$(api_json "repos/$GH_OWNER/$GH_REPO/git/trees/$encoded_ref?recursive=1")
-
-  local truncated; truncated=$(printf '%s' "$tree_json" | json_field "truncated") || true
-  [[ "$truncated" == "true" ]] && \
-    info "Warning: tree is truncated — large repo, some files may be missing"
-
-  local files
-  files=$(printf '%s' "$tree_json" | json_tree_paths "$path")
-  [[ -z "$files" ]] && die "No files found at '$path' — check the path or use the full GitHub URL"
-
-  local count=0
+  local file_path rel out
   while IFS= read -r file_path; do
-    local rel
-    if [[ -n "$path" ]]; then
+    if [[ -n $path ]]; then
       rel="${file_path#"$path"/}"
     else
       rel="$file_path"
     fi
-    [[ -z "$rel" ]] && rel=$(basename "$file_path")
+    [[ -n $rel ]] || rel=$(basename "$file_path")
+    out="$output_dir/$rel"
 
-    local out="$output_dir/$rel"
     if $DRY_RUN; then
       print_download_plan "$file_path" "$out"
     else
       mkdir -p "$(dirname "$out")"
-      info "↓ $rel"
+      info "downloading $rel"
       download_file "$file_path" "$out"
     fi
     count=$((count + 1))
@@ -497,61 +799,66 @@ download_container() {
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 main() {
-  local source="" dest="" container=false help=false
-  local positional=()
+  local source_value='' dest='' container=false help=false
+  local -a positional=()
 
-  for arg in "$@"; do
-    case "$arg" in
+  while (($#)); do
+    case "$1" in
       -h|--help|help) help=true ;;
       -c|--container) container=true ;;
-      --dry-run)      DRY_RUN=true ;;
-      --gh)           USE_GH=true ;;
-      --no-gh)        USE_GH=false ;;
-      -*) die "Unknown option: $arg" ;;
-      *) positional+=("$arg") ;;
+      --dry-run) DRY_RUN=true ;;
+      --gh) USE_GH=true ;;
+      --no-gh) USE_GH=false ;;
+      --forge)
+        (($# >= 2)) || die 'Missing value for --forge'
+        FORGE_OPTION="$2"
+        shift
+        ;;
+      --forge=*) FORGE_OPTION="${1#*=}" ;;
+      --) shift; positional+=("$@"); break ;;
+      -*) die "Unknown option: $1" ;;
+      *) positional+=("$1") ;;
     esac
+    shift
   done
 
   $help && { show_help; exit 0; }
-  [[ ${#positional[@]} -eq 0 ]] && { show_help; exit 1; }
+  [[ ${#positional[@]} -gt 0 ]] || { show_help; exit 1; }
+  [[ ${#positional[@]} -le 2 ]] || die 'Too many positional arguments'
 
-  source="${positional[0]}"
+  source_value="${positional[0]}"
   dest="${positional[1]:-}"
+  parse_source "$source_value"
+  [[ -n $REPOSITORY_PATH ]] || die "Could not parse repository from: $source_value"
 
-  parse_source "$source"
-  [[ -z "$GH_OWNER" ]] && die "Could not parse owner from: $source"
-  [[ -z "$GH_REPO" ]]  && die "Could not parse repo from: $source"
-
-  if [[ -z "$GH_REF" ]]; then
-    info "Resolving default branch..."
-    GH_REF=$(get_default_branch)
+  if [[ -z $SOURCE_REF ]]; then
+    info 'Resolving default branch...'
+    get_default_ref
   fi
 
   if $container; then
-    local dir_name
-    if [[ -n "$GH_PATH" ]]; then
-      dir_name=$(basename "${GH_PATH%/}")
+    local dir_name out_dir
+    if [[ -n $SOURCE_PATH ]]; then
+      dir_name=$(basename "${SOURCE_PATH%/}")
     else
-      dir_name="$GH_REPO"
+      dir_name="${REPOSITORY_PATH##*/}"
     fi
-    [[ -z "$dir_name" || "$dir_name" == "." ]] && dir_name="$GH_REPO"
-
-    local out_dir; out_dir=$(resolve_dir_output "$dest" "$dir_name")
+    [[ -n $dir_name && $dir_name != . ]] || dir_name="${REPOSITORY_PATH##*/}"
+    out_dir=$(resolve_dir_output "$dest" "$dir_name")
     $DRY_RUN || mkdir -p "$out_dir"
     download_container "$out_dir"
   else
-    [[ -z "$GH_PATH" ]] && \
-      die "No file path in source — use -c/--container to download a directory"
-    local filename; filename=$(basename "$GH_PATH")
-    [[ -z "$filename" || "$filename" == "." ]] && \
-      die "Could not determine filename from: $GH_PATH"
-    local output; output=$(resolve_file_output "$dest" "$filename")
+    [[ -n $SOURCE_PATH ]] || die 'No file path in source; use -c/--container to download a directory'
+    local filename output parent
+    filename=$(basename "$SOURCE_PATH")
+    [[ -n $filename && $filename != . ]] || die "Could not determine filename from: $SOURCE_PATH"
+    output=$(resolve_file_output "$dest" "$filename")
     if $DRY_RUN; then
-      print_download_plan "$GH_PATH" "$output"
+      print_download_plan "$SOURCE_PATH" "$output"
     else
-      local parent; parent=$(dirname "$output")
-      [[ "$parent" != "." ]] && mkdir -p "$parent"
-      download_file "$GH_PATH" "$output"
+      parent=$(dirname "$output")
+      [[ $parent == . ]] || mkdir -p "$parent"
+      download_file "$SOURCE_PATH" "$output"
       info "Downloaded to $output"
     fi
   fi

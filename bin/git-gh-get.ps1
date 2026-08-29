@@ -1,379 +1,576 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-  Download files from GitHub without cloning.
+  Download files from Git forges without cloning.
 .DESCRIPTION
-  Downloads individual files or entire directories from GitHub repositories
-  without needing to clone them.
-
-  Backends (in priority order): gh CLI, curl, wget, Invoke-WebRequest.
-
-  Supports GitHub URLs, raw URLs (raw.githubusercontent.com), and the short
-  form "username/repo/path". GitHub's blob/tree/raw path components are
-  optional; a leading branch or tag is detected when possible.
+  Downloads individual files or directories from GitHub and public GitLab,
+  Forgejo, and Gitea repositories. Existing GitHub shortcuts are preserved.
 .PARAMETER Source
-  GitHub path in one of these forms:
-    username/repo/path/to/file.txt
-    https://github.com/user/repo/blob/main/path/to/file.txt
-    https://raw.githubusercontent.com/user/repo/main/path/to/file.txt
+  A native forge URL, or a hostless native path identified by -Forge.
 .PARAMETER Dest
-  Optional output path. Trailing slash forces directory mode.
-  If omitted, downloads to the current directory using the original filename.
+  Optional output path. A trailing slash forces directory mode.
 .PARAMETER Container
   Download a directory recursively instead of a single file.
+.PARAMETER Forge
+  Forge hostname or name for a hostless source, for example codeberg.org.
 .PARAMETER Gh
-  Use the gh CLI when it is available. This is the default.
+  Use gh for GitHub when available. This is a no-op for other forges.
 .PARAMETER NoGh
-  Skip the gh CLI and use curl, wget, or Invoke-WebRequest.
+  Skip gh for GitHub. This is a no-op for other forges.
 .PARAMETER DryRun
   Print each resolved URL and destination without downloading.
-.PARAMETER Help
-  Show this help message and exit.
-.EXAMPLE
-  git gh-get username/repo/src/main.js
-.EXAMPLE
-  git gh-get https://github.com/user/repo/blob/main/README.md ./docs/
-.EXAMPLE
-  git gh-get username/repo/src/main.js ./main.js --dry-run
-.EXAMPLE
-  git gh-get username/repo/src/ ./local-src/ -Container
-.EXAMPLE
-  git gh-get -c https://github.com/user/repo/tree/main/cli/src/bin ./bin/
-.NOTES
-  Set the GITHUB_TOKEN environment variable for private repositories.
 #>
 
-$PROG       = 'git-gh-get'
-$GithubApi  = 'https://api.github.com'
-$GhOwner    = ''; $GhRepo = ''; $GhRef = ''; $GhPath = ''
-$UseGh      = $true  # set to $false via --no-gh / -NoGh to skip gh CLI
-$DryRun     = $false
+. (Join-Path $PSScriptRoot 'lib/GitForge.ps1')
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+$PROG = 'git-gh-get'
+$GithubApi = 'https://api.github.com'
 
-function Write-Info { param([string]$msg); [Console]::Error.WriteLine("${PROG}: $msg") }
-function Die        { param([string]$msg); Write-Info $msg; exit 1 }
+$script:ForgeType = ''
+$script:ForgeHost = ''
+$script:ForgeOrigin = ''
+$script:ForgeOption = ''
+$script:OptionForgeType = ''
+$script:OptionForgeHost = ''
+$script:OptionForgeOrigin = ''
+$script:RepositoryPath = ''
+$script:SourceRef = ''
+$script:SourceRefKind = ''
+$script:SourceOid = ''
+$script:SourcePath = ''
+$script:RemoteUrl = ''
+$script:UseGh = $true
+$script:DryRun = $false
+
+function Write-Info { param([string]$Message); [Console]::Error.WriteLine("${PROG}: $Message") }
+function Die { param([string]$Message); Write-Info $Message; exit 1 }
 
 function Show-Help {
   @'
 Usage: git gh-get <source> [dest] [options]
 
-Download a file or directory from GitHub without cloning.
+Download a file or directory from GitHub or a public GitLab, Forgejo, or Gitea
+repository without cloning it.
 
 Arguments:
-  source   GitHub source, one of:
+  source   A native forge URL, or a path whose forge is supplied by --forge.
+           Existing GitHub shortcuts remain supported.
+
+           GitHub:
              username/repo/path/to/file.txt
-             username/repo/main/path/to/file.txt
-             username/repo/blob/main/path/to/file.txt
              https://github.com/user/repo/blob/main/path/to/file.txt
-             https://github.com/user/repo/main/path/to/file.txt
              https://raw.githubusercontent.com/user/repo/main/path/to/file.txt
-           blob/tree/raw are optional. Without one, a matching branch or tag
-           prefix is used; otherwise the path is read from the default branch.
+
+           GitLab (nested groups are supported):
+             https://gitlab.com/group/repo/-/blob/main/path/to/file.txt
+             https://gitlab.com/group/subgroup/repo/-/tree/main/path
+             --forge gitlab.com group/repo/-/raw/main/path/to/file.txt
+
+           Forgejo/Gitea:
+             https://codeberg.org/owner/repo/src/branch/main/path/to/file.txt
+             https://gitea.com/owner/repo/src/tag/v1.0.0/path/to/file.txt
+             --forge codeberg.org owner/repo/src/branch/main/path/to/file.txt
+
   dest     Output path (default: current directory).
              Trailing slash  -> save inside directory, preserve original name.
              Existing dir    -> save inside directory, preserve original name.
              Non-existing    -> use as the output filename (parent dirs created).
 
 Options:
-  -c, -Container, --container   Download directory recursively
-  --dry-run, -DryRun            Print resolved URLs and destinations without downloading
-  --gh, -Gh                     Use gh CLI if available (default)
-  --no-gh, -NoGh                Skip gh CLI; use curl/wget/Invoke-WebRequest
+  -c, -Container, --container   Download a directory recursively
+  --dry-run, -DryRun            Print resolved URLs and destinations
+  --forge, -Forge <host|name>   Identify the forge for a hostless source
+  --gh, -Gh                     Use gh for GitHub if available (default)
+  --no-gh, -NoGh                Skip gh for GitHub
+                                (both gh options are no-ops off GitHub)
   -h, -Help, --help             Show this help
 
 Environment:
-  GITHUB_TOKEN   Personal access token for private repos
+  GITHUB_TOKEN   Personal access token for private GitHub repositories
 
-Ambiguities:
+Notes:
+  Non-GitHub support currently targets public repositories. Native blob/raw/tree
+  URL forms are supported; ambiguous markerless non-GitHub file shortcuts are not.
   A matching branch/tag prefix wins over a same-named default-branch path.
-  Use blob/<default-ref>/path to force default-branch path interpretation.
-  If ref lookup is unavailable, markerless input uses the default branch; an
-  explicit ref containing "/" may be split after its first component.
   A leading 7-40 character hexadecimal component is treated as a commit SHA.
   When a branch and tag share a name, the branch is preferred.
 
 Examples:
   git gh-get username/repo/src/main.js
-  git gh-get username/repo/main/src/main.js
-  git gh-get https://github.com/user/repo/blob/main/README.md ./docs/
-  git gh-get https://github.com/user/repo/main/README.md ./docs/
-  git gh-get username/repo/src/main.js ./main.js --dry-run
-  git gh-get -Container username/repo/src/ ./local-src/
+  git gh-get https://gitlab.com/group/repo/-/blob/main/README.md ./docs/
+  git gh-get --forge codeberg.org owner/repo/src/branch/main/README.md
+  git gh-get -c https://codeberg.org/owner/repo/src/branch/main/docs ./docs/
+  git gh-get --dry-run https://gitlab.com/group/repo/-/raw/main/file.txt
 '@
 }
 
-# ── Arg parsing ───────────────────────────────────────────────────────────────
+# ── Argument parsing ──────────────────────────────────────────────────────────
 
-$Positional = [System.Collections.Generic.List[string]]::new()
-$Container  = $false
-$Help       = $false
+$Positionals = [System.Collections.Generic.List[string]]::new()
+$Container = $false
+$Help = $false
+$InputArguments = @($args)
 
-foreach ($a in $args) {
-  # Normalize --flag to -flag (PowerShell may or may not pass double-dash through)
-  $key = $a -replace '^--', '-'
-  if     ($key -in '-h', '-help' -or $a -eq 'help') { $Help      = $true }
-  elseif ($key -in '-c', '-container')               { $Container = $true }
-  elseif ($key -in '-dry-run', '-dryrun')             { $DryRun    = $true }
-  elseif ($key -in '-gh')                            { $UseGh     = $true }
-  elseif ($key -in '-no-gh', '-nogh')                { $UseGh     = $false }
-  elseif ($key.StartsWith('-'))                      { Die "Unknown option: $a" }
-  else                                               { $Positional.Add($a) }
+for ($index = 0; $index -lt $InputArguments.Count; $index++) {
+  $argument = [string]$InputArguments[$index]
+  $key = ($argument -replace '^--', '-').ToLowerInvariant()
+
+  if ($argument -eq '--') {
+    for ($rest = $index + 1; $rest -lt $InputArguments.Count; $rest++) {
+      $Positionals.Add([string]$InputArguments[$rest])
+    }
+    break
+  } elseif ($key -in @('-h', '-help') -or $argument -eq 'help') {
+    $Help = $true
+  } elseif ($key -in @('-c', '-container')) {
+    $Container = $true
+  } elseif ($key -in @('-dry-run', '-dryrun')) {
+    $script:DryRun = $true
+  } elseif ($key -eq '-gh') {
+    $script:UseGh = $true
+  } elseif ($key -in @('-no-gh', '-nogh')) {
+    $script:UseGh = $false
+  } elseif ($key -eq '-forge') {
+    if ($index + 1 -ge $InputArguments.Count) { Die 'Missing value for --forge' }
+    $index++
+    $script:ForgeOption = [string]$InputArguments[$index]
+  } elseif ($argument -match '^--forge=(.*)$') {
+    $script:ForgeOption = $Matches[1]
+  } elseif ($key.StartsWith('-')) {
+    Die "Unknown option: $argument"
+  } else {
+    $Positionals.Add($argument)
+  }
 }
 
 if ($Help) { Show-Help; exit 0 }
-if ($Positional.Count -eq 0) { Show-Help; exit 1 }
+if ($Positionals.Count -eq 0) { Show-Help; exit 1 }
+if ($Positionals.Count -gt 2) { Die 'Too many positional arguments' }
 
-$SourceArg = $Positional[0]
-$DestArg   = if ($Positional.Count -gt 1) { $Positional[1] } else { '' }
+$SourceArg = $Positionals[0]
+$DestArg = if ($Positionals.Count -gt 1) { $Positionals[1] } else { '' }
 
-# ── Input parsing ─────────────────────────────────────────────────────────────
+# ── Client and forge helpers ──────────────────────────────────────────────────
 
-# Resolve an ambiguous "ref[/with/slashes]/path/to/file" string using GitHub's
-# matching-refs API. If AssumeRef is true, an unresolved value falls back to
-# treating its first component as the ref. Otherwise, an unresolved value is a
-# path on the repository's default branch. Requires $GhOwner and $GhRepo.
+function Get-HasGh {
+  $script:ForgeType -eq 'github' -and $script:UseGh -and
+    ($null -ne (Get-Command gh -CommandType Application -ErrorAction SilentlyContinue))
+}
+
+function Get-CurlCommand {
+  Get-Command curl -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+}
+
+function Get-WgetCommand {
+  Get-Command wget -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+}
+
+function Get-GithubHeaders {
+  $headers = @{}
+  if ($env:GITHUB_TOKEN) { $headers.Authorization = "Bearer $env:GITHUB_TOKEN" }
+  return $headers
+}
+
+function Resolve-ForgeOption {
+  if (-not $script:ForgeOption) { return }
+
+  $specification = $script:ForgeOption.TrimEnd('/')
+  $lookup = $specification
+  $uri = $null
+  if ([Uri]::TryCreate($specification, [UriKind]::Absolute, [ref]$uri) -and $uri.Scheme -in @('http', 'https')) {
+    $lookup = $uri.Host
+  }
+
+  $resolver = Find-GitForgeNamedResolver $lookup
+  if ($null -eq $resolver) {
+    Die "Unknown forge '$($script:ForgeOption)' (use a known host or github/gitlab/forgejo/gitea)"
+  }
+
+  $script:OptionForgeType = ([string]$resolver.Forge).ToLowerInvariant()
+  if ($null -ne $uri -and $uri.IsAbsoluteUri) {
+    $script:OptionForgeOrigin = $uri.GetLeftPart([UriPartial]::Authority).TrimEnd('/')
+    $script:OptionForgeHost = $uri.Host.ToLowerInvariant()
+  } else {
+    $script:OptionForgeOrigin = ([string]$resolver.WebOrigin).TrimEnd('/')
+    $originUri = [Uri]$script:OptionForgeOrigin
+    $script:OptionForgeHost = $originUri.Host.ToLowerInvariant()
+  }
+}
+
+function Set-SourceForge {
+  param([string]$HostName, [string]$Origin)
+
+  $resolver = Find-GitForgeResolver $HostName
+  if ($null -ne $resolver) {
+    $detectedType = ([string]$resolver.Forge).ToLowerInvariant()
+    $detectedOrigin = ([string]$resolver.WebOrigin).TrimEnd('/')
+  } elseif ($script:OptionForgeType) {
+    $detectedType = $script:OptionForgeType
+    $detectedOrigin = ''
+  } else {
+    Die "Unsupported forge host '$HostName'; pass --forge with a supported forge type"
+  }
+
+  if ($script:OptionForgeType -and $detectedType -ne $script:OptionForgeType) {
+    Die "Source host '$HostName' does not match --forge '$($script:ForgeOption)'"
+  }
+
+  $script:ForgeType = $detectedType
+  $script:ForgeHost = $HostName.ToLowerInvariant()
+  $script:ForgeOrigin = if ($Origin) { $Origin.TrimEnd('/') } else { $detectedOrigin }
+}
+
+function Join-UrlParts {
+  param([object[]]$Parts, [int]$Start = 0, [int]$Count = -1)
+  if ($Start -ge $Parts.Count) { return '' }
+  if ($Count -lt 0 -or $Start + $Count -gt $Parts.Count) { $Count = $Parts.Count - $Start }
+  if ($Count -le 0) { return '' }
+  return @($Parts[$Start..($Start + $Count - 1)]) -join '/'
+}
+
+# ── Ref discovery ─────────────────────────────────────────────────────────────
+
+function Get-GithubMatchingRecords {
+  param([string]$First, [string]$OnlyKind = '')
+
+  $owner = $script:RepositoryPath.Split('/')[0]
+  $repository = $script:RepositoryPath.Split('/')[1]
+  foreach ($refType in @('heads', 'tags')) {
+    $kind = if ($refType -eq 'heads') { 'branch' } else { 'tag' }
+    if ($OnlyKind -and $OnlyKind -ne $kind) { continue }
+    $items = @()
+    try {
+      if (Get-HasGh) {
+        $raw = @(& gh api "repos/$owner/$repository/git/matching-refs/$refType/$First" 2>$null) -join "`n"
+        if ($LASTEXITCODE -eq 0 -and $raw) { $items = @(ConvertFrom-Json $raw) }
+      } else {
+        $items = @(Invoke-RestMethod `
+          -Uri "$GithubApi/repos/$owner/$repository/git/matching-refs/$refType/$First" `
+          -Headers (Get-GithubHeaders) -ErrorAction Stop)
+      }
+    } catch { $items = @() }
+
+    foreach ($item in $items) {
+      if (-not $item.ref) { continue }
+      $prefix = "refs/$refType/"
+      $name = if ($item.ref.StartsWith($prefix)) { $item.ref.Substring($prefix.Length) } else { $item.ref }
+      [pscustomobject]@{ Kind = $kind; Name = $name; Oid = ''; Peeled = $false }
+    }
+  }
+}
+
+function Get-GitMatchingRecords {
+  param([string]$First, [string]$OnlyKind = '')
+
+  foreach ($refType in @('heads', 'tags')) {
+    $kind = if ($refType -eq 'heads') { 'branch' } else { 'tag' }
+    if ($OnlyKind -and $OnlyKind -ne $kind) { continue }
+
+    $lines = @(& git ls-remote "--$refType" $script:RemoteUrl "refs/$refType/$First*" 2>$null)
+    if ($LASTEXITCODE -ne 0) { continue }
+    foreach ($line in $lines) {
+      if ($line -notmatch '^(?<oid>\S+)\s+(?<ref>.+)$') { continue }
+      $fullRef = $Matches.ref
+      $peeled = $fullRef.EndsWith('^{}')
+      if ($peeled) { $fullRef = $fullRef.Substring(0, $fullRef.Length - 3) }
+      $prefix = "refs/$refType/"
+      if (-not $fullRef.StartsWith($prefix)) { continue }
+      [pscustomobject]@{
+        Kind = $kind
+        Name = $fullRef.Substring($prefix.Length)
+        Oid = $Matches.oid
+        Peeled = $peeled
+      }
+    }
+  }
+}
+
+function Get-MatchingRefRecords {
+  param([string]$First, [string]$OnlyKind = '')
+  if ($script:ForgeType -eq 'github') {
+    Get-GithubMatchingRecords $First $OnlyKind
+  } else {
+    Get-GitMatchingRecords $First $OnlyKind
+  }
+}
+
 function Resolve-RefPath {
   param(
     [string]$Remaining,
-    [bool]$AssumeRef = $true
+    [bool]$AssumeRef = $true,
+    [string]$OnlyKind = ''
   )
-  $Remaining = $Remaining.TrimEnd('/')
 
-  if (-not $Remaining) {
-    $script:GhRef = ''; $script:GhPath = ''; return
-  }
+  $remainingValue = $Remaining.TrimEnd('/')
+  $script:SourceRef = ''
+  $script:SourceRefKind = ''
+  $script:SourceOid = ''
+  $script:SourcePath = ''
+  if (-not $remainingValue) { return }
 
-  $rparts = @($Remaining -split '/')
-
-  if ($AssumeRef -and $rparts.Count -eq 1) {
-    $script:GhRef = $rparts[0]; $script:GhPath = ''; return
-  }
-
-  # SHA fingerprint: 7-40 hex chars → first segment is the complete ref
-  if ($rparts[0] -match '^[0-9a-f]{7,40}$') {
-    $script:GhRef  = $rparts[0]
-    $script:GhPath = if ($rparts.Count -gt 1) {
-      ($rparts[1..($rparts.Count-1)] -join '/').TrimEnd('/')
-    } else { '' }
+  $parts = @($remainingValue -split '/')
+  $first = $parts[0]
+  if ($first -match '^[0-9a-fA-F]{7,40}$') {
+    $script:SourceRef = $first
+    $script:SourceRefKind = 'commit'
+    $script:SourceOid = $first
+    $script:SourcePath = Join-UrlParts $parts 1
     return
   }
 
-  $first    = $rparts[0]
-  $token    = $env:GITHUB_TOKEN
-  $headers  = @{}
-  if ($token) { $headers['Authorization'] = "Bearer $token" }
+  if ($script:ForgeType -eq 'github' -and $AssumeRef -and $parts.Count -eq 1) {
+    $script:SourceRef = $first
+    $script:SourceRefKind = if ($OnlyKind) { $OnlyKind } else { 'ref' }
+    return
+  }
 
-  $foundRef  = ''
+  $foundRef = ''
   $foundPath = ''
+  $foundKind = ''
+  $foundOid = ''
+  foreach ($record in @(Get-MatchingRefRecords $first $OnlyKind)) {
+    $candidatePath = $null
+    if ($remainingValue -ceq $record.Name) {
+      $candidatePath = ''
+    } elseif ($remainingValue.StartsWith("$($record.Name)/", [StringComparison]::Ordinal)) {
+      $candidatePath = $remainingValue.Substring($record.Name.Length + 1)
+    } else {
+      continue
+    }
 
-  # Keep the longest match across both namespaces. Branches win a tie because
-  # they are visited first.
-  foreach ($refType in 'heads','tags') {
-    $refs = $null
-    try {
-      if (Get-HasGh) {
-        $rawRefs = gh api "repos/$GhOwner/$GhRepo/git/matching-refs/$refType/$first" 2>$null
-        if ($LASTEXITCODE -eq 0 -and $rawRefs) {
-          $refs = ($rawRefs -join "`n") | ConvertFrom-Json
-        } else {
-          $refs = @()
-        }
-      } else {
-        $refs = Invoke-RestMethod `
-          -Uri "$GithubApi/repos/$GhOwner/$GhRepo/git/matching-refs/$refType/$first" `
-          -Headers $headers -ErrorAction Stop
-      }
-    } catch { $refs = @() }
-
-    foreach ($item in @($refs)) {
-      if (-not $item.ref) { continue }
-      $strip   = "refs/$refType/"
-      $refName = if ($item.ref.StartsWith($strip)) { $item.ref.Substring($strip.Length) } else { $item.ref }
-
-      if ($Remaining -ceq $refName -and $refName.Length -gt $foundRef.Length) {
-        $foundRef = $refName; $foundPath = ''; break
-      } elseif (
-        $Remaining.StartsWith("$refName/", [System.StringComparison]::Ordinal) -and
-        $refName.Length -gt $foundRef.Length
-      ) {
-        $foundRef  = $refName
-        $foundPath = $Remaining.Substring($refName.Length + 1)
-      }
+    if ($record.Name.Length -gt $foundRef.Length) {
+      $foundRef = $record.Name
+      $foundPath = $candidatePath
+      $foundKind = $record.Kind
+      $foundOid = $record.Oid
+    } elseif ($record.Name -ceq $foundRef -and $record.Kind -eq $foundKind -and $record.Peeled) {
+      $foundOid = $record.Oid
     }
   }
 
   if ($foundRef) {
-    $script:GhRef  = $foundRef
-    $script:GhPath = $foundPath.TrimEnd('/')
+    $script:SourceRef = $foundRef
+    $script:SourceRefKind = $foundKind
+    $script:SourceOid = $foundOid
+    $script:SourcePath = $foundPath.TrimEnd('/')
   } elseif ($AssumeRef) {
-    # An explicit tree/blob/raw component (or the raw-content host) tells us
-    # that a ref is present even when lookup is unavailable.
-    $script:GhRef  = $rparts[0]
-    $script:GhPath = if ($rparts.Count -gt 1) {
-      ($rparts[1..($rparts.Count-1)] -join '/').TrimEnd('/')
-    } else { '' }
+    $script:SourceRef = $first
+    $script:SourceRefKind = if ($OnlyKind) { $OnlyKind } else { 'ref' }
+    $script:SourcePath = Join-UrlParts $parts 1
   } else {
-    $script:GhRef  = ''
-    $script:GhPath = $Remaining
+    $script:SourcePath = $remainingValue
   }
 }
 
-function Parse-GithubUrl {
-  param([string]$Url)
-  $u = $Url.TrimEnd('/')
-  $u = $u -replace '^https?://github\.com/', ''
-  $u = $u -replace '^github\.com/', ''
+# ── Native URL parsers ────────────────────────────────────────────────────────
 
-  $parts = $u -split '/'
-  $script:GhOwner = $parts[0]
-  $script:GhRepo  = $parts[1]
-  $seg            = if ($parts.Count -gt 2) { $parts[2] } else { '' }
+function Parse-GithubPath {
+  param([string]$Path, [bool]$RawHost = $false)
+  $parts = @($Path.TrimStart('/') -split '/')
+  if ($parts.Count -lt 2) { Die 'Invalid GitHub source: expected owner/repository' }
+  $parts[1] = $parts[1] -replace '\.git$', ''
+  $script:RepositoryPath = "$($parts[0])/$($parts[1])"
+  $script:RemoteUrl = "$($script:ForgeOrigin)/$($script:RepositoryPath).git"
 
-  if ($parts.Count -gt 3 -and $seg -in 'blob','tree','raw') {
-    $remaining = if ($parts.Count -gt 3) { $parts[3..($parts.Count-1)] -join '/' } else { '' }
-    Resolve-RefPath $remaining $true
+  if ($RawHost) {
+    Resolve-RefPath (Join-UrlParts $parts 2) $true
+  } elseif ($parts.Count -gt 3 -and $parts[2] -in @('blob', 'tree', 'raw')) {
+    Resolve-RefPath (Join-UrlParts $parts 3) $true
   } elseif ($parts.Count -gt 2) {
-    $remaining = $parts[2..($parts.Count-1)] -join '/'
-    Resolve-RefPath $remaining $false
+    Resolve-RefPath (Join-UrlParts $parts 2) $false
   } else {
-    $script:GhRef  = ''
-    $script:GhPath = ''
+    $script:SourceRef = ''; $script:SourcePath = ''
   }
 }
 
-function Parse-RawUrl {
-  param([string]$Url)
-  $u = $Url.TrimEnd('/')
-  $u = $u -replace '^https?://raw\.githubusercontent\.com/', ''
-
-  $parts = $u -split '/'
-  $script:GhOwner = if ($parts.Count -gt 0) { $parts[0] } else { '' }
-  $script:GhRepo  = if ($parts.Count -gt 1) { $parts[1] } else { '' }
-  $remaining      = if ($parts.Count -gt 2) { $parts[2..($parts.Count-1)] -join '/' } else { '' }
-  Resolve-RefPath $remaining $true
+function Parse-GitlabPath {
+  param([string]$Path)
+  $value = $Path.TrimStart('/')
+  if ($value -match '^(?<repository>.+)/-/(?:blob|raw|tree)/(?<remaining>.+)$') {
+    $repository = $Matches.repository.TrimEnd('/') -replace '\.git$', ''
+    if (@($repository -split '/').Count -lt 2) { Die 'Invalid GitLab source: expected namespace/repository before /-/' }
+    $script:RepositoryPath = $repository
+    $script:RemoteUrl = "$($script:ForgeOrigin)/$($script:RepositoryPath).git"
+    Resolve-RefPath $Matches.remaining $true
+  } else {
+    $parts = @($value -split '/')
+    if ($parts.Count -lt 2) { Die 'Invalid GitLab source: expected namespace/repository' }
+    $script:RepositoryPath = $value.TrimEnd('/') -replace '\.git$', ''
+    $script:RemoteUrl = "$($script:ForgeOrigin)/$($script:RepositoryPath).git"
+    $script:SourceRef = ''; $script:SourcePath = ''
+  }
 }
 
-function Parse-ShortForm {
-  param([string]$Source)
-  $s = $Source -replace '^\.[\\/]', '' -replace '^[\\/]', '' -replace '\.git$', '' -replace '[\\/]$', ''
-  $parts = $s -split '[\\/]'
-
-  if ($parts.Count -lt 2) { Die "Invalid source: expected username/repo/... format" }
-
-  $script:GhOwner = $parts[0]
-  $script:GhRepo  = $parts[1]
-
-  $seg = if ($parts.Count -gt 2) { $parts[2] } else { '' }
-  if ($parts.Count -gt 3 -and $seg -in 'blob','tree','raw') {
-    # GitHub URL path without domain: owner/repo/blob/ref/path
-    $remaining = if ($parts.Count -gt 3) { $parts[3..($parts.Count-1)] -join '/' } else { '' }
-    Resolve-RefPath $remaining $true
-  } elseif ($parts.Count -gt 2) {
-    $remaining = $parts[2..($parts.Count-1)] -join '/'
-    Resolve-RefPath $remaining $false
+function Parse-ForgejoPath {
+  param([string]$Path)
+  $value = $Path.TrimStart('/')
+  if ($value -match '^(?<owner>[^/]+)/(?<repository>[^/]+?)(?:\.git)?/(?<marker>src|raw)/(?<kind>branch|tag|commit)/(?<remaining>.+)$') {
+    $script:RepositoryPath = "$($Matches.owner)/$($Matches.repository)"
+    $script:RemoteUrl = "$($script:ForgeOrigin)/$($script:RepositoryPath).git"
+    if ($Matches.kind -eq 'commit') {
+      $parts = @($Matches.remaining -split '/')
+      $script:SourceRef = $parts[0]
+      $script:SourceRefKind = 'commit'
+      $script:SourceOid = $parts[0]
+      $script:SourcePath = Join-UrlParts $parts 1
+    } else {
+      Resolve-RefPath $Matches.remaining $true $Matches.kind
+    }
+  } elseif ($value -match '^(?<owner>[^/]+)/(?<repository>[^/]+?)(?:\.git)?/?$') {
+    $script:RepositoryPath = "$($Matches.owner)/$($Matches.repository)"
+    $script:RemoteUrl = "$($script:ForgeOrigin)/$($script:RepositoryPath).git"
+    $script:SourceRef = ''; $script:SourcePath = ''
   } else {
-    $script:GhRef  = ''
-    $script:GhPath = ''
+    Die 'Unsupported Forgejo/Gitea source; use /src/{branch|tag|commit}/ref/path or /raw/{branch|tag|commit}/ref/path'
   }
 }
 
 function Parse-Source {
-  param([string]$s)
-  if ($s -match '^https?://raw\.githubusercontent\.com/') {
-    Parse-RawUrl $s
-  } elseif ($s -match '^https?://github\.com/' -or $s -match '^github\.com/') {
-    Parse-GithubUrl $s
+  param([string]$Source)
+  $inputValue = $Source -replace '[?#].*$', ''
+  Resolve-ForgeOption
+
+  if ($inputValue -match '^https?://raw\.githubusercontent\.com/') {
+    $uri = [Uri]$inputValue
+    Set-SourceForge 'github.com' "$($uri.Scheme)://github.com"
+    Parse-GithubPath (ConvertFrom-GitForgeUrlPath $uri.AbsolutePath.TrimStart('/')) $true
+    return
+  }
+
+  $uri = $null
+  if ([Uri]::TryCreate($inputValue, [UriKind]::Absolute, [ref]$uri) -and $uri.Scheme -in @('http', 'https')) {
+    Set-SourceForge $uri.Host $uri.GetLeftPart([UriPartial]::Authority)
+    $path = ConvertFrom-GitForgeUrlPath $uri.AbsolutePath.TrimStart('/')
   } else {
-    Parse-ShortForm $s
+    $normalized = $inputValue.Replace('\', '/').TrimStart('./').TrimStart('/')
+    $first = @($normalized -split '/')[0]
+    $resolver = if ($first.Contains('.')) { Find-GitForgeResolver $first } else { $null }
+    if ($null -ne $resolver) {
+      Set-SourceForge $first ([string]$resolver.WebOrigin)
+      $path = $normalized.Substring([Math]::Min($normalized.Length, $first.Length + 1))
+    } elseif ($script:OptionForgeType) {
+      $script:ForgeType = $script:OptionForgeType
+      $script:ForgeHost = $script:OptionForgeHost
+      $script:ForgeOrigin = $script:OptionForgeOrigin
+      $path = $normalized
+    } else {
+      $script:ForgeType = 'github'
+      $script:ForgeHost = 'github.com'
+      $script:ForgeOrigin = 'https://github.com'
+      $path = $normalized
+    }
+  }
+
+  $path = $path.TrimEnd('/')
+  switch ($script:ForgeType) {
+    'github' { Parse-GithubPath $path }
+    'gitlab' { Parse-GitlabPath $path }
+    { $_ -in @('forgejo', 'gitea') } { Parse-ForgejoPath $path }
+    default { Die "Downloads are not implemented for forge '$($script:ForgeType)'" }
   }
 }
 
-# ── HTTP client detection ─────────────────────────────────────────────────────
+# ── HTTP and default ref resolution ───────────────────────────────────────────
 
-function Get-HasGh {
-  $UseGh -and ($null -ne (Get-Command gh -ErrorAction SilentlyContinue))
+function Invoke-HttpText {
+  param([string]$Url)
+  $curl = Get-CurlCommand
+  if ($null -ne $curl) {
+    $content = @(& $curl.Source -fsSL $Url 2>$null) -join "`n"
+    if ($LASTEXITCODE -ne 0) { throw "curl request failed: $Url" }
+    return $content
+  }
+  $wget = Get-WgetCommand
+  if ($null -ne $wget) {
+    $content = @(& $wget.Source -qO- $Url 2>$null) -join "`n"
+    if ($LASTEXITCODE -ne 0) { throw "wget request failed: $Url" }
+    return $content
+  }
+  throw 'No HTTP client found. Install curl or wget.'
 }
 
-function Get-HasCurl {
-  $cmd = Get-Command curl -ErrorAction SilentlyContinue
-  # Exclude PowerShell's curl alias (maps to Invoke-WebRequest)
-  $null -ne $cmd -and $cmd.CommandType -eq 'Application'
-}
-
-function Get-HasWget {
-  $cmd = Get-Command wget -ErrorAction SilentlyContinue
-  $null -ne $cmd -and $cmd.CommandType -eq 'Application'
-}
-
-function Get-AuthHeaders {
-  $h = @{}
-  if ($env:GITHUB_TOKEN) { $h['Authorization'] = "Bearer $env:GITHUB_TOKEN" }
-  return $h
-}
-
-# ── GitHub API ────────────────────────────────────────────────────────────────
-
-function Invoke-ApiJson {
+function Invoke-GithubApiJson {
   param([string]$Endpoint)
-  if (Get-HasGh) {
-    return (gh api $Endpoint) | ConvertFrom-Json
-  }
-  $headers = Get-AuthHeaders
   try {
-    return Invoke-RestMethod -Uri "$GithubApi/$Endpoint" -Headers $headers -ErrorAction Stop
+    if (Get-HasGh) {
+      $raw = @(& gh api $Endpoint) -join "`n"
+      if ($LASTEXITCODE -ne 0) { throw "gh api failed for $Endpoint" }
+      return ConvertFrom-Json $raw
+    }
+    return Invoke-RestMethod -Uri "$GithubApi/$Endpoint" -Headers (Get-GithubHeaders) -ErrorAction Stop
   } catch {
-    Die "API request failed: $_"
+    Die "GitHub API request failed: $_"
   }
 }
 
-function Get-DefaultBranch {
-  $data = Invoke-ApiJson "repos/$GhOwner/$GhRepo"
-  if (-not $data.default_branch) { Die "Could not determine default branch for $GhOwner/$GhRepo" }
-  return $data.default_branch
+function Get-DefaultRef {
+  if ($script:ForgeType -eq 'github') {
+    $data = Invoke-GithubApiJson "repos/$($script:RepositoryPath)"
+    if (-not $data.default_branch) { Die "Could not determine default branch for $($script:RepositoryPath)" }
+    $script:SourceRefKind = 'branch'
+    return [string]$data.default_branch
+  }
+
+  $lines = @(& git ls-remote --symref $script:RemoteUrl HEAD 2>$null)
+  if ($LASTEXITCODE -ne 0) { $lines = @() }
+  $branch = ''
+  $oid = ''
+  foreach ($line in $lines) {
+    if ($line -match '^ref:\s+refs/heads/(?<branch>.+)\s+HEAD$') { $branch = $Matches.branch }
+    elseif ($line -match '^(?<oid>[0-9a-fA-F]+)\s+HEAD$') { $oid = $Matches.oid }
+  }
+  if (-not $branch) { Die "Could not determine default branch for $($script:ForgeHost)/$($script:RepositoryPath)" }
+  $script:SourceRefKind = 'branch'
+  $script:SourceOid = $oid
+  return $branch
+}
+
+function Ensure-SourceOid {
+  if ($script:SourceOid) { return }
+  if ($script:SourceRefKind -eq 'commit' -and $script:SourceRef -match '^[0-9a-fA-F]{7,40}$') {
+    $script:SourceOid = $script:SourceRef
+    return
+  }
+  foreach ($record in @(Get-MatchingRefRecords ($script:SourceRef -split '/')[0] $script:SourceRefKind)) {
+    if ($record.Name -ceq $script:SourceRef -and (-not $script:SourceOid -or $record.Peeled)) {
+      $script:SourceOid = $record.Oid
+    }
+  }
 }
 
 # ── Output path resolution ────────────────────────────────────────────────────
 
 function Resolve-FileOutput {
   param([string]$Dest, [string]$Filename)
-  if (-not $Dest) {
-    return ".\$Filename"
-  }
-  if ($Dest -match '[\\/]$') {
-    return Join-Path $Dest $Filename
-  }
-  if (Test-Path -LiteralPath $Dest -PathType Container) {
-    return Join-Path $Dest $Filename
-  }
+  if (-not $Dest) { return Join-Path '.' $Filename }
+  if ($Dest -match '[\\/]$') { return Join-Path $Dest $Filename }
+  if (Test-Path -LiteralPath $Dest -PathType Container) { return Join-Path $Dest $Filename }
   return $Dest
 }
 
 function Resolve-DirOutput {
   param([string]$Dest, [string]$DirName)
-  if (-not $Dest) {
-    return ".\$DirName"
-  }
-  if ($Dest -match '[\\/]$') {
-    return Join-Path $Dest $DirName
-  }
-  if (Test-Path -LiteralPath $Dest -PathType Container) {
-    return Join-Path $Dest $DirName
-  }
+  if (-not $Dest) { return Join-Path '.' $DirName }
+  if ($Dest -match '[\\/]$') { return Join-Path $Dest $DirName }
+  if (Test-Path -LiteralPath $Dest -PathType Container) { return Join-Path $Dest $DirName }
   return $Dest
 }
 
-# ── Download ──────────────────────────────────────────────────────────────────
+# ── Download and tree adapters ────────────────────────────────────────────────
 
 function Get-ResolvedFileUrl {
   param([string]$Path)
-  return "https://raw.githubusercontent.com/$GhOwner/$GhRepo/$GhRef/$Path"
+  try {
+    return Get-GitForgeRawFileUrl `
+      $script:ForgeType $script:ForgeOrigin $script:RepositoryPath $script:SourceRef $Path
+  } catch {
+    Die "Could not construct a raw URL for $($script:ForgeType): $_"
+  }
 }
 
 function Write-DownloadPlan {
   param([string]$Path, [string]$Output)
   $url = Get-ResolvedFileUrl $Path
-
   [Console]::Out.WriteLine("${PROG}: Would download $url to $Output")
   if (Test-Path -LiteralPath $Output) {
     Write-Info "Warning: $Output already exists and would be overwritten"
@@ -381,17 +578,11 @@ function Write-DownloadPlan {
 }
 
 function Invoke-GhApiToFile {
-  param(
-    [string]$Endpoint,
-    [string]$Output
-  )
-
-  # gh api has no output-file option. Stream native stdout directly to disk so
-  # binary files are not decoded and re-encoded by the PowerShell pipeline.
+  param([string]$Endpoint, [string]$Output)
   $ghCommand = Get-Command gh -CommandType Application -ErrorAction SilentlyContinue
   if (-not $ghCommand) { Die 'gh CLI is not available' }
 
-  $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+  $startInfo = [Diagnostics.ProcessStartInfo]::new()
   $startInfo.FileName = $ghCommand.Source
   $startInfo.UseShellExecute = $false
   $startInfo.RedirectStandardOutput = $true
@@ -399,107 +590,161 @@ function Invoke-GhApiToFile {
     $startInfo.ArgumentList.Add($argument)
   }
 
-  $process = [System.Diagnostics.Process]::new()
+  $process = [Diagnostics.Process]::new()
   $process.StartInfo = $startInfo
-  $outputStream = $null
+  $stream = $null
   $failure = ''
   $exitCode = -1
-
   try {
-    $outputStream = [System.IO.File]::Create($Output)
+    $stream = [IO.File]::Create($Output)
     if (-not $process.Start()) { throw 'Could not start gh CLI' }
-    $process.StandardOutput.BaseStream.CopyTo($outputStream)
+    $process.StandardOutput.BaseStream.CopyTo($stream)
     $process.WaitForExit()
     $exitCode = $process.ExitCode
   } catch {
     $failure = $_.Exception.Message
   } finally {
-    if ($outputStream) { $outputStream.Dispose() }
+    if ($stream) { $stream.Dispose() }
     $process.Dispose()
   }
-
   if ($failure) { Die "gh download failed: $failure" }
   if ($exitCode -ne 0) { Die "gh download failed with exit code $exitCode" }
 }
 
 function Download-File {
   param([string]$Path, [string]$Output)
-  $token = $env:GITHUB_TOKEN
 
   if (Get-HasGh) {
-    $encodedRef = [System.Uri]::EscapeDataString($GhRef)
-    $apiPath = "repos/$GhOwner/$GhRepo/contents/$Path`?ref=$encodedRef"
-    Invoke-GhApiToFile $apiPath $Output
+    $parts = @($script:RepositoryPath -split '/')
+    $encodedPath = ConvertTo-GitForgeUrlPath $Path
+    $encodedRef = ConvertTo-GitForgeUrlComponent $script:SourceRef
+    Invoke-GhApiToFile "repos/$($parts[0])/$($parts[1])/contents/$encodedPath`?ref=$encodedRef" $Output
     return
   }
 
   $url = Get-ResolvedFileUrl $Path
-  $headers = Get-AuthHeaders
-
-  if (Get-HasCurl) {
+  $curl = Get-CurlCommand
+  if ($null -ne $curl) {
     $curlArgs = @('-fsSL', $url, '-o', $Output)
-    if ($token) { $curlArgs += @('-H', "Authorization: Bearer $token") }
-    & curl @curlArgs
+    if ($script:ForgeType -eq 'github' -and $env:GITHUB_TOKEN) {
+      $curlArgs += @('-H', "Authorization: Bearer $env:GITHUB_TOKEN")
+    }
+    & $curl.Source @curlArgs
     if ($LASTEXITCODE -ne 0) { Die "curl download failed for: $Path" }
     return
   }
 
-  if (Get-HasWget) {
+  $wget = Get-WgetCommand
+  if ($null -ne $wget) {
     $wgetArgs = @('-qO', $Output, $url)
-    if ($token) { $wgetArgs += @("--header=Authorization: Bearer $token") }
-    & wget @wgetArgs
+    if ($script:ForgeType -eq 'github' -and $env:GITHUB_TOKEN) {
+      $wgetArgs += @("--header=Authorization: Bearer $env:GITHUB_TOKEN")
+    }
+    & $wget.Source @wgetArgs
     if ($LASTEXITCODE -ne 0) { Die "wget download failed for: $Path" }
     return
   }
 
+  if ($script:ForgeType -ne 'github') { Die 'No HTTP client found. Install curl or wget.' }
   try {
-    Invoke-WebRequest -Uri $url -Headers $headers -OutFile $Output -ErrorAction Stop
+    Invoke-WebRequest -Uri $url -Headers (Get-GithubHeaders) -OutFile $Output -ErrorAction Stop
   } catch {
     Die "Download failed for ${Path}: $_"
   }
 }
 
+function Get-GithubContainerPaths {
+  param([string]$Path)
+  $encodedRef = ConvertTo-GitForgeUrlComponent $script:SourceRef
+  $tree = Invoke-GithubApiJson "repos/$($script:RepositoryPath)/git/trees/$encodedRef`?recursive=1"
+  if ($tree.truncated) { Write-Info 'Warning: tree is truncated; some files may be missing' }
+  foreach ($item in @($tree.tree)) {
+    if ($item.type -eq 'blob' -and (-not $Path -or $item.path -ceq $Path -or $item.path.StartsWith("$Path/"))) {
+      [string]$item.path
+    }
+  }
+}
+
+function Get-GitlabContainerPaths {
+  param([string]$Path)
+  $repository = ConvertTo-GitForgeUrlComponent $script:RepositoryPath
+  $ref = ConvertTo-GitForgeUrlComponent $script:SourceRef
+  $base = "$($script:ForgeOrigin)/api/v4/projects/$repository/repository/tree?recursive=true&per_page=100&ref=$ref"
+  if ($Path) { $base += "&path=$(ConvertTo-GitForgeUrlComponent $Path)" }
+
+  $page = 1
+  do {
+    try { $items = @(ConvertFrom-Json (Invoke-HttpText "$base&page=$page")) }
+    catch { Die "Could not list GitLab tree at '$Path': $_" }
+    foreach ($item in $items) {
+      if ($item.type -eq 'blob') { [string]$item.path }
+    }
+    $page++
+  } while ($items.Count -ge 100)
+}
+
+function Get-ForgejoContainerPaths {
+  param([string]$Path)
+  Ensure-SourceOid
+  $treeish = if ($script:SourceOid) { $script:SourceOid } else { $script:SourceRef }
+  $encodedTreeish = ConvertTo-GitForgeUrlComponent $treeish
+  $encodedRepository = ConvertTo-GitForgeUrlPath $script:RepositoryPath
+  $base = "$($script:ForgeOrigin)/api/v1/repos/$encodedRepository/git/trees/$encodedTreeish`?recursive=true&per_page=1000"
+  $page = 1
+  do {
+    try { $tree = ConvertFrom-Json (Invoke-HttpText "$base&page=$page") }
+    catch { Die "Could not list $($script:ForgeType) tree at '$Path': $_" }
+    foreach ($item in @($tree.tree)) {
+      if ($item.type -eq 'blob' -and (-not $Path -or $item.path -ceq $Path -or $item.path.StartsWith("$Path/"))) {
+        [string]$item.path
+      }
+    }
+    $page++
+    if ($page -gt 1000) { Die 'Forgejo/Gitea tree pagination exceeded 1000 pages' }
+  } while ($tree.truncated)
+}
+
+function Get-ContainerPaths {
+  param([string]$Path)
+  switch ($script:ForgeType) {
+    'github' { Get-GithubContainerPaths $Path }
+    'gitlab' { Get-GitlabContainerPaths $Path }
+    { $_ -in @('forgejo', 'gitea') } { Get-ForgejoContainerPaths $Path }
+    default { Die "Directory downloads are not implemented for forge '$($script:ForgeType)'" }
+  }
+}
+
 function Download-Container {
   param([string]$OutputDir)
-  $path = $GhPath.TrimEnd('/')
-
-  Write-Info "Fetching repository tree ($GhOwner/$GhRepo @ $GhRef)..."
-  $encodedRef = [System.Uri]::EscapeDataString($GhRef)
-  $tree = Invoke-ApiJson "repos/$GhOwner/$GhRepo/git/trees/$encodedRef`?recursive=1"
-
-  if ($tree.truncated) {
-    Write-Info "Warning: tree is truncated — large repo, some files may be missing"
-  }
-
-  $blobs = $tree.tree | Where-Object {
-    $_.type -eq 'blob' -and (
-      -not $path -or $_.path -eq $path -or $_.path.StartsWith("$path/")
-    )
-  }
-
-  if (-not $blobs) {
-    Die "No files found at '$path' — check the path or use the full GitHub URL"
-  }
+  $path = $script:SourcePath.TrimEnd('/')
+  Write-Info "Fetching repository tree ($($script:ForgeHost)/$($script:RepositoryPath) @ $($script:SourceRef))..."
+  $blobs = @(Get-ContainerPaths $path)
+  if ($blobs.Count -eq 0) { Die "No files found at '$path'; check the source URL" }
 
   $count = 0
-  foreach ($blob in $blobs) {
-    $rel = if ($path) { $blob.path.Substring([Math]::Min($blob.path.Length, $path.Length + 1)) } else { $blob.path }
-    if (-not $rel) { $rel = Split-Path $blob.path -Leaf }
-
-    $out    = Join-Path $OutputDir $rel
-    if ($DryRun) {
-      Write-DownloadPlan $blob.path $out
+  foreach ($blobPath in $blobs) {
+    if ($path -and $blobPath.StartsWith("$path/", [StringComparison]::Ordinal)) {
+      $relative = $blobPath.Substring($path.Length + 1)
+    } elseif ($path -and $blobPath -ceq $path) {
+      $relative = Split-Path $blobPath -Leaf
     } else {
-      $parentDir = Split-Path $out -Parent
-      if ($parentDir) { New-Item -ItemType Directory -Force -Path $parentDir | Out-Null }
+      $relative = $blobPath
+    }
+    if (-not $relative) { $relative = Split-Path $blobPath -Leaf }
+    $output = Join-Path $OutputDir $relative
 
-      Write-Info "v $rel"
-      Download-File $blob.path $out
+    if ($script:DryRun) {
+      Write-DownloadPlan $blobPath $output
+    } else {
+      $parent = Split-Path $output -Parent
+      if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
+      Write-Info "downloading $relative"
+      Download-File $blobPath $output
     }
     $count++
   }
 
-  if ($DryRun) {
+  if ($script:DryRun) {
     Write-Info "Dry run: $count file(s) would be downloaded to $OutputDir"
   } else {
     Write-Info "Downloaded $count file(s) to $OutputDir"
@@ -509,41 +754,31 @@ function Download-Container {
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 Parse-Source $SourceArg
+if (-not $script:RepositoryPath) { Die "Could not parse repository from: $SourceArg" }
 
-if (-not $GhOwner) { Die "Could not parse owner from: $SourceArg" }
-if (-not $GhRepo)  { Die "Could not parse repo from: $SourceArg" }
-
-if (-not $GhRef) {
-  Write-Info "Resolving default branch..."
-  $GhRef = Get-DefaultBranch
+if (-not $script:SourceRef) {
+  Write-Info 'Resolving default branch...'
+  $script:SourceRef = Get-DefaultRef
 }
 
 if ($Container) {
-  $dirName = if ($GhPath) { Split-Path $GhPath.TrimEnd('/') -Leaf } else { $GhRepo }
-  if (-not $dirName -or $dirName -eq '.') { $dirName = $GhRepo }
-
-  $outDir = Resolve-DirOutput $DestArg $dirName
-  if (-not $DryRun) {
-    New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-  }
-  Download-Container $outDir
+  $repositoryName = @($script:RepositoryPath -split '/')[-1]
+  $dirName = if ($script:SourcePath) { Split-Path $script:SourcePath.TrimEnd('/') -Leaf } else { $repositoryName }
+  if (-not $dirName -or $dirName -eq '.') { $dirName = $repositoryName }
+  $outputDir = Resolve-DirOutput $DestArg $dirName
+  if (-not $script:DryRun) { New-Item -ItemType Directory -Force -Path $outputDir | Out-Null }
+  Download-Container $outputDir
 } else {
-  if (-not $GhPath) {
-    Die "No file path in source — use -Container to download a directory"
-  }
-  $filename = Split-Path $GhPath -Leaf
-  if (-not $filename -or $filename -eq '.') {
-    Die "Could not determine filename from: $GhPath"
-  }
+  if (-not $script:SourcePath) { Die 'No file path in source; use -Container to download a directory' }
+  $filename = Split-Path $script:SourcePath -Leaf
+  if (-not $filename -or $filename -eq '.') { Die "Could not determine filename from: $($script:SourcePath)" }
   $output = Resolve-FileOutput $DestArg $filename
-  if ($DryRun) {
-    Write-DownloadPlan $GhPath $output
+  if ($script:DryRun) {
+    Write-DownloadPlan $script:SourcePath $output
   } else {
-    $outputDir = Split-Path $output -Parent
-    if ($outputDir -and $outputDir -ne '.') {
-      New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
-    }
-    Download-File $GhPath $output
+    $parent = Split-Path $output -Parent
+    if ($parent -and $parent -ne '.') { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
+    Download-File $script:SourcePath $output
     Write-Info "Downloaded to $output"
   }
 }
