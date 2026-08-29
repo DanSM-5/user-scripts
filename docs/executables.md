@@ -44,7 +44,7 @@
 | `git-clone-bare` | Clone a repository as a bare repo and configure it for worktree use with proper remote tracking. |
 | `git-compare-files` | Browse files changed between the current branch and a target branch; preview diffs, edit files, or copy paths. |
 | `git-file-history` | Show commit history for a specific file with patch preview; supports copying hashes and editing commits. |
-| `git-gh-get` | Download a file or directory from GitHub without cloning the full repository. Accepts `user/repo/path` or a URL. |
+| `git-gh-get` | Download a file or directory from GitHub, GitLab, Forgejo, or Gitea without cloning the full repository. Accepts native URLs and forge-qualified paths. |
 | `git-jump` | Git extension that populates the editor's quickfix list with interesting locations (diffs, merge conflicts, grep results, whitespace errors). |
 | `git-line-blame` | Trace one code line through history with `git log -L`; select the line with ripgrep or pass `<line>:<path>`, then browse commits and file-scoped patches. |
 | `git-prev` | Show the diff of the previous commit, N commits back, or a range between commits. |
