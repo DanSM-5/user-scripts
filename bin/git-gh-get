@@ -39,6 +39,7 @@ REMOTE_URL=''
 USE_GH=true
 DRY_RUN=false
 COLOR_MODE='auto'
+FORMAT_TOOL=''
 DRY_RUN_URLS=()
 DRY_RUN_DESTINATIONS=()
 DRY_RUN_WARNING_PATHS=()
@@ -85,8 +86,10 @@ Options:
   -c, --container       Download a directory recursively (requires jq or Python)
   --dry-run             Print each resolved URL and destination without downloading
   --color=<mode>        Dry-run table mode: auto, always, or never (default: auto).
-                       auto uses gum on a TTY when available; always uses gum when
-                       available even if redirected; never emits parseable TSV.
+                       auto formats on a TTY; always formats even if redirected;
+                       never emits parseable TSV.
+  --format-tool=<tool>  Use mcat, gum, raw Markdown (md), or tsv for dry-run
+                       output. By default, mcat then gum are tried before TSV.
   --forge <host|name>   Identify the forge for a hostless source. Known names are
                        github, gitlab, forgejo, and gitea; a known hostname is
                        preferred when it identifies the intended public instance.
@@ -688,17 +691,35 @@ markdown_code_span() {
 }
 
 markdown_table_code_span() {
-  local value="$1"
-  value="${value//\\/\\\\}"
+  local value="$1" escape_backslashes="${2:-false}"
+  if $escape_backslashes; then
+    value="${value//\\/\\\\}"
+  fi
   value="${value//|/\\|}"
   markdown_code_span "$value"
 }
 
-find_gum_command() {
-  local executable
-  executable=$(command -v gum 2>/dev/null) ||
-    executable=$(command -v gum.exe 2>/dev/null) || return 1
-  printf '%s' "$executable"
+markdown_table_text() {
+  local value="$1"
+  value="${value//|/\\|}"
+  printf '%s' "$value"
+}
+
+find_format_command() {
+  local tool="$1" executable command_name
+  local -a command_names=()
+  case "$tool" in
+    mcat) command_names=(mcat mcat.exe) ;;
+    gum) command_names=(gum gum.exe) ;;
+    *) return 1 ;;
+  esac
+  for command_name in "${command_names[@]}"; do
+    if executable=$(command -v "$command_name" 2>/dev/null); then
+      printf '%s' "$executable"
+      return 0
+    fi
+  done
+  return 1
 }
 
 find_fold_command() {
@@ -760,7 +781,8 @@ write_tsv_download_plan() {
 }
 
 write_markdown_download_plan() {
-  local fold_command="$1" width column_width index row row_count warning_path
+  local fold_command="$1" escape_table_backslashes="${2:-false}" code_span_urls="${3:-false}"
+  local width column_width index row row_count warning_path
   local -a url_chunks=() destination_chunks=() warning_chunks=()
   width=$(dry_run_output_width)
   column_width=$(((width - 16) / 2))
@@ -784,8 +806,14 @@ write_markdown_download_plan() {
     ((${#destination_chunks[@]} > row_count)) && row_count=${#destination_chunks[@]}
     for ((row = 0; row < row_count; row++)); do
       local url_cell='' destination_cell=''
-      [[ -z ${url_chunks[row]+set} ]] || url_cell=$(markdown_table_code_span "${url_chunks[row]}")
-      [[ -z ${destination_chunks[row]+set} ]] || destination_cell=$(markdown_table_code_span "${destination_chunks[row]}")
+      if [[ -n ${url_chunks[row]+set} ]]; then
+        if $code_span_urls; then
+          url_cell=$(markdown_table_code_span "${url_chunks[row]}" "$escape_table_backslashes")
+        else
+          url_cell=$(markdown_table_text "${url_chunks[row]}")
+        fi
+      fi
+      [[ -z ${destination_chunks[row]+set} ]] || destination_cell=$(markdown_table_code_span "${destination_chunks[row]}" "$escape_table_backslashes")
       printf '| %s | %s |\n' "$url_cell" "$destination_cell"
     done
   done
@@ -804,10 +832,17 @@ write_markdown_download_plan() {
   done
 }
 
-write_pretty_download_plan() {
-  local gum_command="$1" markdown formatted fold_command=''
-  fold_command=$(find_fold_command) || fold_command=''
-  markdown=$(write_markdown_download_plan "$fold_command")
+write_mcat_download_plan() {
+  local mcat_command="$1" markdown="$2" formatted
+  if ! formatted=$(printf '%s\n' "$markdown" |
+    "$mcat_command" -c -P -f --silent); then
+    return 1
+  fi
+  printf '%s\n' "$formatted"
+}
+
+write_gum_download_plan() {
+  local gum_command="$1" markdown="$2" formatted
 
   if ! formatted=$(printf '%s\n' "$markdown" | CLICOLOR_FORCE=1 "$gum_command" format --language markdown); then
     return 1
@@ -815,21 +850,66 @@ write_pretty_download_plan() {
   printf '%s\n' "$formatted"
 }
 
+write_formatted_download_plan() {
+  local tool="$1" format_command="$2" fold_command="$3" markdown markdown_fold_command="$3"
+  if [[ $tool == mcat || $tool == md ]]; then
+    markdown_fold_command=''
+  fi
+  if [[ $tool == gum ]]; then
+    markdown=$(write_markdown_download_plan "$markdown_fold_command" true true)
+  else
+    markdown=$(write_markdown_download_plan "$markdown_fold_command" false)
+  fi
+  case "$tool" in
+    mcat) write_mcat_download_plan "$format_command" "$markdown" ;;
+    gum) write_gum_download_plan "$format_command" "$markdown" ;;
+    md) printf '%s\n' "$markdown" ;;
+    *) return 1 ;;
+  esac
+}
+
 render_download_plan() {
   ((${#DRY_RUN_URLS[@]})) || return 0
-  local gum_command=''
+  local format_command='' fold_command='' tool
+
+  if [[ -n $FORMAT_TOOL && $FORMAT_TOOL != tsv && $FORMAT_TOOL != md ]] &&
+    ! format_command=$(find_format_command "$FORMAT_TOOL"); then
+    info "Format tool '$FORMAT_TOOL' is not available; falling back to TSV output"
+    write_tsv_download_plan
+    return 0
+  fi
+
+  if [[ $FORMAT_TOOL == tsv || $COLOR_MODE == never ]]; then
+    write_tsv_download_plan
+    return 0
+  fi
+
   case "$COLOR_MODE" in
-    always) gum_command=$(find_gum_command) || gum_command='' ;;
     auto)
-      if [[ -t 1 ]]; then
-        gum_command=$(find_gum_command) || gum_command=''
+      if [[ ! -t 1 ]]; then
+        write_tsv_download_plan
+        return 0
       fi
       ;;
   esac
 
-  if [[ -n $gum_command ]] && write_pretty_download_plan "$gum_command"; then
+  fold_command=$(find_fold_command) || fold_command=''
+
+  if [[ -n $FORMAT_TOOL ]]; then
+    if write_formatted_download_plan "$FORMAT_TOOL" "$format_command" "$fold_command"; then
+      return 0
+    fi
+    info "Format tool '$FORMAT_TOOL' failed; falling back to TSV output"
+    write_tsv_download_plan
     return 0
   fi
+
+  for tool in mcat gum; do
+    format_command=$(find_format_command "$tool") || continue
+    if write_formatted_download_plan "$tool" "$format_command" "$fold_command"; then
+      return 0
+    fi
+  done
   write_tsv_download_plan
 }
 
@@ -975,6 +1055,12 @@ main() {
         shift
         ;;
       --color=*) COLOR_MODE="${1#*=}" ;;
+      --format-tool)
+        (($# >= 2)) || die 'Missing value for --format-tool'
+        FORMAT_TOOL="${2,,}"
+        shift
+        ;;
+      --format-tool=*) FORMAT_TOOL="${1#*=}"; FORMAT_TOOL="${FORMAT_TOOL,,}" ;;
       --gh) USE_GH=true ;;
       --no-gh) USE_GH=false ;;
       --forge)
@@ -994,6 +1080,10 @@ main() {
   case "$COLOR_MODE" in
     auto|always|never) ;;
     *) die "Invalid --color value '$COLOR_MODE' (expected auto, always, or never)" ;;
+  esac
+  case "$FORMAT_TOOL" in
+    ''|mcat|gum|md|tsv) ;;
+    *) die "Invalid --format-tool value '$FORMAT_TOOL' (expected mcat, gum, md, or tsv)" ;;
   esac
   [[ ${#positional[@]} -gt 0 ]] || { show_help; exit 1; }
   [[ ${#positional[@]} -le 2 ]] || die 'Too many positional arguments'

@@ -20,7 +20,9 @@
 .PARAMETER DryRun
   Print each resolved URL and destination without downloading.
 .PARAMETER Color
-  Select auto, always, or never for Gum-formatted dry-run output.
+  Select auto, always, or never for formatted dry-run output.
+.PARAMETER FormatTool
+  Select mcat, gum, raw Markdown (md), or tsv for dry-run output.
 #>
 
 . (Join-Path $PSScriptRoot 'lib/GitForge.ps1')
@@ -44,6 +46,7 @@ $script:RemoteUrl = ''
 $script:UseGh = $true
 $script:DryRun = $false
 $script:ColorMode = 'auto'
+$script:FormatTool = ''
 $script:DryRunUrls = [System.Collections.Generic.List[string]]::new()
 $script:DryRunDestinations = [System.Collections.Generic.List[string]]::new()
 $script:DryRunWarningPaths = [System.Collections.Generic.List[string]]::new()
@@ -86,9 +89,11 @@ Options:
   -c, -Container, --container   Download a directory recursively
   --dry-run, -DryRun            Print resolved URLs and destinations
   --color=<mode>                Dry-run table mode: auto, always, or never.
-                                auto uses gum on a TTY when available; always
-                                uses gum when available even if redirected;
-                                never emits parseable TSV.
+                                auto formats on a TTY; always formats even if
+                                redirected; never emits parseable TSV.
+  --format-tool=<tool>,         Use mcat, gum, raw Markdown (md), or tsv for
+    -FormatTool <tool>          dry-run output. By default, mcat then gum are
+                                tried before TSV.
   --forge, -Forge <host|name>   Identify the forge for a hostless source
   --gh, -Gh                     Use gh for GitHub if available (default)
   --no-gh, -NoGh                Skip gh for GitHub
@@ -142,6 +147,12 @@ for ($index = 0; $index -lt $InputArguments.Count; $index++) {
     $script:ColorMode = ([string]$InputArguments[$index]).ToLowerInvariant()
   } elseif ($argument -match '^-{1,2}color=(.*)$') {
     $script:ColorMode = $Matches[1].ToLowerInvariant()
+  } elseif ($key -in @('-format-tool', '-formattool')) {
+    if ($index + 1 -ge $InputArguments.Count) { Die 'Missing value for --format-tool' }
+    $index++
+    $script:FormatTool = ([string]$InputArguments[$index]).ToLowerInvariant()
+  } elseif ($argument -match '^-{1,2}format-?tool=(.*)$') {
+    $script:FormatTool = $Matches[1].ToLowerInvariant()
   } elseif ($key -eq '-gh') {
     $script:UseGh = $true
   } elseif ($key -in @('-no-gh', '-nogh')) {
@@ -162,6 +173,9 @@ for ($index = 0; $index -lt $InputArguments.Count; $index++) {
 if ($Help) { Show-Help; exit 0 }
 if ($script:ColorMode -notin @('auto', 'always', 'never')) {
   Die "Invalid --color value '$($script:ColorMode)' (expected auto, always, or never)"
+}
+if ($script:FormatTool -notin @('', 'mcat', 'gum', 'md', 'tsv')) {
+  Die "Invalid --format-tool value '$($script:FormatTool)' (expected mcat, gum, md, or tsv)"
 }
 if ($Positionals.Count -eq 0) { Show-Help; exit 1 }
 if ($Positionals.Count -gt 2) { Die 'Too many positional arguments' }
@@ -604,13 +618,25 @@ function ConvertTo-MarkdownCodeSpan {
 }
 
 function ConvertTo-MarkdownTableCodeSpan {
-  param([AllowEmptyString()][string]$Value)
-  $escaped = $Value.Replace('\', '\\').Replace('|', '\|')
+  param([AllowEmptyString()][string]$Value, [bool]$EscapeBackslashes = $false)
+  $escaped = if ($EscapeBackslashes) { $Value.Replace('\', '\\') } else { $Value }
+  $escaped = $escaped.Replace('|', '\|')
   return ConvertTo-MarkdownCodeSpan $escaped
 }
 
-function Get-GumCommand {
-  foreach ($commandName in @('gum', 'gum.exe')) {
+function ConvertTo-MarkdownTableText {
+  param([AllowEmptyString()][string]$Value)
+  return $Value.Replace('|', '\|')
+}
+
+function Get-FormatCommand {
+  param([string]$Tool)
+  $commandNames = switch ($Tool) {
+    'mcat' { @('mcat', 'mcat.exe') }
+    'gum' { @('gum', 'gum.exe') }
+    default { @() }
+  }
+  foreach ($commandName in $commandNames) {
     $command = Get-Command $commandName -CommandType Application -ErrorAction SilentlyContinue |
       Select-Object -First 1
     if ($null -ne $command) { return $command }
@@ -680,7 +706,11 @@ function Write-TsvDownloadPlan {
 }
 
 function Get-MarkdownDownloadPlan {
-  param([AllowNull()][object]$FoldCommand)
+  param(
+    [AllowNull()][object]$FoldCommand,
+    [bool]$EscapeTableBackslashes = $false,
+    [bool]$CodeSpanUrls = $false
+  )
   $width = Get-DryRunOutputWidth
   $columnWidth = [Math]::Max(20, [Math]::Floor(($width - 16) / 2))
   $lines = [System.Collections.Generic.List[string]]::new()
@@ -694,9 +724,15 @@ function Get-MarkdownDownloadPlan {
     $destinationChunks = @(Split-PrettyValue $script:DryRunDestinations[$index] $columnWidth $FoldCommand)
     $rowCount = [Math]::Max($urlChunks.Count, $destinationChunks.Count)
     for ($row = 0; $row -lt $rowCount; $row++) {
-      $urlCell = if ($row -lt $urlChunks.Count) { ConvertTo-MarkdownTableCodeSpan $urlChunks[$row] } else { '' }
+      $urlCell = if ($row -lt $urlChunks.Count) {
+        if ($CodeSpanUrls) {
+          ConvertTo-MarkdownTableCodeSpan $urlChunks[$row] $EscapeTableBackslashes
+        } else {
+          ConvertTo-MarkdownTableText $urlChunks[$row]
+        }
+      } else { '' }
       $destinationCell = if ($row -lt $destinationChunks.Count) {
-        ConvertTo-MarkdownTableCodeSpan $destinationChunks[$row]
+        ConvertTo-MarkdownTableCodeSpan $destinationChunks[$row] $EscapeTableBackslashes
       } else { '' }
       $lines.Add("| $urlCell | $destinationCell |")
     }
@@ -713,10 +749,16 @@ function Get-MarkdownDownloadPlan {
   return $lines
 }
 
-function Write-PrettyDownloadPlan {
-  param([object]$GumCommand)
-  $foldCommand = Get-FoldCommand
-  $markdown = @(Get-MarkdownDownloadPlan $foldCommand)
+function Write-McatDownloadPlan {
+  param([object]$McatCommand, [string[]]$Markdown)
+  $formatted = @($Markdown | & $McatCommand.Source -c -P -f --silent)
+  if ($LASTEXITCODE -ne 0) { return $false }
+  foreach ($line in $formatted) { [Console]::Out.WriteLine($line) }
+  return $true
+}
+
+function Write-GumDownloadPlan {
+  param([object]$GumCommand, [string[]]$Markdown)
   $previousColorForce = $env:CLICOLOR_FORCE
   try {
     $env:CLICOLOR_FORCE = '1'
@@ -734,18 +776,57 @@ function Write-PrettyDownloadPlan {
   return $true
 }
 
+function Write-FormattedDownloadPlan {
+  param([string]$Tool, [object]$FormatCommand, [AllowNull()][object]$FoldCommand)
+  $markdownFoldCommand = if ($Tool -in @('mcat', 'md')) { $null } else { $FoldCommand }
+  $gumMarkdown = $Tool -eq 'gum'
+  $markdown = @(Get-MarkdownDownloadPlan $markdownFoldCommand $gumMarkdown $gumMarkdown)
+  switch ($Tool) {
+    'mcat' { return (Write-McatDownloadPlan $FormatCommand $Markdown) }
+    'gum' { return (Write-GumDownloadPlan $FormatCommand $Markdown) }
+    'md' {
+      foreach ($line in $Markdown) { [Console]::Out.WriteLine($line) }
+      return $true
+    }
+    default { return $false }
+  }
+}
+
 function Write-DownloadPlan {
   if ($script:DryRunUrls.Count -eq 0) { return }
-  $gumCommand = $null
-  if ($script:ColorMode -eq 'always' -or (
-    $script:ColorMode -eq 'auto' -and -not [Console]::IsOutputRedirected
-  )) {
-    $gumCommand = Get-GumCommand
+
+  $formatCommand = $null
+  if ($script:FormatTool -and $script:FormatTool -notin @('md', 'tsv')) {
+    $formatCommand = Get-FormatCommand $script:FormatTool
+    if ($null -eq $formatCommand) {
+      Write-Info "Format tool '$($script:FormatTool)' is not available; falling back to TSV output"
+      Write-TsvDownloadPlan
+      return
+    }
   }
 
-  if ($null -ne $gumCommand) {
-    $rendered = Write-PrettyDownloadPlan $gumCommand
-    if ($rendered) { return }
+  if ($script:FormatTool -eq 'tsv' -or $script:ColorMode -eq 'never') {
+    Write-TsvDownloadPlan
+    return
+  }
+  if ($script:ColorMode -eq 'auto' -and [Console]::IsOutputRedirected) {
+    Write-TsvDownloadPlan
+    return
+  }
+
+  $foldCommand = Get-FoldCommand
+  if ($script:FormatTool) {
+    if (Write-FormattedDownloadPlan $script:FormatTool $formatCommand $foldCommand) { return }
+    Write-Info "Format tool '$($script:FormatTool)' failed; falling back to TSV output"
+    Write-TsvDownloadPlan
+    return
+  }
+
+  foreach ($tool in @('mcat', 'gum')) {
+    $formatCommand = Get-FormatCommand $tool
+    if ($null -ne $formatCommand -and (Write-FormattedDownloadPlan $tool $formatCommand $foldCommand)) {
+      return
+    }
   }
   Write-TsvDownloadPlan
 }
