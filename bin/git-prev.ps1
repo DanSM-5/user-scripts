@@ -3,14 +3,17 @@
 # Show diffs using the 1-based positions printed by `git log`, where HEAD is 1.
 #
 #   git prev                         HEAD^...HEAD (the current commit's patch)
-#   git prev 3                       HEAD~2...HEAD
+#   git prev 1                       HEAD~1...HEAD (same as no arguments)
+#   git prev 3                       HEAD~3...HEAD (the newest three commits)
 #   git prev 2 4                     HEAD~3...HEAD~1
 #   git prev -C ./repo 3 --stat      forwards -C ./repo to git and --stat to diff
 #   git prev -C ./repo - --stat      uses - to skip positions and start diff args
 #
-# The two-position form is normalized from the older selected commit to the
-# newer one, regardless of argument order. Positions must be contiguous: after
-# the first position, only an immediately following number can be the second.
+# The one-position form includes the selected commit by diffing from its parent.
+# The two-position form treats both selected commits as endpoints and normalizes
+# them from older to newer, regardless of argument order. Positions must be
+# contiguous: after the first, only an immediately following number can be the
+# second.
 # A standalone positive integer is always a git-prev position. Attach numeric
 # option values to their option (for example, --abbrev=5 or -U5). Use `git diff`
 # directly for refs, branches, revision expressions, or non-revision diff modes.
@@ -70,7 +73,7 @@ try {
     $position1 = ConvertTo-Position $position1Token
 
     if ($null -eq $position2Token) {
-      $base = "HEAD~$($position1 - 1)"
+      $base = "HEAD~$position1"
       $ref = 'HEAD'
     } else {
       $position2 = ConvertTo-Position $position2Token
