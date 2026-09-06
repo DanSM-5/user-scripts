@@ -33,3 +33,6 @@ go/comment_utils/bin
 # binary files
 bin/comment_darwin
 bin/uncomment_darwin
+
+# yazi
+yazi/state

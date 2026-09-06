@@ -1,0 +1,11 @@
+[[mgr.prepend_keymap]]
+on  = "q"
+run = "plugin confirm-quit"
+
+[[mgr.prepend_keymap]]
+on  = "K"
+run = "plugin parent-arrow -1"
+
+[[mgr.prepend_keymap]]
+on  = "J"
+run = "plugin parent-arrow 1"
