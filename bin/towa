@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Re-encode a video to make it compatible with sites like whatsapp
+# Output file is copied to clipboard and path is echo out for pipe use
+
+file="$1"
+
+if [ -z "$file" ]; then
+  exit
+fi
+
+tmp_file="$(mktemp)"
+
+# We just want the filename
+rm -fr "$tmp_file" &> /dev/null
+
+tmp_file="$tmp_file.mp4"
+
+ffmpeg -i "$file" -c:v 'libx264' -crf 23 -c:a 'aac' -b:a 128k "$tmp_file"
+
+copy-file "$tmp_file"
+printf '%s\n' "$tmp_file"
