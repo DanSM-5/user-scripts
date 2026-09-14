@@ -85,16 +85,21 @@ function show_prs (
 ) {
   $OG_GH_FORCE_TTY = $env:GH_FORCE_TTY
   try {
-    $pipe_cmd = "$Cmd | Where-Object { `$_.Trim() }"
+    $page_size = 30
+    $pipe_cmd = "$Cmd --limit $page_size | Where-Object { `$_.Trim() }"
+    $next_page_cmd = "$Cmd --limit ([int]`$env:FZF_TOTAL_COUNT + $page_size) | Where-Object { `$_.Trim() }"
     $env:GH_FORCE_TTY = '100%'
     [string[]] $selected = fzf `
       --bind "start:reload:$pipe_cmd" `
+      --bind "alt-n:reload-sync:$next_page_cmd" `
       --bind 'ctrl-o:execute-silent:gh pr view {1} --web' `
-      --header 'ctrl-f: Filter PRs | ctrl-o: Open in browser | ctrl-s: Checkout to PR | ctrl-d: Display PR' `
+      --header 'alt-n: Next page | ctrl-f: Filter PRs | ctrl-o: Open in browser | ctrl-s: Checkout to PR | ctrl-d: Display PR' `
       --expect='ctrl-f,ctrl-s,ctrl-d' `
       --header-border 'rounded' `
       --header-lines '2' `
       --header-lines-border 'bottom' `
+      --track `
+      --id-nth '1' `
       --prompt "$Prompt" `
       --preview "$preview" `
       --preview-window '50%' `

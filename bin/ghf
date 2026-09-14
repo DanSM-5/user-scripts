@@ -75,16 +75,21 @@ select_filter () {
 show_prs () {
   local cmd="${1:-gh pr list}"
   local prompt="${2:-Github PRs> }"
-  local pipe_cmd="$cmd | awk '\$0'"
+  local page_size=30
+  local pipe_cmd="$cmd --limit $page_size | awk '\$0'"
+  local next_page_cmd="$cmd --limit \$((FZF_TOTAL_COUNT + $page_size)) | awk '\$0'"
 
   mapfile -t selected < <(GH_FORCE_TTY='100%' fzf \
     --bind "start:reload:$pipe_cmd" \
+    --bind "alt-n:reload-sync:$next_page_cmd" \
     --bind 'ctrl-o:execute-silent:gh pr view {1} --web' \
-    --header 'ctrl-f: Filter PRs | ctrl-o: Open in browser | ctrl-s: Checkout to PR | ctrl-d: Display PR' \
+    --header 'alt-n: Next page | ctrl-f: Filter PRs | ctrl-o: Open in browser | ctrl-s: Checkout to PR | ctrl-d: Display PR' \
     --expect='ctrl-f,ctrl-s,ctrl-d' \
     --header-border 'rounded' \
     --header-lines '2' \
     --header-lines-border 'bottom' \
+    --track \
+    --id-nth '1' \
     --prompt "$prompt" \
     --preview "$preview" \
     --preview-window '50%' \
