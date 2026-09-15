@@ -3,6 +3,7 @@
 expect_keys="${GHF_EXPECT:-}"
 delegate_output=false
 display=false
+files_preview_pr=''
 [[ -v GHF_EXPECT ]] && delegate_output=true
 
 show_help () {
@@ -15,6 +16,32 @@ Options:
                    by the selected PR number. Also available through GHF_EXPECT.
   -h, --help       Show this help message.
 '
+}
+
+show_pr_files () {
+  local pr_info pr_id pr_url github_host
+
+  pr_info="$(GH_FORCE_TTY= gh pr view "$1" --json id,url --jq '[.id, .url] | @tsv')" || return
+  IFS=$'\t' read -r pr_id pr_url <<< "$pr_info"
+  github_host="${pr_url#*://}"
+  github_host="${github_host%%/*}"
+
+  GH_FORCE_TTY= gh api graphql \
+    --hostname "$github_host" \
+    --paginate \
+    -F "id=$pr_id" \
+    -f 'query=query($id: ID!, $endCursor: String) { node(id: $id) { ... on PullRequest { files(first: 100, after: $endCursor) { nodes { path changeType } pageInfo { hasNextPage endCursor } } } } }' \
+    --jq '.data.node.files.nodes[] |
+      (if .changeType == "DELETED" then "REMOVED" else .changeType end) as $status |
+      (if $status == "ADDED" then "32"
+       elif $status == "MODIFIED" then "33"
+       elif $status == "REMOVED" then "31"
+       elif $status == "RENAMED" then "36"
+       else "35"
+       end) as $color |
+      ("[" + $status + "]") as $label |
+      "\u001b[" + $color + "m" + $label + "\u001b[0m" +
+      (" " * (10 - ($label | length))) + "\t" + .path'
 }
 
 while [[ $# -gt 0 ]]; do
@@ -30,6 +57,14 @@ while [[ $# -gt 0 ]]; do
       fi
       expect_keys="$2"
       delegate_output=true
+      shift 2
+      ;;
+    --files-preview)
+      if [[ $# -lt 2 ]]; then
+        printf '%s\n' 'ghf: --files-preview requires a PR number' >&2
+        exit 2
+      fi
+      files_preview_pr="$2"
       shift 2
       ;;
     -[hH]|--[hH]elp)
@@ -48,6 +83,11 @@ if ! command -v 'gh' &>/dev/null; then
   exit 1
 fi
 
+if [ -n "$files_preview_pr" ]; then
+  show_pr_files "$files_preview_pr"
+  exit
+fi
+
 if [ "$delegate_output" = true ]; then
   expect_keys="${expect_keys:-enter}"
   fzf_expect_keys="ctrl-f,$expect_keys"
@@ -56,23 +96,64 @@ else
 fi
 
 preview='GH_FORCE_TTY=$FZF_PREVIEW_COLUMNS gh pr view {1}'
+diff_preview='gh pr diff {1} --color=always'
+if command -v 'delta' &>/dev/null; then
+  diff_preview="$diff_preview | delta"
+fi
+printf -v ghf_command '%q' "$0"
+files_preview="$ghf_command --files-preview {1}"
+
+help_cat_cmd='cat'
+if command -v 'bat' &>/dev/null; then
+  help_cat_cmd='bat --color=always --language help --style=plain'
+fi
+
+help_cmd="
+  $help_cat_cmd <<< '
+  Preview window keys:
+    ctrl-^: Toggle preview
+    ctrl-/: Toggle preview position
+    shift-up: Preview up
+    shift-down: Preview down
+    alt-up: Preview page up
+    alt-down: Preview page down
+
+  Preview modes:
+    alt-v: PR details (default)
+    alt-d: PR code changes (delta when available)
+    alt-g: Status and names of changed files
+
+  PR actions:
+    enter: Select PR
+    ctrl-d: Display PR details
+    ctrl-o: Open PR in browser
+    ctrl-s: Checkout PR
+
+  Navigation:
+    ctrl-f: Filter PRs
+    alt-n: Load next page
+    alt-f: Go first
+    alt-l: Go last
+    alt-c: Clear query
+  '
+"
+
 commond_options=(
   --bind 'alt-c:clear-query'
-  --bind 'ctrl-l:change-preview-window(down|hidden|)'
-  --bind 'ctrl-/:change-preview-window(down|hidden|)'
+  --bind 'ctrl-l:change-preview-window(down,wrap-word|hidden|)'
+  --bind 'ctrl-/:change-preview-window(down,wrap-word|hidden|)'
   --bind 'alt-up:preview-page-up,alt-down:preview-page-down'
   --bind 'shift-up:preview-up,shift-down:preview-down'
   --bind 'ctrl-^:toggle-preview'
   --bind 'ctrl-s:toggle-sort'
   --bind 'alt-f:first'
   --bind 'alt-l:last'
-  --bind 'alt-a:select-all'
-  --bind 'alt-d:deselect-all'
   --cycle
   --ansi
   --input-border=rounded
   --no-multi
   --accept-nth '{1}'
+  --with-shell 'bash -c'
 )
 
 if [ "$display" = true ]; then
@@ -143,7 +224,11 @@ show_prs () {
     --bind "start:reload:$pipe_cmd" \
     --bind "alt-n:reload-sync:$next_page_cmd" \
     --bind 'ctrl-o:execute-silent:gh pr view {1} --web' \
-    --header 'alt-n: Next page | ctrl-f: Filter PRs | ctrl-o: Open in browser | ctrl-s: Checkout to PR | ctrl-d: Display PR' \
+    --bind "alt-h:preview:$help_cmd" \
+    --bind "alt-v:change-preview:$preview" \
+    --bind "alt-d:change-preview:$diff_preview" \
+    --bind "alt-g:change-preview:$files_preview" \
+    --header 'alt-h: Help | alt-v: Details | alt-d: Diff | alt-g: Files | alt-n: Next page | ctrl-f: Filter' \
     --expect="$fzf_expect_keys" \
     --header-border 'rounded' \
     --header-lines '2' \
@@ -152,7 +237,7 @@ show_prs () {
     --id-nth '1' \
     --prompt "$prompt" \
     --preview "$preview" \
-    --preview-window '50%' \
+    --preview-window '50%,wrap-word' \
     --preview-border 'rounded' \
     "${commond_options[@]}"
   )

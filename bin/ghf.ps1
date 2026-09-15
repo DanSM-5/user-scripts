@@ -17,8 +17,70 @@ Param(
 
   # Delegate expected-key behavior to the caller
   [AllowEmptyString()]
-  [String] $Expect = $env:GHF_EXPECT
+  [String] $Expect = $env:GHF_EXPECT,
+
+  [Parameter(DontShow)]
+  [Nullable[Int]] $FilesPreview
 )
+
+$files_preview_exit_code = 0
+
+function show_pr_files ([Int] $Pr) {
+  $original_gh_force_tty = $env:GH_FORCE_TTY
+
+  try {
+    Remove-Item Env:GH_FORCE_TTY -ErrorAction SilentlyContinue
+
+    $pr_info_json = gh pr view $Pr --json id,url
+    $gh_exit_code = $LASTEXITCODE
+    if ($gh_exit_code -ne 0) {
+      $script:files_preview_exit_code = $gh_exit_code
+      return
+    }
+
+    $pr_info = $pr_info_json | ConvertFrom-Json
+    $github_host = ([Uri] $pr_info.url).Host
+    $query = 'query($id: ID!, $endCursor: String) { node(id: $id) { ... on PullRequest { files(first: 100, after: $endCursor) { nodes { path changeType } pageInfo { hasNextPage endCursor } } } } }'
+    $responses = gh api graphql `
+      --hostname $github_host `
+      --paginate `
+      --slurp `
+      -F "id=$($pr_info.id)" `
+      -f "query=$query"
+    $gh_exit_code = $LASTEXITCODE
+    if ($gh_exit_code -ne 0) {
+      $script:files_preview_exit_code = $gh_exit_code
+      return
+    }
+
+    $ansi_escape = [String][Char] 27
+    $status_colors = @{
+      ADDED = '32'
+      MODIFIED = '33'
+      REMOVED = '31'
+      RENAMED = '36'
+    }
+
+    $responses |
+      ConvertFrom-Json |
+      ForEach-Object { $_.data.node.files.nodes } |
+      ForEach-Object {
+        $status = if ($_.changeType -eq 'DELETED') { 'REMOVED' } else { $_.changeType }
+        $status_color = $status_colors[$status]
+        if ($null -eq $status_color) {
+          $status_color = '35'
+        }
+        $label = "[$status]".PadRight(10)
+        Write-Output ($ansi_escape + '[' + $status_color + 'm' + $label + $ansi_escape + "[0m`t" + $_.path)
+      }
+  } finally {
+    if ($null -eq $original_gh_force_tty) {
+      Remove-Item Env:GH_FORCE_TTY -ErrorAction SilentlyContinue
+    } else {
+      $env:GH_FORCE_TTY = $original_gh_force_tty
+    }
+  }
+}
 
 $delegate_output = $PSBoundParameters.ContainsKey('Expect') -or (Test-Path Env:GHF_EXPECT)
 $expect_keys = if ($delegate_output) {
@@ -32,6 +94,11 @@ if (!(Get-Command -Name 'gh' -All -ErrorAction SilentlyContinue)) {
   exit 1
 }
 
+if ($null -ne $FilesPreview) {
+  show_pr_files $FilesPreview
+  exit $files_preview_exit_code
+}
+
 $pwsh = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh' } else { 'powershell' }
 $pwsh = "$pwsh -NoLogo -NonInteractive -NoProfile -Command"
 $preview = '
@@ -43,18 +110,58 @@ $preview = '
     $env:GH_FORCE_TTY = $OG_GH_FORCE_TTY
   }
 '
+$diff_preview = 'gh pr diff {1} --color=always'
+if (Get-Command -Name 'delta' -All -ErrorAction SilentlyContinue) {
+  $diff_preview = "$diff_preview | delta"
+}
+$escaped_script_path = $PSCommandPath.Replace("'", "''")
+$files_preview = "& '$escaped_script_path' -FilesPreview {1}"
+
+$help_cat_cmd = ''
+if (Get-Command -Name 'bat' -All -ErrorAction SilentlyContinue) {
+  $help_cat_cmd = '| bat --color=always --language help --style=plain'
+}
+
+$help_cmd = @"
+Write-Output '
+  Preview window keys:
+    ctrl-^: Toggle preview
+    ctrl-/: Toggle preview position
+    shift-up: Preview up
+    shift-down: Preview down
+    alt-up: Preview page up
+    alt-down: Preview page down
+
+  Preview modes:
+    alt-v: PR details (default)
+    alt-d: PR code changes (delta when available)
+    alt-g: Status and names of changed files
+
+  PR actions:
+    enter: Select PR
+    ctrl-d: Display PR details
+    ctrl-o: Open PR in browser
+    ctrl-s: Checkout PR
+
+  Navigation:
+    ctrl-f: Filter PRs
+    alt-n: Load next page
+    alt-f: Go first
+    alt-l: Go last
+    alt-c: Clear query
+' $help_cat_cmd
+"@
+
 $commond_options = @(
   '--bind', 'alt-c:clear-query',
-  '--bind', 'ctrl-l:change-preview-window(down|hidden|)',
-  '--bind', 'ctrl-/:change-preview-window(down|hidden|)',
+  '--bind', 'ctrl-l:change-preview-window(down,wrap-word|hidden|)',
+  '--bind', 'ctrl-/:change-preview-window(down,wrap-word|hidden|)',
   '--bind', 'alt-up:preview-page-up,alt-down:preview-page-down',
   '--bind', 'shift-up:preview-up,shift-down:preview-down',
   '--bind', 'ctrl-^:toggle-preview',
   '--bind', 'ctrl-s:toggle-sort',
   '--bind', 'alt-f:first',
   '--bind', 'alt-l:last',
-  '--bind', 'alt-a:select-all',
-  '--bind', 'alt-d:deselect-all',
   '--cycle',
   '--ansi',
   '--input-border=rounded',
@@ -126,7 +233,11 @@ function show_prs (
       --bind "start:reload:$pipe_cmd" `
       --bind "alt-n:reload-sync:$next_page_cmd" `
       --bind 'ctrl-o:execute-silent:gh pr view {1} --web' `
-      --header 'alt-n: Next page | ctrl-f: Filter PRs | ctrl-o: Open in browser | ctrl-s: Checkout to PR | ctrl-d: Display PR' `
+      --bind "alt-h:preview:$help_cmd" `
+      --bind "alt-v:change-preview:$preview" `
+      --bind "alt-d:change-preview:$diff_preview" `
+      --bind "alt-g:change-preview:$files_preview" `
+      --header 'alt-h: Help | alt-v: Details | alt-d: Diff | alt-g: Files | alt-n: Next page | ctrl-f: Filter' `
       --expect="$fzf_expect_keys" `
       --header-border 'rounded' `
       --header-lines '2' `
@@ -135,7 +246,7 @@ function show_prs (
       --id-nth '1' `
       --prompt "$Prompt" `
       --preview "$preview" `
-      --preview-window '50%' `
+      --preview-window '50%,wrap-word' `
       --preview-border 'rounded' `
       @commond_options
 
