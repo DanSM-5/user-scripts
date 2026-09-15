@@ -2,6 +2,7 @@
 
 expect_keys="${GHF_EXPECT:-}"
 delegate_output=false
+display=false
 [[ -v GHF_EXPECT ]] && delegate_output=true
 
 show_help () {
@@ -9,6 +10,7 @@ show_help () {
 Usage: ghf [options]
 
 Options:
+  -d, --display    Make fzf fill the current terminal.
   --expect [keys]  Replace fzf expected keys and print the pressed key followed
                    by the selected PR number. Also available through GHF_EXPECT.
   -h, --help       Show this help message.
@@ -17,6 +19,10 @@ Options:
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    -[dD]|-[dD]isplay|--[dD]isplay)
+      display=true
+      shift
+      ;;
     --[eE]xpect)
       if [[ $# -lt 2 ]]; then
         printf '%s\n' 'ghf: --expect requires a value' >&2
@@ -68,6 +74,16 @@ commond_options=(
   --no-multi
   --accept-nth '{1}'
 )
+
+if [ "$display" = true ]; then
+  if [ "${OS:-}" = 'Windows_NT' ]; then
+    # At exactly 100%, fzf's tcell renderer can miss ctrl-/ and ctrl-^ on
+    # Windows terminals.
+    commond_options+=(--height '99%')
+  else
+    commond_options+=(--height '100%')
+  fi
+fi
 
 filters=(
   '0 Assigned to me'

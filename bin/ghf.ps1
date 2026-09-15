@@ -4,11 +4,17 @@
 .SYNOPSIS
   Browse GitHub pull requests with fzf.
 
+.PARAMETER Display
+  Make fzf fill the current terminal. Windows uses 99 percent to avoid tcell
+  input handling issues at exactly 100 percent.
+
 .PARAMETER Expect
   Replace fzf expected keys and print the pressed key followed by the selected
   PR number. Also available through GHF_EXPECT.
 #>
 Param(
+  [Switch] $Display,
+
   # Delegate expected-key behavior to the caller
   [AllowEmptyString()]
   [String] $Expect = $env:GHF_EXPECT
@@ -56,6 +62,11 @@ $commond_options = @(
   '--with-shell', $pwsh,
   '--accept-nth', '{1}'
 )
+
+if ($Display) {
+  $display_height = if ($IsWindows -or ($env:OS -eq 'Windows_NT')) { '99%' } else { '100%' }
+  $commond_options += @('--height', $display_height)
+}
 
 $filters = @(
   '0 Assigned to me',
