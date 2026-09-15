@@ -1,10 +1,32 @@
 #!/usr/bin/env pwsh
 
+<#
+.SYNOPSIS
+  Browse GitHub pull requests with fzf.
+
+.PARAMETER Expect
+  Replace fzf expected keys and print the pressed key followed by the selected
+  PR number. Also available through GHF_EXPECT.
+#>
+Param(
+  # Delegate expected-key behavior to the caller
+  [AllowEmptyString()]
+  [String] $Expect = $env:GHF_EXPECT
+)
+
+$delegate_output = $PSBoundParameters.ContainsKey('Expect') -or (Test-Path Env:GHF_EXPECT)
+$expect_keys = if ($delegate_output) {
+  if ([String]::IsNullOrWhiteSpace($Expect)) { 'enter' } else { $Expect }
+} else {
+  'ctrl-s,ctrl-d'
+}
+$fzf_expect_keys = "ctrl-f,$expect_keys"
+
 if (!(Get-Command -Name 'gh' -All -ErrorAction SilentlyContinue)) {
   exit 1
 }
 
-$pwsh = if ($PSVersionTable.PSVersion -gt 7) { 'pwsh' } else { 'powershell' }
+$pwsh = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh' } else { 'powershell' }
 $pwsh = "$pwsh -NoLogo -NonInteractive -NoProfile -Command"
 $preview = '
   $OG_GH_FORCE_TTY = $env:GH_FORCE_TTY
@@ -94,7 +116,7 @@ function show_prs (
       --bind "alt-n:reload-sync:$next_page_cmd" `
       --bind 'ctrl-o:execute-silent:gh pr view {1} --web' `
       --header 'alt-n: Next page | ctrl-f: Filter PRs | ctrl-o: Open in browser | ctrl-s: Checkout to PR | ctrl-d: Display PR' `
-      --expect='ctrl-f,ctrl-s,ctrl-d' `
+      --expect="$fzf_expect_keys" `
       --header-border 'rounded' `
       --header-lines '2' `
       --header-lines-border 'bottom' `
@@ -110,8 +132,16 @@ function show_prs (
       exit
     }
 
+    if ($selected[0] -eq 'ctrl-f') {
+      return select_filter
+    }
+
+    if ($delegate_output) {
+      Write-Output @selected
+      return
+    }
+
     switch ($selected[0]) {
-      'ctrl-f' { return select_filter }
       'ctrl-s' { return gh pr checkout $selected[1] }
       'ctrl-d' { return gh pr view $selected[1] }
       default { return $selected[1] }

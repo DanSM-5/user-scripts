@@ -1,8 +1,52 @@
 #!/usr/bin/env bash
 
+expect_keys="${GHF_EXPECT:-}"
+delegate_output=false
+[[ -v GHF_EXPECT ]] && delegate_output=true
+
+show_help () {
+  printf '%s\n' '
+Usage: ghf [options]
+
+Options:
+  --expect [keys]  Replace fzf expected keys and print the pressed key followed
+                   by the selected PR number. Also available through GHF_EXPECT.
+  -h, --help       Show this help message.
+'
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --[eE]xpect)
+      if [[ $# -lt 2 ]]; then
+        printf '%s\n' 'ghf: --expect requires a value' >&2
+        exit 2
+      fi
+      expect_keys="$2"
+      delegate_output=true
+      shift 2
+      ;;
+    -[hH]|--[hH]elp)
+      show_help
+      exit
+      ;;
+    *)
+      printf 'ghf: unknown option: %s\n' "$1" >&2
+      exit 2
+      ;;
+  esac
+done
+
 if ! command -v 'gh' &>/dev/null; then
   printf '%s\n' 'No github cli available'
   exit 1
+fi
+
+if [ "$delegate_output" = true ]; then
+  expect_keys="${expect_keys:-enter}"
+  fzf_expect_keys="ctrl-f,$expect_keys"
+else
+  fzf_expect_keys='ctrl-f,ctrl-s,ctrl-d'
 fi
 
 preview='GH_FORCE_TTY=$FZF_PREVIEW_COLUMNS gh pr view {1}'
@@ -84,7 +128,7 @@ show_prs () {
     --bind "alt-n:reload-sync:$next_page_cmd" \
     --bind 'ctrl-o:execute-silent:gh pr view {1} --web' \
     --header 'alt-n: Next page | ctrl-f: Filter PRs | ctrl-o: Open in browser | ctrl-s: Checkout to PR | ctrl-d: Display PR' \
-    --expect='ctrl-f,ctrl-s,ctrl-d' \
+    --expect="$fzf_expect_keys" \
     --header-border 'rounded' \
     --header-lines '2' \
     --header-lines-border 'bottom' \
@@ -96,6 +140,13 @@ show_prs () {
     --preview-border 'rounded' \
     "${commond_options[@]}"
   )
+
+  if [ "$delegate_output" = true ] && [ "${selected[0]}" != ctrl-f ]; then
+    if [ -n "${selected[1]:-}" ]; then
+      printf '%s\n' "${selected[@]}"
+    fi
+    return
+  fi
 
   case "${selected[0]}" in
     ctrl-f)
