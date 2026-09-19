@@ -469,6 +469,13 @@
       "yellow": "#808000"
     }
   ],
-  "themes": [],
+  "themes": [{
+      "name": "CustomTabColors",
+      "tab": {
+          "background": "#004070",         // Active/Focused tab color
+          "unfocusedBackground": "#1F1F1F00" // Inactive tab color
+      }
+  }],
+  "theme": "CustomTabColors",
   "useAcrylicInTabRow": true
 }
