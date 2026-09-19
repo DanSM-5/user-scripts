@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# ghwr — Run a GitHub Actions workflow, then watch the resulting run
+#
+# Usage: ghwr [gh workflow run args...]
+#
+# Forwards all arguments to `gh workflow run` and parses the dispatched run's
+# ID out of its own output (the `.../actions/runs/<id>` URL gh prints), then
+# hands off to `gh run watch`. If no run ID is found there — e.g. `--help`,
+# or an older gh/GHES build that doesn't print the run URL — the captured
+# output is printed as-is, matching plain `gh workflow run` behavior.
+
+set -u
+
+# No args means gh's interactive workflow/input prompt, which needs a real
+# TTY on stdout — buffering its output below would break that.
+(($#)) || exec gh workflow run
+
+output="$(gh workflow run "$@" 2>&1)"
+status=$?
+
+printf '%s\n' "$output"
+
+[[ $status -eq 0 ]] || exit "$status"
+
+run_url="$(printf '%s\n' "$output" | grep -oE 'https://[^[:space:]]+/actions/runs/[0-9]+' | head -n1)"
+[[ -n $run_url ]] || exit 0
+
+run_id="${run_url##*/}"
+repo_slug="${run_url#https://}"
+repo_slug="${repo_slug%/actions/runs/*}"
+
+exec gh run watch "$run_id" --repo "$repo_slug"

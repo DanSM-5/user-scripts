@@ -106,6 +106,7 @@
 |---------|-------------|
 | `chadsay` | Display a randomly chosen ASCII art "Chad" figure with a speech bubble around the provided text. |
 | `fromhex` | Convert a hex color (`#ABC` or `#AABBCC`) to the nearest xterm 256-color terminal index. |
+| `ghwr` | Wrapper around `gh workflow run` that parses the dispatched run's ID from its own output and hands off to `gh run watch`; falls back to `gh workflow run`'s own output/exit code (e.g. `--help`) when no run ID is found. |
 
 ## lf Utilities
 
