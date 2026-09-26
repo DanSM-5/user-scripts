@@ -3,7 +3,7 @@
 # Cross platform clipboard-copy helper
 #
 # Dependencies
-# Windows: `pasteboard` package. Install from scoop: `scoop install pasteboard`
+# Windows: `Win32Yank` or `pasteboard` package
 # Linux: `xsel`. Install xsel from your package manager e.g. `sudo apt install xsel`
 
 # About variables: See detection script
@@ -34,7 +34,7 @@ Begin {
 
   # Set UTF-8 formatting when setting text with special characters
   $OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.Utf8Encoding
-  $to_clipboard_list = New-Object System.Collections.ArrayList
+  $to_clipboard_list = [System.Collections.Generic.List[string]]::new()
 }
 
 Process {
@@ -64,20 +64,42 @@ End {
     # Cross platform clipboard-copy helper
     # NOTE: only windows from prowershell should ever land here
     # but let the whole structure in case running powershell somewhere else.
+    #
+    # This could use Set-Clipboard cmdlet but let's align to native behavior
+    # on each platform. `Set-Clipboard` is always a fallback or can be used directly
+    # instead of this utility.
 
-    # This could use Set-Clipboard cmdlet but since that
-    # should be available out of the box, then use here a native binary
-
-    if ($IsWindows) {
-      With-UTF8 {
+    if ($IsWindows -or ($env:OS -eq 'Windows_NT')) {
+      if (Get-Command -Name 'win32yank' -ErrorAction SilentlyContinue) {
+        $to_clipboard_list | win32yank -i
+        <# Action to perform if the condition is true #>
+      } elseif (Get-Command -Name 'pbcopy' -ErrorAction SilentlyContinue) {
         $to_clipboard_list | pbcopy
+      } else {
+        Set-Clipboard -Value $to_clipboard_list
       }
     } elseif ("${env:IS_TERMUX}" -eq 'true' ) {
+      # WARN: If this ever happens... cry ToT
       termux-clipboard-set @to_clipboard_list
     } elseif ($IsMacos) {
-      pbpcopy @to_clipboard_list
+      try {
+        $to_clipboard_list | pbpcopy
+      } catch {
+        # Can this happen?
+        Set-Clipboard -Value $to_clipboard_list
+      }
     } elseif ($IsLinux) {
-      xsel -ib @to_clipboard_list
+      if ("$WAYLAND_DISPLAY") {
+        $to_clipboard_list | wl-copy --foreground --type text/plain
+      } elseif (("$DISPLAY") -and (Get-Command -Name 'xsel' -ErrorAction SilentlyContinue)) {
+        $to_clipboard_list | xsel -i -b
+      } elseif (("$DISPLAY") -and (Get-Command -Name 'xclip' -ErrorAction SilentlyContinue)) {
+        $to_clipboard_list | xclip -i -selection clipboard
+      } else {
+        Set-Clipboard -Value $to_clipboard_list
+      }
+    } else {
+      Set-Clipboard -Value $to_clipboard_list
     }
   } finally {
     # Recover console encoding on exit

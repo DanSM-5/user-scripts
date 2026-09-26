@@ -3,7 +3,7 @@
 # Cross platform clipboard-copy helper
 #
 # Dependencies
-# Windows: `pasteboard` package. Install from scoop: `scoop install pasteboard`
+# Windows: `Win32Yank` or `pasteboard` package
 # Linux: `xsel`. Install xsel from your package manager e.g. `sudo apt install xsel`
 
 # About variables: See detection script
@@ -11,8 +11,7 @@
 # NOTE: this won't work using -n and checking for existance of
 # arguments first like piping into pbcopy.exe
 # It should always check if no argument is passed with -z
-if [ -z "$@" ]; then
-
+if [ -z "$*" ]; then
   # Should take input from pipe
   if [ "$IS_WSL2" = true ]; then
     if [ -n "$WAYLAND_DISPLAY" ] && command -v wl-copy 1>/dev/null 2>&1; then
@@ -22,11 +21,21 @@ if [ -z "$@" ]; then
       xsel -i -b
     elif [ -n "$DISPLAY" ] && command -v xclip 1>/dev/null 2>&1; then
       xclip -i -selection clipboard
+    elif command -v win32yank.exe 1>/dev/null 2>&1; then
+      win32yank.exe -i
+    elif command -v pbcopy.exe 1>/dev/null 2>&1; then
+      pbcopy.exe
     else
-      pbcopy.exe "$@"
+      powershell.exe -NoLogo -NonInteractive -NoProfile -Command Set-Clipboard
     fi
-  elif [ "$IS_WINDOWS" = true ]; then
-    pbcopy.exe "$@"
+  elif [ "$OS" = 'Windows_NT' ] || [ "$IS_WSL1" = true ]; then
+    if command -v win32yank.exe 1>/dev/null 2>&1; then
+      win32yank.exe -i
+    elif command -v pbcopy.exe 1>/dev/null 2>&1; then
+      pbcopy.exe
+    else
+      powershell.exe -NoLogo -NonInteractive -NoProfile -Command Set-Clipboard
+    fi
   elif [ "$IS_TERMUX" = true ]; then
     termux-clipboard-set
   elif [ "$IS_MAC" = true ]; then
@@ -52,15 +61,25 @@ if [ "$IS_WSL2" = true ]; then
     printf '%s' "$@" | xsel -i -b
   elif [ -n "$DISPLAY" ] && command -v xclip 1>/dev/null 2>&1; then
     printf '%s' "$@" | xclip -i -selection clipboard
-  else
+  elif command -v win32yank.exe 1>/dev/null 2>&1; then
+    printf '%s' "$@" | win32yank.exe -i
+  elif command -v pbcopy.exe 1>/dev/null 2>&1; then
     printf "%s" "$@" | pbcopy.exe
+  else
+    powershell.exe -NoLogo -NonInteractive -NoProfile -Command "Set-Clipboard -Value '$*'"
   fi
-elif [ "$IS_WINDOWS" = true ]; then
-  printf "%s" "$@" | pbcopy.exe
+elif [ "$OS" = 'Windows_NT' ] || [ "$IS_WSL1" = true ]; then
+  if command -v win32yank.exe 1>/dev/null 2>&1; then
+    printf '%s' "$@" | win32yank.exe -i
+  elif command -v pbcopy.exe 1>/dev/null 2>&1; then
+    printf '%s' "$@" | pbcopy.exe
+  else
+    powershell.exe -NoLogo -NonInteractive -NoProfile -Command "Set-Clipboard -Value '$*'"
+  fi
 elif [ "$IS_TERMUX" = true ]; then
   termux-clipboard-set "$@"
 elif [ "$IS_MAC" = true ]; then
-  pbcopy "$@"
+  printf '%s' "$@" | pbcopy
 elif [ "$IS_LINUX" = true ]; then
   if [ -n "$WAYLAND_DISPLAY" ] && command -v wl-copy 1>/dev/null 2>&1; then
     # wl-copy --foreground --type text/plain "$@"
@@ -71,4 +90,3 @@ elif [ "$IS_LINUX" = true ]; then
     printf '%s' "$@" | xclip -i -selection clipboard
   fi
 fi
-
