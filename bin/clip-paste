@@ -3,18 +3,44 @@
 # Cross platform clipboard-paste helper
 #
 # Dependencies
-# Windows: `pasteboard` package. Install from scoop: `scoop install pasteboard`
+# Windows: `Win32Yank` or `pasteboard` package
 # Linux: `xsel`. Install xsel from your package manager e.g. `sudo apt install xsel`
 
 # About variables: See detection script
 
-if [ "$IS_WINDOWS" = true ]; then
-  pbpaste.exe "$@"
+if [ "$IS_WSL2" = 'true' ]; then
+  if command -v wl-paste 1>/dev/null 2>&1; then
+    wl-paste "$@"
+  elif command -v xsel 1>/dev/null 2>&1; then
+    xsel -o -b "$@"
+  elif command -v xclip 1>/dev/null 2>&1; then
+    xclip -o -selection clipboard "$@"
+  elif command -v win32yank.exe 1>/dev/null 2>&1; then
+    win32yank.exe -o "$@"
+  elif command -v pbpaste.exe 1>/dev/null 2>&1; then
+    pbpaste.exe "$@"
+  else
+    powershell.exe -NoLogo -NonInteractive -NoProfile -Command "Get-Clipboard $*"
+  fi
+elif [ "$OS" = 'Windows_NT' ] || [ "$IS_WSL1" = true ]; then
+  if command -v win32yank.exe 1>/dev/null 2>&1; then
+    win32yank.exe -o "$@"
+  elif command -v pbpaste.exe 1>/dev/null 2>&1; then
+    pbpaste.exe "$@"
+  else
+    powershell.exe -NoLogo -NonInteractive -NoProfile -Command "Get-Clipboard $*"
+  fi
 elif [ "$IS_TERMUX" = true ]; then
   termux-clipboard-get "$@"
 elif [ "$IS_MAC" = true ]; then
   pbpaste "$@"
 elif [ "$IS_LINUX" = true ]; then
-  xsel -ob "$@"
+  if command -v wl-paste 1>/dev/null 2>&1; then
+    wl-paste "$@"
+  elif command -v xsel 1>/dev/null 2>&1; then
+    xsel -o -b "$@"
+  elif command -v xclip 1>/dev/null 2>&1; then
+    xclip -o -selection clipboard "$@"
+  fi
 fi
 
