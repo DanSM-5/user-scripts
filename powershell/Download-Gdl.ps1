@@ -220,6 +220,7 @@ End {
         $downloadFileName = "$($perDomainInput.FullName)"
         try {
           $input | Out-File "$downloadFileName" -Encoding ascii
+          Write-Host "Temp ($hostName): $downloadFileName"
           # --input-file or -i
           & $DownloadCommand $ArgsForCmd -i "$downloadFileName"
         } catch {
@@ -240,6 +241,7 @@ End {
 
     try {
       $links | Out-File $downloadFileName -Encoding ascii
+      Write-Output "Temp: $downloadFileName"
 
       & $DownloadCommand $ArgsForCmd -i "$downloadFileName"
     } catch {

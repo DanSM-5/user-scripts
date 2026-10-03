@@ -18,7 +18,7 @@ download_command="yt-dlp"
 args_urls=()
 remaining_urls=()
 file=""
-from_clipboard=false
+clipboard=false
 verify_urls=false
 args_string=""
 args_for_command=()
@@ -41,8 +41,11 @@ if ! command -v "$download_command" &>/dev/null && command -v "${download_comman
   transform_temp_file () {
     local temp="$1"
     local filename="${temp##*/}"
-    local wintemp="$(printf "%q" "$(cmd.exe /c "echo %TEMP%" | sed 's/\\ / /g' | sed -e 's/[[:space:]]*$//')")"
-    local wslwintemp="$(wslpath -au "$wintemp")"
+    local wintemp
+    local wslwintemp
+
+    wintemp="$(printf "%q" "$(cmd.exe /c "echo %TEMP%" | sed 's/\\ / /g' | sed -e 's/[[:space:]]*$//')")"
+    wslwintemp="$(wslpath -au "$wintemp")"
 
     mv "$temp" "$wslwintemp/$filename"
     printf "%s\n" "$wslwintemp/$filename" >> "$temp_files"
@@ -272,9 +275,11 @@ filter_urls () {
 
 downloadNormal () {
   local -n urls=$1
-  local downloadFile="$(mktemp)"
+  local downloadFile
+  downloadFile="$(mktemp)"
 
   printf "%s\n" "${urls[@]}" > "$downloadFile"
+  printf "%s\n" "Temp: $downloadFile"
   downloadFile="$(transform_temp_file "$downloadFile")"
 
   eval "$download_command $args_string ${args_for_command[*]} --batch-file $downloadFile"
