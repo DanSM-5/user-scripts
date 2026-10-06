@@ -156,9 +156,9 @@ if [ -z "$filename" ] || ! [ -f "$filename" ]; then
   fi
   # Preview window command
   file_preview="
-    LINE={}
-    FILE=\$(awk -F: '{ print \$1 }' <<< \"\$LINE\")
-    NUMBER=\$(awk -F: '{ print \$2 }' <<< \"\$LINE\")
+    FILE={1}
+    LINE={2}
+    NUMBER=\$(test -z \"\$LINE\" && echo '0' || echo \"\$LINE\")
 
     if [ -z \"\$NUMBER\" ]; then
       NUMBER=0
@@ -256,6 +256,7 @@ if [ -z "$filename" ] || ! [ -f "$filename" ]; then
       --min-height 20 --border \
       --preview "$file_preview" \
       --prompt 'Select file> ' \
+      --with-shell 'bash -c' \
       "${fzf_args[@]}"
   )"
 fi
