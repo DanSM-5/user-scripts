@@ -137,7 +137,7 @@ if ($Display) {
   $fzfArgs.Add('--bind')
   $fzfArgs.Add('ctrl-/:change-preview-window(right|hidden|)')
   $fzfArgs.Add('--preview-window')
-  $fzfArgs.Add('top,60%,wrap-word')
+  $fzfArgs.Add('+{2}-/2,top,60%,wrap-word')
 
   if ($IsWindows -or ($env:OS -eq 'Windows_NT')) {
     # fzf does not consistently recognize ctrl-/ and ctrl-^ at exactly 100%.
@@ -153,7 +153,7 @@ if ($Display) {
   $fzfArgs.Add('--bind')
   $fzfArgs.Add('ctrl-/:change-preview-window(down|hidden|)')
   $fzfArgs.Add('--preview-window')
-  $fzfArgs.Add('right,60%,wrap-word')
+  $fzfArgs.Add('+{2}-/2,right,60%,wrap-word')
 }
 
 foreach ($farg in ($GLB_FZF_ARGS -Split ' ')) {
