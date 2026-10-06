@@ -164,16 +164,18 @@ select_line () {
 
   # Expanded later by the fzf preview shell.
   # shellcheck disable=SC2016
-  file_preview='
+  file_preview="
     FILE={1}
-    NUMBER={2}
+    LINE={2}
+    NUMBER=\$(test -z \"\$LINE\" && echo '0' || echo \"\$LINE\")
+
     if command -v bat &>/dev/null; then
-      bat --style="${BAT_STYLE:-numbers}" --color=always --pager=never \
-        --highlight-line="$NUMBER" $GLB_BAT_ARGS -- "$FILE"
+      bat --style='${BAT_STYLE:-numbers}' --color=always --pager=never \
+        --highlight-line=\"\$NUMBER\" $GLB_BAT_ARGS -- \"\$FILE\"
     else
-      cat -- "$FILE"
+      cat -- \"\$FILE\"
     fi
-  '
+  "
 
   # shellcheck disable=SC2016
   commits_preview='
