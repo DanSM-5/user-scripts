@@ -126,7 +126,7 @@ fzf_args=()
 if [ "$fullscreen" = true ]; then
   fzf_args+=(
     '--bind' 'ctrl-/:change-preview-window(right|hidden|)'
-    '--preview-window' 'top,60%,wrap-word'
+    '--preview-window' '+{2}-/2,top,60%,wrap-word'
   )
 
   if [ "$OS" = 'Windows_NT' ]; then
@@ -140,7 +140,7 @@ else
   fzf_args+=(
     '--height' '80%'
     '--bind' 'ctrl-/:change-preview-window(down|hidden|)'
-    '--preview-window' 'right,60%,wrap-word'
+    '--preview-window' '+{2}-/2,right,60%,wrap-word'
   )
 fi
 
@@ -169,9 +169,13 @@ select_line () {
     LINE={2}
     NUMBER=\$(test -z \"\$LINE\" && echo '0' || echo \"\$LINE\")
 
+    if [ -z \"\$NUMBER\" ]; then
+      NUMBER=0
+    fi
+
     if command -v bat &>/dev/null; then
       bat --style='${BAT_STYLE:-numbers}' --color=always --pager=never \
-        --highlight-line=\"\$NUMBER\" $GLB_BAT_ARGS -- \"\$FILE\"
+        --highlight-line=\$NUMBER $GLB_BAT_ARGS -- \"\$FILE\"
     else
       cat -- \"\$FILE\"
     fi
